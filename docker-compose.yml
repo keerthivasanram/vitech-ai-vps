@@ -69,6 +69,15 @@ services:
     ports: ["8080:8000"]
     restart: unless-stopped
 
+  frontend:
+    build: ./frontend
+    depends_on: [backend]
+    # nginx serves the built React app and proxies /api/* to the backend
+    # service by name (see frontend/nginx.conf) — the browser only ever
+    # talks to this container.
+    ports: ["5173:80"]
+    restart: unless-stopped
+
 volumes:
   ollama:
   chroma:
