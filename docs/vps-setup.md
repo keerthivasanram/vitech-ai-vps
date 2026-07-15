@@ -72,18 +72,68 @@ curl -s -X POST localhost:8080/api/tools/quote \
 Open `http://<POD_IP>:3000` (login with FLOWISE_USERNAME/PASSWORD), then:
 1. **Chatflow -> Add New**.
 2. **ChatOllama**: Base URL `http://ollama:11434`, model `llama3`, temp `0.2`.
-3. **Ollama Embeddings** (`nomic-embed-text`) -> **Chroma** node: URL
-   `http://chroma:8000`, your collection. *(Retrieval only if the collection was
-   embedded with the SAME model — otherwise re-ingest through Flowise.)*
-4. **Postgres Chat Memory**: host `postgres`, db/user/pass from `.env`.
-5. **Tool Agent** node: wire in ChatOllama + Chroma + Memory + Custom Tools.
-6. **Custom Tools** — one per capability, each `fetch`ing the backend:
-   - `generate_specification` -> `POST http://backend:8000/api/tools/spec`
-   - `generate_quotation`     -> `POST http://backend:8000/api/tools/quote`
-   - `lookup_project`         -> `POST http://backend:8000/api/tools/lookup`
-   (inside the compose network the backend is `http://backend:8000`.)
-7. Paste the Engineering Agent **system prompt** (senior engineer; never invent
-   numbers — always call the tool).
+3. **Postgres Chat Memory**: host `postgres`, db/user/pass from `.env`.
+4. **Tool Agent** node: wire in ChatOllama + Memory + the Custom Tools below.
+5. **Custom Tools** — one per capability, each `fetch`ing the backend (inside
+   the compose network the backend is `http://backend:8000`):
+   - `retrieve_knowledge`      -> `POST /api/tools/retrieve` — search the KB with metadata filter
+   - `generate_specification`  -> `POST /api/tools/spec`     — deterministic engineered spec
+   - `generate_quotation`      -> `POST /api/tools/quote`    — deterministic budgetary price
+   - `lookup_project`          -> `POST /api/tools/lookup`   — a named client / offer's data
+6. Paste the Engineering Agent **system prompt** (below).
+
+> **Do NOT use a Flowise "Ollama Embeddings + Chroma retriever" node for search.**
+> The collection was embedded with **all-MiniLM-L6-v2**; a Flowise Chroma node
+> using `nomic-embed-text` reads it with the wrong model and retrieval silently
+> breaks (the #1 gotcha). The `retrieve_knowledge` tool goes through the backend,
+> which uses the *same* embedding model AND adds metadata filtering — so the
+> agent searches Chroma correctly and can pre-filter by equipment type, customer,
+> project, section, revision.
+
+### `retrieve_knowledge` Custom Tool
+Input variables: `question` (string), `equipment_type` (string, optional),
+`section` (string, optional). Function body:
+```js
+const res = await fetch("http://backend:8000/api/tools/retrieve", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    question: $question,
+    filters: {
+      ...($equipment_type ? { equipment_type: $equipment_type } : {}),
+      ...($section ? { section: $section } : {}),
+    },
+  }),
+});
+return JSON.stringify(await res.json());
+```
+(The other three tools follow the same shape, POSTing `{ question }` to their
+endpoint.) Discover valid filter values any time with `GET /api/tools/filters`.
+
+### Engineering Agent system prompt (paste verbatim)
+```
+You are a senior process/mechanical engineer at Vitech Enviro Systems. You turn
+a customer requirement into a technical specification. Follow this workflow every
+time:
+
+1. Read the customer's requirement and identify the equipment type.
+2. Call retrieve_knowledge to pull similar historical projects and any relevant
+   standards. Filter by equipment_type (and section="technical_specification"
+   when you want past specs).
+3. Call generate_specification with the requirement. Its returned numbers are
+   AUTHORITATIVE and DETERMINISTIC.
+4. Write the specification, combining the retrieved engineering knowledge (for
+   context, materials, standards, approach) with the tool's calculated values.
+
+Hard rules:
+- NEVER invent or alter a dimension, capacity, count, price, or material. Every
+  number MUST come from generate_specification (or generate_quotation). If a
+  value is not in a tool result, it is "To Be Determined".
+- If generate_specification reports missing_inputs, ASK the customer for exactly
+  those inputs. Do not guess them.
+- Present the output as an engineer-reviewed DRAFT for human approval.
+- Cite source files from the tool results where relevant.
+```
 
 ## 10. Wire the frontend
 Flowise exposes `POST /api/v1/prediction/<chatflowId>`. Your FastAPI calls that

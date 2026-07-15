@@ -30,6 +30,10 @@ from .retriever import (all_hits, entity_hits, has_offers, is_analytical,
 from .store import get_collection
 from .understand import contextualize, understand
 
+# Knowledge-base document retrieval (rich metadata filtering) lives in the
+# sibling `rag` package — the read side of the document ingestion pipeline.
+from rag.retrieve import available_filters, retrieve_documents
+
 app = FastAPI(title="ATS Engineering Assistant")
 
 app.add_middleware(
@@ -350,6 +354,55 @@ def tool_lookup(payload: dict = Body(...)):
     if not recs:
         return {"ok": False, "message": "No matching client or offer found."}
     return {"ok": True, "text": text, "records": recs[:4]}
+
+
+# filter keys the agent may pass either nested under "filters" or at top level
+_RETRIEVE_FILTER_KEYS = ("equipment_type", "customer", "project", "doc_category",
+                         "revision", "offer_number", "date", "section", "kind")
+
+
+@app.post("/api/tools/retrieve")
+def tool_retrieve(payload: dict = Body(...)):
+    """Search the engineering knowledge base (ingested reference documents:
+    standards, catalogs, past-offer source files) with an optional metadata
+    filter applied BEFORE semantic search. This is the Engineering Agent's
+    'search ChromaDB' step — it grounds the narrative, while the numbers still
+    come from /api/tools/spec. Never reasons over the numbers itself.
+
+    Body: {"question": "...", "top_k": 6,
+           "filters": {"equipment_type": "wet_scrubber", "section": "technical_specification"}}
+    (filter keys may also be passed at the top level for convenience).
+    """
+    q = _tool_q(payload)
+    filters = dict(payload.get("filters") or {})
+    for key in _RETRIEVE_FILTER_KEYS:
+        if payload.get(key) is not None:
+            filters[key] = payload[key]
+    try:
+        top_k = max(1, min(int(payload.get("top_k", 6)), 20))
+    except (TypeError, ValueError):
+        top_k = 6
+
+    hits = retrieve_documents(q, top_k=top_k, filters=filters)
+    return {
+        "ok": True,
+        "query": q,
+        "filters": {k: v for k, v in filters.items() if v is not None},
+        "count": len(hits),
+        "results": [
+            {"source_file": h.get("source_file"), "section": h.get("section"),
+             "page": h.get("page"), "equipment_type": h.get("equipment_type"),
+             "kind": h.get("kind"), "score": h.get("score"), "text": h.get("text")}
+            for h in hits
+        ],
+    }
+
+
+@app.get("/api/tools/filters")
+def tool_filters():
+    """Distinct metadata values present across the knowledge base, so the agent
+    (or UI) can pick a filter that actually matches something."""
+    return {"ok": True, "filters": available_filters()}
 
 
 @app.get("/api/offers")
