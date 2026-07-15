@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ATS Engineering Assistant — Client Review & Next Steps</title>
+<style>
+  :root{
+    --bg:#ffffff; --bg2:#f8fafc; --panel:#f1f5f9; --text:#0f172a; --muted:#64748b;
+    --accent:#4f6ef7; --accent-2:#3451e0; --ok:#059669; --warn:#d97706; --navy:#1e3a8a;
+    --border:#e2e8f0; --border2:#cbd5e1;
+    --shadow:0 1px 3px rgba(0,0,0,.06), 0 8px 30px rgba(15,23,42,.07);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg2);color:var(--text);
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.55;}
+  .wrap{max-width:900px;margin:0 auto;padding:36px 28px 64px;}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  h1{font-size:28px;margin:6px 0 4px;letter-spacing:-.02em;}
+  h2{font-size:19px;margin:34px 0 12px;padding-bottom:7px;border-bottom:2px solid var(--panel);}
+  h3{font-size:15px;margin:0 0 6px;}
+  .sub{color:var(--muted);font-size:15px;margin:0;}
+  .meta{margin-top:10px;font-size:13px;color:var(--muted);}
+  p{margin:8px 0;}
+  .lead{font-size:15.5px;background:#eef2ff;border:1px solid #d7ddfb;border-radius:12px;padding:16px 18px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
+  .card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);}
+  .card .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px;vertical-align:middle;}
+  .card p{font-size:13.5px;color:#475569;margin:4px 0 0;}
+  ul{margin:8px 0;padding-left:22px;} li{margin:5px 0;font-size:14.5px;}
+  ol{margin:8px 0;padding-left:22px;}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top;}
+  th{background:var(--panel);color:var(--navy);font-size:12px;text-transform:uppercase;letter-spacing:.04em;}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;}
+  .tag.done{background:rgba(5,150,105,.12);color:var(--ok);}
+  .tag.next{background:rgba(79,110,247,.12);color:var(--accent);}
+  .tag.later{background:var(--panel);color:var(--muted);}
+  .step{display:flex;gap:13px;align-items:flex-start;margin:12px 0;}
+  .step .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;}
+  .ask{background:var(--bg);border:1px solid var(--border);border-left:4px solid var(--warn);border-radius:10px;padding:13px 16px;margin:10px 0;}
+  .ask b{color:var(--navy);}
+  .foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12.5px;text-align:center;}
+  a{color:var(--accent-2);}
+  @media (max-width:720px){.grid{grid-template-columns:1fr;}}
+  @media print{body{background:#fff;} .card,.lead,.ask{box-shadow:none;} .wrap{max-width:none;} h2{break-after:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Vitech Enviro Systems &nbsp;·&nbsp; ATS Engineering Assistant</div>
+    <h1>Project Review &amp; Next Steps</h1>
+    <p class="sub">What we have built, how it works, and what we need from you to build the next phase.</p>
+    <p class="meta">Prepared for the client review meeting &nbsp;•&nbsp; Confidential — internal &amp; client use</p>
+  </header>
+
+  <p class="lead">
+    We have a <b>working prototype</b> of an AI engineering assistant that turns a client requirement into a
+    technical specification and a budgetary quotation — grounded in Vitech's own historical offers, with
+    <b>every number traceable</b>. It uses generative AI for language and understanding, and a deterministic
+    engineering engine for the numbers, so it does not invent specs or prices. The next phase makes it learn
+    from <b>all</b> of your files automatically (offers and CAD drawings) through a structured database.
+  </p>
+
+  <h2>1. Meeting agenda</h2>
+  <ol>
+    <li>Demo of the current prototype (specification + quotation + Q&amp;A).</li>
+    <li>How it works and why the output is trustworthy.</li>
+    <li>The next phase: automatic data extraction &amp; a structured knowledge base.</li>
+    <li>What we need from you — data, files, and a few decisions.</li>
+    <li>Agree the immediate next step and timeline.</li>
+  </ol>
+
+  <h2>2. What we have built (prototype)</h2>
+  <div class="grid">
+    <div class="card">
+      <h3><span class="dot" style="background:var(--accent)"></span>Specification engine</h3>
+      <p>Generates a technical spec for a new requirement by adapting your closest past projects, refined by
+      engineering rules. Each value is tagged with its source and a confidence score.</p>
+    </div>
+    <div class="card">
+      <h3><span class="dot" style="background:var(--warn)"></span>Two expert modes, one engine</h3>
+      <p><b>Consulting Engineer</b> designs from engineering knowledge; <b>ATS Engineering Expert</b> builds
+      from your historical offers. Same system, you choose the source of truth.</p>
+    </div>
+    <div class="card">
+      <h3><span class="dot" style="background:var(--ok)"></span>Quotation agent</h3>
+      <p>Budgetary price derived from your offers (nearest project, scaled by size, cross-checked against a
+      price trend), plus scope of supply and standard commercial terms — as a reviewable draft.</p>
+    </div>
+    <div class="card">
+      <h3><span class="dot" style="background:var(--navy)"></span>Grounded knowledge base</h3>
+      <p>Loaded with <b>33 real Vitech offers across 10 equipment types</b>. Exact analytics (counts, lists,
+      clients) are computed in code, and general engineering questions are answered conversationally.</p>
+    </div>
+  </div>
+
+  <h2>3. How it works</h2>
+  <p>Every request flows through the same pipeline:</p>
+  <p style="font-size:14px;background:var(--panel);border-radius:10px;padding:12px 15px;">
+    <b>Understand</b> the request &nbsp;→&nbsp; <b>Retrieve</b> similar past projects &nbsp;→&nbsp;
+    <b>Reason</b> (engineering rules + case-based adaptation from your data) &nbsp;→&nbsp;
+    <b>Validate</b> &amp; score confidence &nbsp;→&nbsp; <b>Explain</b> in plain language.
+  </p>
+  <p>The guiding principle: <b>the AI writes the words; engineering rules and your real offers write every
+  number.</b> A diagram of the full architecture is included separately
+  (<a href="architecture.html">architecture.html</a>).</p>
+
+  <h2>4. Why the output is trustworthy</h2>
+  <p>It is generative AI, but deliberately <em>grounded</em> — not a chatbot that guesses. The difference:</p>
+  <table>
+    <tr><th>Aspect</th><th>A plain AI chatbot</th><th>Our assistant</th></tr>
+    <tr><td>Where numbers come from</td><td>Invented from memory</td><td><b>Rules + your historical offers</b>, computed deterministically</td></tr>
+    <tr><td>Traceability</td><td>None</td><td><b>Every value cites its source</b> + a confidence score</td></tr>
+    <tr><td>Engineering checks</td><td>None</td><td><b>Validated</b> against engineering limits</td></tr>
+    <tr><td>When unsure</td><td>Confidently wrong</td><td>Says <b>"to be determined"</b> / flags low confidence</td></tr>
+    <tr><td>Control</td><td>Auto-generated</td><td><b>Engineer-reviewed draft</b> before it goes out</td></tr>
+  </table>
+
+  <h2>5. The next phase — what we will build</h2>
+  <table>
+    <tr><th>Step</th><th>What it delivers</th><th>Status</th></tr>
+    <tr><td><b>Automatic data extraction</b></td><td>Upload your offer PDFs and CAD drawings; the system extracts client details, technical specs, tables and prices automatically — no manual entry.</td><td><span class="tag next">Next</span></td></tr>
+    <tr><td><b>Structured database</b></td><td>All extracted data in one organised, queryable database (e.g. "all scrubbers over 1000 CFM", "all offers for client X").</td><td><span class="tag next">Next</span></td></tr>
+    <tr><td><b>Quotation document</b></td><td>Downloadable quotation in the Vitech format (draft built; to be finalised with your template).</td><td><span class="tag done">Prototype done</span></td></tr>
+    <tr><td><b>CAD drawing assistant</b></td><td>Generate a dimensioned 2D general-arrangement drawing from the spec.</td><td><span class="tag later">Later phase</span></td></tr>
+  </table>
+  <p style="font-size:13.5px;color:var(--muted)">Throughout, numbers stay deterministic and every output remains an
+  engineer-reviewed draft — nothing is auto-sent.</p>
+
+  <h2>6. What we need from you</h2>
+  <p>To build the next phase well, we need data and a few decisions. These are the discussion points for the meeting:</p>
+
+  <div class="ask"><b>Historical data (most important).</b> Can you share a larger set of past offers/quotations? Roughly how many do you have, and in what form (a shared folder, an ERP export, email attachments)? More real data directly improves accuracy.</div>
+  <div class="ask"><b>File formats — offers.</b> Are your offer documents native/digital PDFs (text you can select) or scanned images? This decides whether we can read them directly or need image recognition (OCR).</div>
+  <div class="ask"><b>File formats — CAD.</b> Which formats do you work in — DWG, DXF, or PDF/image exports? Do drawings use a standard title-block template? This decides how reliably we can read dimensions and details.</div>
+  <div class="ask"><b>Priority equipment.</b> Which product lines should we cover first (wet scrubbers, paint/powder booths, dust collectors, ovens…)? We tune the engineering rules per category.</div>
+  <div class="ask"><b>Pricing &amp; costing.</b> Do you have a rate card or component-cost data? Today we estimate at system level; a rate card would let us cost line-by-line. Also: standard margin and rounding conventions.</div>
+  <div class="ask"><b>Commercial terms &amp; branding.</b> Your standard validity, payment, delivery and warranty wording, plus letterhead details (logo, address, GST) so quotations print in your official format.</div>
+  <div class="ask"><b>Workflow &amp; approvals.</b> Who prepares and who approves a spec/quotation today? Where should the assistant fit, and who is the reviewer before anything is issued?</div>
+  <div class="ask"><b>Deployment &amp; privacy.</b> Should this run on your own hardware/on-premise (data stays in-house) or in the cloud? Any hardware available (e.g. a GPU machine)?</div>
+  <div class="ask"><b>Scale.</b> Roughly how many quotations/specs per week, and how many users? This sizes the system.</div>
+  <div class="ask"><b>Success criteria.</b> What would make this a clear win for you in the first phase (time saved per quote, consistency, fewer errors)? We will measure against it.</div>
+
+  <h2>7. Proposed immediate next step</h2>
+  <div class="step"><span class="n">1</span><div>You share a batch of sample offer files (and a few CAD drawings) and answer the format questions above.</div></div>
+  <div class="step"><span class="n">2</span><div>We build the extraction pipeline and structured database, and load it from your real files.</div></div>
+  <div class="step"><span class="n">3</span><div>We validate accuracy against a set you confirm, then review the results together and plan the quotation-document and CAD phases.</div></div>
+
+  <div class="foot">
+    ATS Engineering Assistant &nbsp;·&nbsp; Vitech Enviro Systems &nbsp;·&nbsp; Generative AI, grounded in your data.<br/>
+    Every number traceable — engineer-reviewed drafts, not auto-sent.
+  </div>
+
+</div>
+</body>
+</html>

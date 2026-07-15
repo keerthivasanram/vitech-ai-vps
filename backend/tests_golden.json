@@ -1,0 +1,858 @@
+{
+  "wet scrubber for 735 cfm 700mm tower 1 no": {
+    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 735\n- ✓ Air volume cmh: 1250\n- ✓ Tower diameter (mm): 700\n- ✓ Qty: 1\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Air volume cfm:** 735 — Client requirement (authoritative).\n- **Air volume cmh:** 1250 — Client requirement (authoritative).\n- **Tower diameter (mm):** 700 — Client requirement (authoritative).\n- **Tower height (m):** 3.5 — 5 x tower diameter 700 mm (gas-liquid contact height) (ATS spray-tower height standard).\n- **Scrubber chamber:** SS-304 2mm — Observed in 3 of 5 comparable projects (historical consensus).\n- **Scrubber tank:** SS-304 2mm — Reused from nearest design OFF-C2C-WS-178 (exact airflow match).\n- **No. of towers:** 1 — Reused from nearest design OFF-C2C-WS-178 (exact airflow match).\n- **Spray nozzles (nos):** 17 — recirculation L/G 5.0 L/m3 x 1250 m3/h = 104 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Spray nozzle material:** SS-304 — Reused from nearest design OFF-C2C-WS-178 (exact airflow match).\n- **Pump capacity (HP):** 1 — P = rho.g.Q.H / eff with Q 104 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 0.95, selected nearest standard 1.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Eliminator / demister:** PP 650mm dia x 150mm thick — Reused from nearest design OFF-C2C-WS-178 (exact airflow match).\n- **Tank capacity (litre):** 250 — 104 L/min x 2.5 min retention (ATS recirculation-tank standard); calculated 260.42, selected nearest standard 250.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower static pressure mmwc:** 200 — Reused from nearest design OFF-C2C-WS-178 (exact airflow match).\n- **Blower motor hp:** 2 — Reused from nearest design OFF-C2C-WS-178 (exact airflow match).\n- **Finish:** SS scrubber 2b; MS - epoxy primer and epoxy top coat — Reused from nearest design OFF-C2C-WS-178 (exact airflow match).\n\n**Engineering checks**\n- ✓ Gas velocity 0.90 m/s is within the design range (0.7-1.5 m/s) for the 700 mm tower.\n- • Operating temperature not given - ambient assumed. A hot gas stream would need pre-cooling and a material/finish review.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-C2C-WS-178** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 59% (10/17 decisions)\n- Validation: 100%\n\n**Overall confidence: 90% (High).** Missing inputs: Operating temperature, Operating pressure.\n\n_Provenance: 17 decisions — 3 client requirement, 4 engineering rule, 3 historical consensus, 7 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: C2C _Sika _Jaipur_R2 240523.pdf_",
+    "spec_writeup_sha": "3e9fbba00b2e0f46ae1ed27ea97a29fd98d7d19d32e2d3f72e2746c3a4faf1e1",
+    "nearest_match": "OFF-C2C-WS-178",
+    "confidence_pct": 90,
+    "confidence_label": "High",
+    "decision_origin": [
+      {
+        "type": "Engineering Rule",
+        "count": 4
+      },
+      {
+        "type": "Inferred",
+        "count": 0
+      },
+      {
+        "type": "Historical Consensus",
+        "count": 3
+      },
+      {
+        "type": "Reused",
+        "count": 7
+      },
+      {
+        "type": "From Requirement",
+        "count": 3
+      }
+    ],
+    "n_ledger": 17,
+    "n_validation": 3,
+    "technical": [
+      [
+        "Air volume cfm",
+        "735",
+        "given"
+      ],
+      [
+        "Air volume cmh",
+        "1250",
+        "given"
+      ],
+      [
+        "Tower diameter (mm)",
+        "700",
+        "given"
+      ],
+      [
+        "Tower height (m)",
+        "3.5",
+        "rule"
+      ],
+      [
+        "Scrubber chamber",
+        "SS-304 2mm",
+        "consistent"
+      ],
+      [
+        "Scrubber tank",
+        "SS-304 2mm",
+        "reused"
+      ],
+      [
+        "No. of towers",
+        "1",
+        "reused"
+      ],
+      [
+        "Spray nozzles (nos)",
+        "17",
+        "rule"
+      ],
+      [
+        "Spray nozzle material",
+        "SS-304",
+        "reused"
+      ],
+      [
+        "Pump capacity (HP)",
+        "1",
+        "rule"
+      ],
+      [
+        "Pump make",
+        "ANALA",
+        "consistent"
+      ],
+      [
+        "Eliminator / demister",
+        "PP 650mm dia x 150mm thick",
+        "reused"
+      ],
+      [
+        "Tank capacity (litre)",
+        "250",
+        "rule"
+      ],
+      [
+        "Blower type",
+        "centrifugal",
+        "consistent"
+      ],
+      [
+        "Blower static pressure mmwc",
+        "200",
+        "reused"
+      ],
+      [
+        "Blower motor hp",
+        "2",
+        "reused"
+      ],
+      [
+        "Finish",
+        "SS scrubber 2b; MS - epoxy primer and epoxy top coat",
+        "reused"
+      ]
+    ]
+  },
+  "wet scrubber for 800 cfm 750mm tower 4 nos": {
+    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 800\n- ✓ Air volume cmh: 1359\n- ✓ Tower diameter (mm): 750\n- ✓ Qty: 4\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n> **Quantity:** 4 complete wet scrubber units are required. The specification below is **per unit** — each unit has its own tower, pump, spray nozzles and tank as listed.\n\n**Recommended specification (per unit)**\n- **Air volume cfm:** 800 — Client requirement (authoritative).\n- **Air volume cmh:** 1359 — Client requirement (authoritative).\n- **Scrubber type:** horizontal baffle plate - blower mounted over scrubber — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Scrubber dimension:** 700mm W x 1700mm L — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Scrubber chamber:** SS-304 2mm — Observed in 3 of 5 comparable projects (historical consensus).\n- **Scrubber tank:** SS-304 2mm (MS painted base/supports) — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Spray nozzles (nos):** 19 — recirculation L/G 5.0 L/m3 x 1359 m3/h = 113 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Spray nozzle material:** SS-304 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Pump capacity (HP):** 1 — P = rho.g.Q.H / eff with Q 113 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 1.03, selected nearest standard 1.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Eliminator / demister:** PP 250mm W x 650mm L x 150mm thick — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Tank capacity (litre):** 300 — 113 L/min x 2.5 min retention (ATS recirculation-tank standard); calculated 283.12, selected nearest standard 300.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower static pressure mmwc:** 250 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Blower motor hp:** 3 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Finish:** SS 2B scrubber; MS - epoxy primer + epoxy black top coat — Reused from nearest design OFF-C2C-WS-20240921R1.\n\n**Engineering checks**\n- ✓ Gas velocity 0.85 m/s is within the design range (0.7-1.5 m/s) for the 750 mm tower.\n- • Operating temperature not given - ambient assumed. A hot gas stream would need pre-cooling and a material/finish review.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n- • 8 component(s) were reused from OFF-C2C-WS-20240921R1 (a 1530 m3/h design) for a 1359 m3/h duty - confirm they still suit the new airflow.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-C2C-WS-20240921R1** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 50% (8/16 decisions)\n- Validation: 100%\n\n**Overall confidence: 88% (High).** Missing inputs: Operating temperature, Operating pressure.\n\n_Provenance: 16 decisions — 2 client requirement, 8 reused from historical offer, 3 historical consensus, 3 engineering rule. Every value is traceable to its source (see decision ledger)._\n\n_Source: C2C R1 131124.pdf_",
+    "spec_writeup_sha": "f1ef3b0ee7bc4a775f0e73a3357f38d666cb0aefb90e73a6bc9c2620770e90c7",
+    "nearest_match": "OFF-C2C-WS-20240921R1",
+    "confidence_pct": 88,
+    "confidence_label": "High",
+    "decision_origin": [
+      {
+        "type": "Engineering Rule",
+        "count": 3
+      },
+      {
+        "type": "Inferred",
+        "count": 0
+      },
+      {
+        "type": "Historical Consensus",
+        "count": 3
+      },
+      {
+        "type": "Reused",
+        "count": 8
+      },
+      {
+        "type": "From Requirement",
+        "count": 2
+      }
+    ],
+    "n_ledger": 16,
+    "n_validation": 4,
+    "technical": [
+      [
+        "Air volume cfm",
+        "800",
+        "given"
+      ],
+      [
+        "Air volume cmh",
+        "1359",
+        "given"
+      ],
+      [
+        "Scrubber type",
+        "horizontal baffle plate - blower mounted over scrubber",
+        "reused"
+      ],
+      [
+        "Scrubber dimension",
+        "700mm W x 1700mm L",
+        "reused"
+      ],
+      [
+        "Scrubber chamber",
+        "SS-304 2mm",
+        "consistent"
+      ],
+      [
+        "Scrubber tank",
+        "SS-304 2mm (MS painted base/supports)",
+        "reused"
+      ],
+      [
+        "Spray nozzles (nos)",
+        "19",
+        "rule"
+      ],
+      [
+        "Spray nozzle material",
+        "SS-304",
+        "reused"
+      ],
+      [
+        "Pump capacity (HP)",
+        "1",
+        "rule"
+      ],
+      [
+        "Pump make",
+        "ANALA",
+        "consistent"
+      ],
+      [
+        "Eliminator / demister",
+        "PP 250mm W x 650mm L x 150mm thick",
+        "reused"
+      ],
+      [
+        "Tank capacity (litre)",
+        "300",
+        "rule"
+      ],
+      [
+        "Blower type",
+        "centrifugal",
+        "consistent"
+      ],
+      [
+        "Blower static pressure mmwc",
+        "250",
+        "reused"
+      ],
+      [
+        "Blower motor hp",
+        "3",
+        "reused"
+      ],
+      [
+        "Finish",
+        "SS 2B scrubber; MS - epoxy primer + epoxy black top coat",
+        "reused"
+      ]
+    ]
+  },
+  "wet scrubber for 3000 cfm 1000mm tower 2 nos": {
+    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 3000\n- ✓ Air volume cmh: 5097\n- ✓ Tower diameter (mm): 1000\n- ✓ Qty: 2\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 1\n- Missing inputs: None\n\n> **Quantity:** 2 complete wet scrubber units are required. The specification below is **per unit** — each unit has its own tower, pump, spray nozzles and tank as listed.\n\n**Recommended specification (per unit)**\n- **Air volume cmh:** 5097 — Client requirement (authoritative).\n- **Tower diameter (mm):** 1000 — Client requirement (authoritative).\n- **Tower height (m):** 5 — 5 x tower diameter 1000 mm (gas-liquid contact height) (ATS spray-tower height standard).\n- **Scrubber chamber:** 10mm (5mm PP + 5mm FRP lining) — Reused from nearest design OFF-MECCA-WS-164.\n- **No. of towers:** 2 — Reused from nearest design OFF-MECCA-WS-164.\n- **Spray nozzles (nos):** 71 — recirculation L/G 5.0 L/m3 x 5097 m3/h = 425 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Spray nozzle material:** PP — Reused from nearest design OFF-MECCA-WS-164.\n- **Pump capacity (HP):** 3 — P = rho.g.Q.H / eff with Q 425 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 3.88, selected nearest standard 3.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Packing:** PP pall rings — Reused from nearest design OFF-MECCA-WS-164.\n- **Eliminator / demister:** PP mist eliminator / pall rings — Reused from nearest design OFF-MECCA-WS-164.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower motor hp:** 12.5 — Reused from nearest design OFF-MECCA-WS-164.\n- **Blower moc:** PP + FRP — Reused from nearest design OFF-MECCA-WS-164.\n- **Ph controller:** Mepcco PhM 600-1 — Reused from nearest design OFF-MECCA-WS-164.\n\n**Engineering checks**\n- ⚠ Gas velocity is 1.80 m/s - above ~1.5 m/s, so droplet carry-over is likely. Consider a larger tower (about 1343 mm) or a higher-efficiency demister.\n- • Operating temperature not given - ambient assumed. A hot gas stream would need pre-cooling and a material/finish review.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n- • 8 component(s) were reused from OFF-MECCA-WS-164 (a 6100 m3/h design) for a 5097 m3/h duty - confirm they still suit the new airflow.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-MECCA-WS-164** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 47% (7/15 decisions)\n- Validation: 75%\n\n**Overall confidence: 83% (High).** Missing inputs: Operating temperature, Operating pressure. 1 engineering check(s) flagged - see Engineering checks.\n\n_Provenance: 15 decisions — 2 client requirement, 3 engineering rule, 8 reused from historical offer, 2 historical consensus. Every value is traceable to its source (see decision ledger)._\n\n_Source: MECCANOTECNICA_WET SCRUBBERS_R4_240623.pdf_",
+    "spec_writeup_sha": "13a8c3f7cd2e6a9c100e2554da3ff3484b7ade836057d1a572e3a842b7790d36",
+    "nearest_match": "OFF-MECCA-WS-164",
+    "confidence_pct": 83,
+    "confidence_label": "High",
+    "decision_origin": [
+      {
+        "type": "Engineering Rule",
+        "count": 3
+      },
+      {
+        "type": "Inferred",
+        "count": 0
+      },
+      {
+        "type": "Historical Consensus",
+        "count": 2
+      },
+      {
+        "type": "Reused",
+        "count": 8
+      },
+      {
+        "type": "From Requirement",
+        "count": 2
+      }
+    ],
+    "n_ledger": 15,
+    "n_validation": 4,
+    "technical": [
+      [
+        "Air volume cmh",
+        "5097",
+        "given"
+      ],
+      [
+        "Tower diameter (mm)",
+        "1000",
+        "given"
+      ],
+      [
+        "Tower height (m)",
+        "5",
+        "rule"
+      ],
+      [
+        "Scrubber chamber",
+        "10mm (5mm PP + 5mm FRP lining)",
+        "reused"
+      ],
+      [
+        "No. of towers",
+        "2",
+        "reused"
+      ],
+      [
+        "Spray nozzles (nos)",
+        "71",
+        "rule"
+      ],
+      [
+        "Spray nozzle material",
+        "PP",
+        "reused"
+      ],
+      [
+        "Pump capacity (HP)",
+        "3",
+        "rule"
+      ],
+      [
+        "Pump make",
+        "ANALA",
+        "consistent"
+      ],
+      [
+        "Packing",
+        "PP pall rings",
+        "reused"
+      ],
+      [
+        "Eliminator / demister",
+        "PP mist eliminator / pall rings",
+        "reused"
+      ],
+      [
+        "Blower type",
+        "centrifugal",
+        "consistent"
+      ],
+      [
+        "Blower motor hp",
+        "12.5",
+        "reused"
+      ],
+      [
+        "Blower moc",
+        "PP + FRP",
+        "reused"
+      ],
+      [
+        "Ph controller",
+        "Mepcco PhM 600-1",
+        "reused"
+      ]
+    ]
+  },
+  "wet scrubber for 2300 cfm 1000mm tower 80C 1 no": {
+    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 2300\n- ✓ Air volume cmh: 4000\n- ✓ Tower diameter (mm): 1000\n- ✓ Operating temp: 80C\n- ✓ Qty: 1\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Air volume cfm:** 2300 — Client requirement (authoritative).\n- **Air volume cmh:** 4000 — Client requirement (authoritative).\n- **Tower diameter (mm):** 1000 — Client requirement (authoritative).\n- **Tower height (m):** 5 — 5 x tower diameter 1000 mm (gas-liquid contact height) (ATS spray-tower height standard).\n- **Scrubber chamber:** SS-304 2mm — Observed in 3 of 5 comparable projects (historical consensus).\n- **Scrubber tank:** SS-304 3mm — Reused from nearest design OFF-OREN-WS-192 (exact airflow match).\n- **No. of towers:** 1 — Reused from nearest design OFF-OREN-WS-192 (exact airflow match).\n- **Spray nozzles (nos):** 56 — recirculation L/G 5.0 L/m3 x 4000 m3/h = 333 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Pump capacity (HP):** 3 — P = rho.g.Q.H / eff with Q 333 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 3.05, selected nearest standard 3.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Eliminator / demister:** PP 950mm dia x 150mm thick — Reused from nearest design OFF-OREN-WS-192 (exact airflow match).\n- **Tank capacity (litre):** 750 — 333 L/min x 2.5 min retention (ATS recirculation-tank standard); calculated 833.33, selected nearest standard 750.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower static pressure mmwc:** 200 — Reused from nearest design OFF-OREN-WS-192 (exact airflow match).\n- **Blower motor hp:** 5 — Reused from nearest design OFF-OREN-WS-192 (exact airflow match).\n- **Blower moc:** SS-304 — Reused from nearest design OFF-OREN-WS-192 (exact airflow match).\n- **Finish:** SS-304 — Reused from nearest design OFF-OREN-WS-192 (exact airflow match).\n\n**Engineering checks**\n- ✓ Gas velocity 1.41 m/s is within the design range (0.7-1.5 m/s) for the 1000 mm tower.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-OREN-WS-192** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 59% (10/17 decisions)\n- Validation: 100%\n\n**Overall confidence: 90% (High).** Missing inputs: Operating pressure.\n\n_Provenance: 17 decisions — 3 client requirement, 4 engineering rule, 3 historical consensus, 7 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: OREN HYDROCARBON SS SCRUBBER_R4 130923.pdf_",
+    "spec_writeup_sha": "4724a991b055f2b33613da5a150c86179d41ef7c1c3e59026bec3064f9b53225",
+    "nearest_match": "OFF-OREN-WS-192",
+    "confidence_pct": 90,
+    "confidence_label": "High",
+    "decision_origin": [
+      {
+        "type": "Engineering Rule",
+        "count": 4
+      },
+      {
+        "type": "Inferred",
+        "count": 0
+      },
+      {
+        "type": "Historical Consensus",
+        "count": 3
+      },
+      {
+        "type": "Reused",
+        "count": 7
+      },
+      {
+        "type": "From Requirement",
+        "count": 3
+      }
+    ],
+    "n_ledger": 17,
+    "n_validation": 2,
+    "technical": [
+      [
+        "Air volume cfm",
+        "2300",
+        "given"
+      ],
+      [
+        "Air volume cmh",
+        "4000",
+        "given"
+      ],
+      [
+        "Tower diameter (mm)",
+        "1000",
+        "given"
+      ],
+      [
+        "Tower height (m)",
+        "5",
+        "rule"
+      ],
+      [
+        "Scrubber chamber",
+        "SS-304 2mm",
+        "consistent"
+      ],
+      [
+        "Scrubber tank",
+        "SS-304 3mm",
+        "reused"
+      ],
+      [
+        "No. of towers",
+        "1",
+        "reused"
+      ],
+      [
+        "Spray nozzles (nos)",
+        "56",
+        "rule"
+      ],
+      [
+        "Pump capacity (HP)",
+        "3",
+        "rule"
+      ],
+      [
+        "Pump make",
+        "ANALA",
+        "consistent"
+      ],
+      [
+        "Eliminator / demister",
+        "PP 950mm dia x 150mm thick",
+        "reused"
+      ],
+      [
+        "Tank capacity (litre)",
+        "750",
+        "rule"
+      ],
+      [
+        "Blower type",
+        "centrifugal",
+        "consistent"
+      ],
+      [
+        "Blower static pressure mmwc",
+        "200",
+        "reused"
+      ],
+      [
+        "Blower motor hp",
+        "5",
+        "reused"
+      ],
+      [
+        "Blower moc",
+        "SS-304",
+        "reused"
+      ],
+      [
+        "Finish",
+        "SS-304",
+        "reused"
+      ]
+    ]
+  },
+  "paint booth 10 x 6 powder": {
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 10\n- ✓ Width m: 6\n- ✓ Height m: 4\n- ✓ Paint type: powder\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 10 x 6 x 4 m — Derived from the client requirement.\n- **Exhaust airflow:** 38880 m3/h — Calculated: face area 6x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 3 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 36 (dry) — Calculated: ceil(floor area 60 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** GI — Calculated: powder process -> GI / dry filtration (ATS material-selection standard).\n- **Paint process:** powder — Derived from the client requirement.\n- **Booth type:** dry type side down draft, non-pressurized, 0.6 m/s cross velocity — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Construction:** base frame ISMC / panels MS 1.2mm — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Illumination:** 20w x 10 LED weatherproof — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paper filter:** paper with synthetic, 1.4H x 7.0W both sides — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Air intake filter:** 10 micron velcro type — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower cfm:** 20000 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower motor hp:** 15 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower qty:** 2 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower moc:** MS — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Finish:** primer + final coats — Reused from historical offer OFF-SYNERGY-PB-209R3.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-SYNERGY-PB-209R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 38% (6/16 decisions)\n- Validation: 100%\n\n**Overall confidence: 84% (High).**\n\n_Provenance: 16 decisions — 2 client requirement, 4 engineering rule, 10 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: SynergyFZE _R3_230823.pdf_",
+    "spec_writeup_sha": "bca7d1778eca4fac3bb93c68871aa556e61b9451036e47445dbfd6739342e648",
+    "nearest_match": "OFF-SYNERGY-PB-209R3",
+    "confidence_pct": 84,
+    "confidence_label": "High",
+    "decision_origin": [
+      {
+        "type": "Engineering Rule",
+        "count": 4
+      },
+      {
+        "type": "Inferred",
+        "count": 0
+      },
+      {
+        "type": "Historical Consensus",
+        "count": 0
+      },
+      {
+        "type": "Reused",
+        "count": 10
+      },
+      {
+        "type": "From Requirement",
+        "count": 2
+      }
+    ],
+    "n_ledger": 16,
+    "n_validation": 0,
+    "technical": [
+      [
+        "Dimensions",
+        "10 x 6 x 4 m",
+        "given"
+      ],
+      [
+        "Exhaust airflow",
+        "38880 m3/h",
+        "rule"
+      ],
+      [
+        "Exhaust fans",
+        "3",
+        "rule"
+      ],
+      [
+        "Filters",
+        "36 (dry)",
+        "rule"
+      ],
+      [
+        "Construction material",
+        "GI",
+        "rule"
+      ],
+      [
+        "Paint process",
+        "powder",
+        "given"
+      ],
+      [
+        "Booth type",
+        "dry type side down draft, non-pressurized, 0.6 m/s cross velocity",
+        "kept"
+      ],
+      [
+        "Construction",
+        "base frame ISMC / panels MS 1.2mm",
+        "kept"
+      ],
+      [
+        "Illumination",
+        "20w x 10 LED weatherproof",
+        "kept"
+      ],
+      [
+        "Paper filter",
+        "paper with synthetic, 1.4H x 7.0W both sides",
+        "kept"
+      ],
+      [
+        "Air intake filter",
+        "10 micron velcro type",
+        "kept"
+      ],
+      [
+        "Blower cfm",
+        "20000",
+        "kept"
+      ],
+      [
+        "Blower motor hp",
+        "15",
+        "kept"
+      ],
+      [
+        "Blower qty",
+        "2",
+        "kept"
+      ],
+      [
+        "Blower moc",
+        "MS",
+        "kept"
+      ],
+      [
+        "Finish",
+        "primer + final coats",
+        "kept"
+      ]
+    ]
+  },
+  "paint booth 3 x 3 liquid": {
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 3\n- ✓ Width m: 3\n- ✓ Height m: 2.35\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 3 x 3 x 2.35 m — Derived from the client requirement.\n- **Exhaust airflow:** 11420 m3/h — Calculated: face area 3x2.35 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 1 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 6 (water-wash) — Calculated: ceil(floor area 9 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** SS304 — Calculated: liquid process -> SS304 / water-wash filtration (ATS material-selection standard).\n- **Paint process:** liquid — Derived from the client requirement.\n- **Booth type:** dry type cross draft — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Construction:** MS 1.2mm, MS structure — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Illumination:** 18w x 2 tube light - 4 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Paper filter:** 700 x 1500mm - 4 nos (two layers folded perforated) — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Blower motor hp:** 10 — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Blower drive:** direct — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Exhaust duct:** GI 22g 550x550 - 10m — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Dry scrubber:** 1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Finish:** casing powder coated — Reused from historical offer OFF-DMN-PB-180624R3.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-DMN-PB-180624R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 40% (6/15 decisions)\n- Validation: 100%\n\n**Overall confidence: 85% (High).**\n\n_Provenance: 15 decisions — 2 client requirement, 4 engineering rule, 9 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: DMN Paint booth Dry -R3 280924.pdf_",
+    "spec_writeup_sha": "8af5f3e2ba5bda5949591d7b2982e76ef550555fec5c175de96beba98ace90fd",
+    "nearest_match": "OFF-DMN-PB-180624R3",
+    "confidence_pct": 85,
+    "confidence_label": "High",
+    "decision_origin": [
+      {
+        "type": "Engineering Rule",
+        "count": 4
+      },
+      {
+        "type": "Inferred",
+        "count": 0
+      },
+      {
+        "type": "Historical Consensus",
+        "count": 0
+      },
+      {
+        "type": "Reused",
+        "count": 9
+      },
+      {
+        "type": "From Requirement",
+        "count": 2
+      }
+    ],
+    "n_ledger": 15,
+    "n_validation": 0,
+    "technical": [
+      [
+        "Dimensions",
+        "3 x 3 x 2.35 m",
+        "given"
+      ],
+      [
+        "Exhaust airflow",
+        "11420 m3/h",
+        "rule"
+      ],
+      [
+        "Exhaust fans",
+        "1",
+        "rule"
+      ],
+      [
+        "Filters",
+        "6 (water-wash)",
+        "rule"
+      ],
+      [
+        "Construction material",
+        "SS304",
+        "rule"
+      ],
+      [
+        "Paint process",
+        "liquid",
+        "given"
+      ],
+      [
+        "Booth type",
+        "dry type cross draft",
+        "kept"
+      ],
+      [
+        "Construction",
+        "MS 1.2mm, MS structure",
+        "kept"
+      ],
+      [
+        "Illumination",
+        "18w x 2 tube light - 4 nos",
+        "kept"
+      ],
+      [
+        "Paper filter",
+        "700 x 1500mm - 4 nos (two layers folded perforated)",
+        "kept"
+      ],
+      [
+        "Blower motor hp",
+        "10",
+        "kept"
+      ],
+      [
+        "Blower drive",
+        "direct",
+        "kept"
+      ],
+      [
+        "Exhaust duct",
+        "GI 22g 550x550 - 10m",
+        "kept"
+      ],
+      [
+        "Dry scrubber",
+        "1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos",
+        "kept"
+      ],
+      [
+        "Finish",
+        "casing powder coated",
+        "kept"
+      ]
+    ]
+  },
+  "paint booth 5 x 3 x 4 liquid": {
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 5\n- ✓ Width m: 3\n- ✓ Height m: 4\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 5 x 3 x 4 m — Derived from the client requirement.\n- **Exhaust airflow:** 19440 m3/h — Calculated: face area 3x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 2 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 9 (water-wash) — Calculated: ceil(floor area 15 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** SS304 — Calculated: liquid process -> SS304 / water-wash filtration (ATS material-selection standard).\n- **Paint process:** liquid — Derived from the client requirement.\n- **Booth type:** dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Construction:** panels MS 1.6mm / supports MS tubes — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Illumination:** flame proof LED 700-800 LUX — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Paint arresting:** paper filter system — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Blower motor hp:** 7.5 / 10 / 12.5 (2 nos each, IE3 FLP) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Exhaust duct:** GI 22swg 10m — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Activated carbon chamber:** 2 sets/booth (cartridge, frame type) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Finish:** MS finish paint — Reused from historical offer OFF-CRI-PB-082406R4.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-CRI-PB-082406R4** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 43% (6/14 decisions)\n- Validation: 100%\n\n**Overall confidence: 86% (High).**\n\n_Provenance: 14 decisions — 2 client requirement, 4 engineering rule, 8 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: CRI PUMP PB 10.10.24-R4.pdf_",
+    "spec_writeup_sha": "08fa50a8ca2d2a655b2e00c70f55e02a094b110f6197e1f628d56fce69f2a958",
+    "nearest_match": "OFF-CRI-PB-082406R4",
+    "confidence_pct": 86,
+    "confidence_label": "High",
+    "decision_origin": [
+      {
+        "type": "Engineering Rule",
+        "count": 4
+      },
+      {
+        "type": "Inferred",
+        "count": 0
+      },
+      {
+        "type": "Historical Consensus",
+        "count": 0
+      },
+      {
+        "type": "Reused",
+        "count": 8
+      },
+      {
+        "type": "From Requirement",
+        "count": 2
+      }
+    ],
+    "n_ledger": 14,
+    "n_validation": 0,
+    "technical": [
+      [
+        "Dimensions",
+        "5 x 3 x 4 m",
+        "given"
+      ],
+      [
+        "Exhaust airflow",
+        "19440 m3/h",
+        "rule"
+      ],
+      [
+        "Exhaust fans",
+        "2",
+        "rule"
+      ],
+      [
+        "Filters",
+        "9 (water-wash)",
+        "rule"
+      ],
+      [
+        "Construction material",
+        "SS304",
+        "rule"
+      ],
+      [
+        "Paint process",
+        "liquid",
+        "given"
+      ],
+      [
+        "Booth type",
+        "dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4)",
+        "kept"
+      ],
+      [
+        "Construction",
+        "panels MS 1.6mm / supports MS tubes",
+        "kept"
+      ],
+      [
+        "Illumination",
+        "flame proof LED 700-800 LUX",
+        "kept"
+      ],
+      [
+        "Paint arresting",
+        "paper filter system",
+        "kept"
+      ],
+      [
+        "Blower motor hp",
+        "7.5 / 10 / 12.5 (2 nos each, IE3 FLP)",
+        "kept"
+      ],
+      [
+        "Exhaust duct",
+        "GI 22swg 10m",
+        "kept"
+      ],
+      [
+        "Activated carbon chamber",
+        "2 sets/booth (cartridge, frame type)",
+        "kept"
+      ],
+      [
+        "Finish",
+        "MS finish paint",
+        "kept"
+      ]
+    ]
+  },
+  "K:wet scrubber for 800 cfm 750mm tower 4 nos": {
+    "spec_mode": "knowledge",
+    "category": "wet_scrubber",
+    "category_label": "Wet Scrubber",
+    "n_technical": 0,
+    "n_similar": 0,
+    "nearest_match": null,
+    "exact_match": null,
+    "confidence_pct": null,
+    "given_data": [
+      [
+        "Air volume cfm",
+        "800"
+      ],
+      [
+        "Tower diameter (mm)",
+        "750"
+      ],
+      [
+        "Qty",
+        "4"
+      ]
+    ],
+    "sha": "320054488173fd732aa754798cb27565f76dedb96d2f3189c6420ef7d040f862"
+  },
+  "K:paint booth 10 x 6 powder": {
+    "spec_mode": "knowledge",
+    "category": "paint_booth",
+    "category_label": "Paint Booth",
+    "n_technical": 0,
+    "n_similar": 0,
+    "nearest_match": null,
+    "exact_match": null,
+    "confidence_pct": null,
+    "given_data": [
+      [
+        "Length m",
+        "10"
+      ],
+      [
+        "Width m",
+        "6"
+      ],
+      [
+        "Height m",
+        "4"
+      ],
+      [
+        "Paint type",
+        "powder"
+      ]
+    ],
+    "sha": "3ee772306b1d272ad20ef841c80a13c6f9a613f3aadba2fd0cda6bcd73b82ca7"
+  },
+  "K:hot air oven 200C 500kg batch": {
+    "spec_mode": "knowledge",
+    "category": "hot_air_oven",
+    "category_label": "Hot Air Oven",
+    "n_technical": 0,
+    "n_similar": 0,
+    "nearest_match": null,
+    "exact_match": null,
+    "confidence_pct": null,
+    "given_data": [
+      [
+        "Operating temperature",
+        "200C"
+      ],
+      [
+        "Batch kg",
+        "500"
+      ]
+    ],
+    "sha": "16766580b410d518815c50bcdc29340bbc60b85527a529defc18fa345307c77e"
+  }
+}

@@ -1,0 +1,381 @@
+[
+  {
+    "id": "OFF-BAKERHUGHES-PB-275R3A",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Paint Booth + Conveyor + Carbon Chamber - Baker Hughes",
+    "client": "Baker Hughes",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/275R3A/2022-23",
+    "date": "2023-12-21",
+    "source_file": "Baker Hughes_R3A_211223.pdf",
+    "given_data": {
+      "length_m": 2.2, "width_m": 2.5, "height_m": 2.3,
+      "paint_type": "liquid", "item": "valves",
+      "booth_type": "dry type side draft", "material_handling": "manual push-pull I-beam conveyor"
+    },
+    "technical_details": {
+      "booth_type": "dry type side draft",
+      "construction": "base frame ISMC / panels MS 18swg",
+      "illumination": "40w x 2 FLP - 5 nos",
+      "air_inlet_filter": "625 x 625 10 micron - 10 nos",
+      "blower_cfm": 9000, "blower_motor_hp": 10, "blower_moc": "MS",
+      "exhaust_duct": "GI 22g 600x600 - 15m",
+      "conveyor": "I-beam 30m + 30 nos 1T manual push-pull trolley",
+      "activated_carbon_chamber": "1.2L x 1.1W x 2.5H, MS 2mm",
+      "voc_monitor": "online PID, Alpha Sense UK",
+      "finish": "red oxide + final paint"
+    },
+    "price_schedule": {"grand_total": 4150400, "currency": "INR"}
+  },
+  {
+    "id": "OFF-CRI-PB-082406R4",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Side Draft Paint Booths (3 sets) - CRI Pumps",
+    "client": "C.R.I Pumps Private Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "082406-R4/24-25",
+    "date": "2024-10-10",
+    "source_file": "CRI PUMP PB 10.10.24-R4.pdf",
+    "given_data": {
+      "length_m": 5.0, "width_m": 3.0, "height_m": 4.0,
+      "paint_type": "liquid", "booth_type": "dry type side draft",
+      "operators": 2, "qty": 3
+    },
+    "technical_details": {
+      "booth_type": "dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4)",
+      "construction": "panels MS 1.6mm / supports MS tubes",
+      "illumination": "flame proof LED 700-800 LUX",
+      "paint_arresting": "paper filter system",
+      "blower_motor_hp": "7.5 / 10 / 12.5 (2 nos each, IE3 FLP)",
+      "exhaust_duct": "GI 22swg 10m",
+      "activated_carbon_chamber": "2 sets/booth (cartridge, frame type)",
+      "finish": "MS finish paint"
+    },
+    "price_schedule": {"grand_total": 7091800, "final_price": 6000000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-DMN-PB-180624R3",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Cross Draft Paint Booth + Dry Scrubber - DMN India",
+    "client": "DMN India Private Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "180624-R3/2024-25",
+    "date": "2024-09-28",
+    "source_file": "DMN Paint booth Dry -R3 280924.pdf",
+    "given_data": {
+      "length_m": 3.0, "width_m": 3.0, "height_m": 2.35,
+      "paint_type": "liquid", "booth_type": "dry type cross draft",
+      "job_size_mm": "1300 x 1200 x 960", "job_weight_kg": 1000
+    },
+    "technical_details": {
+      "booth_type": "dry type cross draft",
+      "construction": "MS 1.2mm, MS structure",
+      "illumination": "18w x 2 tube light - 4 nos",
+      "paper_filter": "700 x 1500mm - 4 nos (two layers folded perforated)",
+      "blower_motor_hp": 10, "blower_drive": "direct",
+      "exhaust_duct": "GI 22g 550x550 - 10m",
+      "dry_scrubber": "1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos",
+      "finish": "casing powder coated"
+    },
+    "price_schedule": {"grand_total": 863000, "final_price": 815000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-ELGI-PB-402R5",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Cross Draft Paint Booth + Activated Carbon Scrubber - Elgi Equipments",
+    "client": "Elgi Equipment Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "PS/402R5/2023-24",
+    "date": "2024-09-25",
+    "source_file": "Elgi Equipments_P Shop plant R5 -  200824.pdf",
+    "given_data": {
+      "length_m": 3.2, "width_m": 3.0, "height_m": 3.55,
+      "paint_type": "liquid", "booth_type": "dry type cross draft (batch)",
+      "painting_method": "manual"
+    },
+    "technical_details": {
+      "booth_type": "dry type cross draft, open front, side draft",
+      "construction": "panels MS 18swg",
+      "illumination": "90w LED tube - 6 nos",
+      "paper_filter": "three layers folded perforated, 3.2 x 2.10m",
+      "blower_cfm": 14000, "blower_motor_hp": 15, "blower_motor": "FLP",
+      "exhaust_duct": "GI 22g 800x800 - 10m, self-support 10m height",
+      "activated_carbon_scrubber": "1.425L x 1.1W x 3.5H, MS, 6 carbon filters",
+      "hoist": "3T motorized FLP, 4m travel",
+      "finish": "red oxide + final enamel"
+    },
+    "price_schedule": {"grand_total": 2995460, "final_price": 2695914, "currency": "INR"}
+  },
+  {
+    "id": "OFF-GMR-PB-143R2",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Paint Booth + Sanding/Buffing Booth + Air Shower - GMR Aero Technic",
+    "client": "GMR School of Aviation",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/143R2/2022-23",
+    "date": "2023-04-15",
+    "source_file": "GMR AERO TECHNIC R2 150423.pdf",
+    "given_data": {
+      "length_m": 5.95, "width_m": 1.1, "height_m": 2.35,
+      "paint_type": "liquid", "booth_type": "dry type side draft (batch)",
+      "painting_method": "manual"
+    },
+    "technical_details": {
+      "booth_type": "dry type side draft, non-pressurized",
+      "construction": "base frame ISMC / panels MS 18swg",
+      "illumination": "NFLP LED 18w - 12 nos",
+      "air_inlet_filter": "box type 10 micron - 10 nos",
+      "paint_arrestor_filter": "primary paper + secondary glass fibre",
+      "blower_cfm": 10000, "blower_motor_hp": 7.5, "blower_type": "centrifugal",
+      "exhaust_duct": "GI 22swg 550x550 - 10m",
+      "sanding_buffing_booth": "1.1W x 4L x 2.35H, cyclone 800x3.8m, blower 3300 CFM 7.5HP",
+      "air_shower": "900x900x2000",
+      "finish": "primer + final enamel"
+    },
+    "price_schedule": {"grand_total": 2295000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-INNOTRANS-PB-344R4",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Cross Draft Open Paint Booth - Innotrans Systems",
+    "client": "Innotrans Systems India Pvt. Ltd.",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/344R4/2023-24",
+    "date": "2024-03-04",
+    "source_file": "Inno Trans _PAINTBOOTH_R4040324.pdf",
+    "given_data": {
+      "length_m": 3.0, "width_m": 2.25, "height_m": 2.9,
+      "paint_type": "liquid", "booth_type": "dry type cross draft (batch)"
+    },
+    "technical_details": {
+      "booth_type": "dry type cross draft",
+      "construction": "MS 1.2mm",
+      "illumination": "40w x 2 LED - 3 nos",
+      "paper_filter": "700 x 3000mm - 2 nos",
+      "blower_motor_hp": 5.0, "blower_qty": 2, "blower_drive": "direct",
+      "exhaust_duct": "GI 22g 400x400 - 8m x 2",
+      "clean_dry_enclosures": "2.0x2.25x3.0 - 2 sets",
+      "finish": "powder coated"
+    },
+    "price_schedule": {"grand_total": 1395000, "final_price": 1365000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-KOBELCO-PB-86R2",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Paint Booth + AHU + 60T Motorized Trolley - Kobelco",
+    "client": "Kobelco Industrial Machinery India Private Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/86R2/2022-23",
+    "date": "2024-03-21",
+    "source_file": "KOBELCO _DRY TYPE BOOTH_R2210324.pdf",
+    "given_data": {
+      "length_m": 4.7, "width_m": 5.0, "height_m": 5.0,
+      "paint_type": "liquid", "booth_type": "dry type cross draft",
+      "painting_method": "manual", "material_handling": "motorized trolley",
+      "job_size_m": "3.6 x 2.6 x 3.1 including trolley"
+    },
+    "technical_details": {
+      "booth_type": "dry type side draft",
+      "construction": "base frame ISMC / panels MS 1.2mm",
+      "illumination": "150w LED flame proof - 8 nos",
+      "glass_fibre_filter": "550 x 2500 - 6 nos",
+      "blower_cmh": 11000, "blower_motor_hp": 12.5, "blower_qty": 2, "blower_motor": "IE2 flame proof",
+      "exhaust_duct": "GI 22g 700x700 - 190 sqm",
+      "fresh_air_system_ahu": "26000 CFM, 20 HP FLP",
+      "motorized_trolley": "60 ton, 3.7x2.7x0.6, Bonfiglioli geared motor FLP",
+      "sprinkler_fire_protection": "UL/FM quick response pendent",
+      "finish": "red oxide + final paint"
+    },
+    "price_schedule": {"booth_ahu": 3150000, "exhaust_ducts": 532500, "motorized_trolley": 1505500, "sprinkler": 575000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-RABWIN-PB-437R1",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Paint Booth + I-Beam Conveyor - Rabwin Industries",
+    "client": "Rabwin Industries Private Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PB/437-R1/2024-25",
+    "date": "2024-11-15",
+    "source_file": "Rabwin PB R1 151124.pdf",
+    "given_data": {
+      "length_m": 2.25, "width_m": 2.25, "height_m": 3.1,
+      "paint_type": "liquid", "item": "iron casting",
+      "booth_type": "dry type cross draft", "material_handling": "I-beam manual push-pull"
+    },
+    "technical_details": {
+      "booth_type": "dry type side draft, non-pressurized",
+      "construction": "base frame MS ISMC / panels MS 18swg",
+      "illumination": "90w non-FLP - 4 nos",
+      "air_inlet_filter": "box filter",
+      "paper_filter": "2.1H x 2.25W",
+      "blower_motor_hp": 10, "blower_motor": "IE2 non-FLP",
+      "exhaust_duct": "GI 22swg 550x550 - 10m",
+      "conveyor": "I-beam 16m + 10 trolleys (1T x5, 2T x5)",
+      "activated_carbon_chamber": "1.2L x 1.1W x 2.5H (optional)",
+      "finish": "red oxide + final paint"
+    },
+    "price_schedule": {"total": 1626675, "final_price": 1226675, "currency": "INR"}
+  },
+  {
+    "id": "OFF-SEPL-PB-289R1",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Cross Draft Paint Booths (Stator/Rotor) - SEPL Motors",
+    "client": "SEPL Motors (MEL Systems)",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/289R1/2023-24",
+    "date": "2023-10-12",
+    "source_file": "SEPL _PAINTBOOTH_121023.pdf",
+    "given_data": {
+      "length_m": 1.5, "width_m": 1.5, "height_m": 2.425,
+      "paint_type": "liquid", "booth_type": "dry type cross draft (batch)"
+    },
+    "technical_details": {
+      "booth_type": "dry type cross draft (2 stator + 1 rotor booths)",
+      "construction": "MS 1.2mm",
+      "illumination": "40w x 2 tube light - 2 nos",
+      "paper_filter": "700 x 1500mm - 2 nos",
+      "blower_motor_hp": "5.0 (stator) / 3.0 (rotor)", "blower_drive": "direct",
+      "exhaust_duct": "GI 350x350 - 25m stator / 5m rotor",
+      "finish": "powder coated"
+    },
+    "price_schedule": {"stator_booth": 378500, "rotor_booth": 378500, "currency": "INR"}
+  },
+  {
+    "id": "OFF-SEENIVASAN-PB-204R2",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Cross Draft Open Paint Booth - Seenivasan Painting Works",
+    "client": "Seenivasan Painting Works",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/204R2/2023-24",
+    "date": "2023-10-03",
+    "source_file": "SRINIVASA PAINTING WORKS _PAINTBOOTH_R2031023.pdf",
+    "given_data": {
+      "length_m": 3.0, "width_m": 2.25, "height_m": 2.4,
+      "paint_type": "PU", "booth_type": "dry type cross draft"
+    },
+    "technical_details": {
+      "booth_type": "dry type cross draft, full open",
+      "construction": "panels MS / base frame ISMC",
+      "illumination": "40w x 2 tube light - 3 nos NFLP",
+      "paper_filter": "700 x 3000mm - 3 nos (three layers)",
+      "blower_motor_hp": 7.5, "blower_type": "centrifugal", "blower_motor": "CG NFLP",
+      "exhaust_duct": "GI 22g 580x580 - 10m",
+      "finish": "red oxide + final enamel"
+    },
+    "price_schedule": {"grand_total": 510500, "final_price": 485500, "currency": "INR"}
+  },
+  {
+    "id": "OFF-STMSPA-PB-349R1",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Cross Draft Open Paint Booth - STM SPA Gear Drives",
+    "client": "STM SPA Gear Drives Pvt Ltd",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/349R1/2023-24",
+    "date": "2024-03-01",
+    "source_file": "STM SPA GEARS LTD  _PAINTBOOTH_R1010324.pdf",
+    "given_data": {
+      "length_m": 1.2, "width_m": 2.1, "height_m": 2.0,
+      "paint_type": "PU", "booth_type": "dry type cross draft"
+    },
+    "technical_details": {
+      "booth_type": "dry type cross draft",
+      "construction": "MS 1.2mm, MS channel 100x50mm",
+      "illumination": "40w x 2 tube light - 2 nos",
+      "paper_filter": "700 x 2000mm - 1 no",
+      "blower_motor_hp": 3.0, "blower_drive": "direct",
+      "exhaust_duct": "GI 22g 500x500 - 3m",
+      "finish": "powder coated"
+    },
+    "price_schedule": {"booth": 258730, "duct": 19200, "erection": 40000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-SYNERGY-PB-209R3",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Type Painting Booth (large) - Synergy FZE Oman",
+    "client": "NewSynergy L.L.C (Oman)",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/209R3/2023-24",
+    "date": "2023-08-23",
+    "source_file": "SynergyFZE _R3_230823.pdf",
+    "given_data": {
+      "length_m": 7.5, "width_m": 4.0, "height_m": 3.5,
+      "paint_type": "liquid", "booth_type": "dry type cross side draft (batch)",
+      "painting_method": "manual"
+    },
+    "technical_details": {
+      "booth_type": "dry type side down draft, non-pressurized, 0.6 m/s cross velocity",
+      "construction": "base frame ISMC / panels MS 1.2mm",
+      "illumination": "20w x 10 LED weatherproof",
+      "paper_filter": "paper with synthetic, 1.4H x 7.0W both sides",
+      "air_intake_filter": "10 micron velcro type",
+      "blower_cfm": 20000, "blower_motor_hp": 15, "blower_qty": 2, "blower_moc": "MS",
+      "finish": "primer + final coats"
+    },
+    "price_schedule": {"booth_blower": 1700000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-VALV-PB-133R6",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Dry Cross Draft Paint Booth + Abrasive Blasting Booth - Valv Technologies",
+    "client": "Valv Technologies",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/133R6/2023-24",
+    "date": "2024-01-11",
+    "source_file": "Offer - Valv Technologies -R6110124.pdf",
+    "given_data": {
+      "length_m": 3.0, "width_m": 3.0, "height_m": 2.9,
+      "paint_type": "liquid", "booth_type": "dry type cross draft",
+      "component_size_mm": "600 x 600 x 1200"
+    },
+    "technical_details": {
+      "booth_type": "dry type cross draft",
+      "construction": "panels MS / base frame ISMC",
+      "illumination": "LED tube light - 4 nos FLP",
+      "paper_filter": "three layers folded perforated, 1.46 x 2.25m",
+      "blower_motor_hp": 7.5, "blower_motor": "CG FLP", "blower_drive": "direct",
+      "abrasive_blasting_booth": "2.5L x 2.5W x 3.0H, cartridge pulse jet DC 7.5HP, rubber lining",
+      "finish": "red oxide + finish paint"
+    },
+    "price_schedule": {"paint_booth": 795000, "blasting_booth": 1585000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-YONEX-PB-367",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Water Wall Painting Booth - Yonex India",
+    "client": "Yonex India Private Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/367/2023-24",
+    "date": "2024-02-08",
+    "source_file": "Yonex 0.9m PB_090224.pdf",
+    "given_data": {
+      "length_m": 0.9, "width_m": 0.92, "height_m": 2.0,
+      "paint_type": "liquid", "booth_type": "water wall (AGL type)"
+    },
+    "technical_details": {
+      "booth_type": "water wall, AGL type",
+      "construction": "panels SS-304 1.2mm / tank SS-304 3.0mm / base frame MS",
+      "illumination": "40w LED - 1 no FLP",
+      "filter_mesh": "SS-304 four stage",
+      "blower_motor_hp": 2.0, "blower_moc": "MS",
+      "sludge_pump_hp": 1.0, "sludge_pump_moc": "CI monobloc",
+      "exhaust_duct": "GI 22swg 300x300 - 15m",
+      "control_panel": "with VFD (Delta)",
+      "finish": "tank/panels no painting; blower powder coated"
+    },
+    "price_schedule": {"booth": 605000, "currency": "INR"}
+  }
+]

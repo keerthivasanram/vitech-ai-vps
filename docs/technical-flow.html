@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ATS Engineering Assistant — Technical Flow, Status & Vision</title>
+<style>
+  :root{
+    --bg:#fff; --bg2:#f8fafc; --panel:#f1f5f9; --text:#0f172a; --muted:#64748b;
+    --accent:#4f6ef7; --accent2:#3451e0; --navy:#1e3a8a;
+    --det:#0d9488; --detbg:#d9f7f1; --gen:#d97706; --genbg:#fef3e2;
+    --ok:#059669; --okbg:#dcfce7; --border:#e2e8f0; --border2:#cbd5e1;
+    --shadow:0 1px 3px rgba(0,0,0,.05), 0 8px 28px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg2);color:var(--text);line-height:1.55;
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:960px;margin:0 auto;padding:36px 28px 64px;}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  h1{font-size:27px;margin:6px 0 4px;letter-spacing:-.02em;}
+  h2{font-size:18px;margin:36px 0 12px;padding-bottom:7px;border-bottom:2px solid var(--panel);}
+  .sub{color:var(--muted);font-size:15px;margin:0;}
+  p{margin:8px 0;} .muted{color:var(--muted);font-size:13px;}
+  code{background:var(--panel);border-radius:5px;padding:1px 6px;font-size:12.5px;color:var(--navy);
+    font-family:"SF Mono",Consolas,monospace;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0 4px;font-size:12.5px;}
+  .chip{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.03em;}
+  .chip.det{background:var(--detbg);color:var(--det);}
+  .chip.gen{background:var(--genbg);color:var(--gen);}
+
+  /* flow */
+  .flow{margin:14px 0;}
+  .stage{display:flex;gap:14px;align-items:flex-start;background:var(--bg);border:1px solid var(--border);
+    border-radius:12px;padding:13px 16px;box-shadow:var(--shadow);}
+  .stage .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;
+    font-size:13px;display:grid;place-items:center;}
+  .stage h3{margin:0 0 3px;font-size:15px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .stage p{margin:2px 0 0;font-size:13.5px;color:#475569;}
+  .arrow{text-align:center;color:var(--border2);font-size:16px;line-height:1;margin:3px 0;}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
+  .box{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);}
+  .box.det{border-top:3px solid var(--det);}
+  .box.gen{border-top:3px solid var(--gen);}
+  .box h3{margin:0 0 8px;font-size:14px;}
+  .box ul{margin:0;padding-left:18px;} .box li{margin:5px 0;font-size:13.5px;}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top;}
+  th{background:var(--panel);color:var(--navy);font-size:12px;text-transform:uppercase;letter-spacing:.04em;}
+
+  .status{border-radius:12px;padding:14px 18px;margin:12px 0;border:1px solid var(--border);}
+  .status.done{background:var(--okbg);border-color:#bbf7d0;}
+  .status.next{background:#eef2ff;border-color:#d7ddfb;}
+  .status h3{margin:0 0 8px;font-size:15px;}
+  .status ul{margin:0;padding-left:20px;} .status li{margin:5px 0;font-size:14px;}
+
+  .vision{background:linear-gradient(135deg,#1e3a8a,#3451e0);color:#fff;border-radius:14px;padding:22px 24px;margin:14px 0;}
+  .vision h3{margin:0 0 8px;font-size:17px;} .vision p{color:#e0e7ff;margin:6px 0;font-size:14.5px;}
+  .vision .chain{font-weight:700;font-size:15px;margin-top:10px;}
+  .foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12.5px;text-align:center;}
+  @media (max-width:720px){.cols{grid-template-columns:1fr;}}
+  @media print{body{background:#fff;} .box,.stage,.status,.vision{box-shadow:none;} .vision{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Vitech Enviro Systems &nbsp;·&nbsp; ATS Engineering Assistant</div>
+    <h1>Technical Flow, Current Status &amp; Vision</h1>
+    <p class="sub">How a request becomes a traceable answer — what is built, what comes next, and where we are heading.</p>
+  </header>
+
+  <div class="legend">
+    <span><span class="chip det">DETERMINISTIC</span> code / rules / your data — every number</span>
+    <span><span class="chip gen">GENERATIVE</span> the LLM — language &amp; understanding only</span>
+  </div>
+
+  <h2>1. Request lifecycle</h2>
+  <div class="flow">
+
+    <div class="stage"><div class="n">1</div><div>
+      <h3>Understand <span class="chip gen">GEN</span> <code>understand.py</code></h3>
+      <p>The LLM reads the request as JSON — <b>intent</b> (specification / quotation / comparison / concept / search / general), <b>category</b>, and <b>parameters</b> (CFM, dimensions, qty…). A regex layer is the offline fallback.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">2</div><div>
+      <h3>Route <span class="chip det">DET</span> <code>main._prepare</code></h3>
+      <p>Completeness decides the policy: enough inputs (or "refer db") → <b>ATS / data mode</b>; otherwise → <b>Consulting / knowledge mode</b>. Quotation intent uses data mode as soon as the sizing driver is present.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">3</div><div>
+      <h3>Retrieve <span class="chip det">DET</span> <code>retriever.py · ChromaDB</code></h3>
+      <p>Semantic vector search (MiniLM embeddings) over the knowledge base, category-filtered. Analytics/comparison pull the whole corpus or the named records.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">4</div><div>
+      <h3>Reason — the Resolver <span class="chip det">DET</span> <code>resolver.py · analysis.py</code></h3>
+      <p>One engine authors the specification. A <b>policy</b> decides which sources may set a value; engineering <b>rules</b> compute physics-based fields; <b>case-based reasoning</b> interpolates/scales/reuses from your offers. See §2.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">5</div><div>
+      <h3>Validate &amp; score <span class="chip det">DET</span> <code>validate.py · ledger.py</code></h3>
+      <p>Every value is sanity-checked against engineering limits and cross-checked; a <b>decision ledger</b> records each value's origin; a multi-factor <b>confidence</b> is computed.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">6</div><div>
+      <h3>Explain <span class="chip gen">GEN</span> <code>llm.py · prompt.py</code></h3>
+      <p>The LLM narrates the computed result (spec) or answers conversationally (search) — fed the exact decided values, so it <b>cannot drift</b> from them. Small talk &amp; exact counts are answered in code, skipping the LLM.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">7</div><div>
+      <h3>Verify &amp; assemble <span class="chip det">DET</span> <code>llm._verify · main._meta</code></h3>
+      <p>Direct fact-lookups are re-checked against the records before display. The response carries the answer, <b>provenance, confidence and cited source files</b> (and a quotation, if requested).</p>
+    </div></div>
+  </div>
+
+  <h2>2. Inside the reasoning engine (the Resolver)</h2>
+  <p>One code path, two policies — the difference is only <em>which evidence may author a value</em>:</p>
+  <table>
+    <tr><th>Provenance origin</th><th>Meaning</th><th>Consulting</th><th>ATS</th></tr>
+    <tr><td><code>given</code></td><td>Client requirement (authoritative)</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>rule</code></td><td>Engineering formula + standard</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>interpolated / scaled</code></td><td>Synthesised/scaled from historical offers</td><td>—</td><td>✓</td></tr>
+    <tr><td><code>consistent</code></td><td>Historical consensus across offers</td><td>—</td><td>✓</td></tr>
+    <tr><td><code>reused</code></td><td>Taken from the nearest offer</td><td>—</td><td>✓</td></tr>
+    <tr><td><code>tbd / estimate</code></td><td>Deferred — asks for the input, never invents</td><td>✓</td><td>—</td></tr>
+  </table>
+  <p class="muted">Confidence is multi-factor: engineering match %, historical support, rule coverage, missing inputs and validation results. Verified byte-identical by a <b>golden regression suite</b> (10 cases across both policies).</p>
+
+  <h2>3. What the LLM does — and does not do</h2>
+  <div class="cols">
+    <div class="box gen"><h3>Generative AI handles</h3>
+      <ul>
+        <li>Understanding the request (intent, category, parameters)</li>
+        <li>Writing the engineering narrative for a spec</li>
+        <li>Conversational Q&amp;A and explanations</li>
+        <li>Quotation wording</li>
+      </ul>
+    </div>
+    <div class="box det"><h3>Deterministic code handles</h3>
+      <ul>
+        <li>Every specification number (rules + your offers)</li>
+        <li>Every price (nearest offer, driver-scaled, trend-checked)</li>
+        <li>Counts, lists, breakdowns (exact, not "guessed")</li>
+        <li>Provenance, validation, confidence, source citation</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted">This is a <b>grounded / compound AI system</b> — generative AI for language, symbolic engine for the engineering. It is more than plain retrieval-augmented generation (RAG): retrieval feeds a reasoning engine, not just the prompt.</p>
+
+  <h2>4. Status — what is built</h2>
+  <div class="status done"><h3>✔ Done (working prototype)</h3>
+    <ul>
+      <li><b>Specification engine</b> — rules + case-based reasoning over 33 real offers (10 categories), with provenance, validation, decision ledger and confidence.</li>
+      <li><b>One resolver, two policies</b> — Consulting Engineer / ATS Engineering Expert, golden-locked byte-identical.</li>
+      <li><b>Quotation agent</b> — deterministic budgetary pricing (per-unit, driver-scaled, trend cross-checked) + scope + terms; on-screen card and a Vitech-format PDF draft.</li>
+      <li><b>Deterministic analytics</b> — exact counts / lists / clients computed in code.</li>
+      <li><b>Grounded Q&amp;A</b> — conversational answers cited to your data, or flagged as general knowledge; direct lookups fact-verified.</li>
+    </ul>
+  </div>
+
+  <h2>5. Next — the data foundation</h2>
+  <div class="status next"><h3>→ Next phase: automatic extraction + a structured database</h3>
+    <p style="margin:0 0 8px;font-size:14px;">Today's 33 offers were hand-entered. Next we ingest <b>all</b> your files automatically:</p>
+    <ul>
+      <li><b>Extract</b> — offer PDFs via table/text parsing (<code>pdfplumber</code>); CAD via native <code>.dxf</code> parsing where possible, OCR-on-image as the fallback (every OCR'd number flagged for review).</li>
+      <li><b>Structured (normalized) database</b> — <code>clients · documents · given_data · technical_specs · price_items · dimensions · bom_items</code> — every field queryable with unit, source and confidence. Enables "all scrubbers &gt; 1000 CFM", "offers for client X".</li>
+      <li><b>Human-in-the-loop review</b> — each extraction is confirmed by an engineer before it enters the master database.</li>
+      <li><b>Materialize &amp; embed</b> — the database is the single source of truth; the reasoning engine and search run on a view built from it (no engine rewrite).</li>
+    </ul>
+  </div>
+  <table>
+    <tr><th>Layer</th><th>Now</th><th>Next</th></tr>
+    <tr><td>Ingestion</td><td>Hand-written JSON</td><td>Upload → auto-extract (PDF + CAD)</td></tr>
+    <tr><td>Store</td><td>JSON files → ChromaDB</td><td>Normalized SQL DB → materialized → ChromaDB</td></tr>
+    <tr><td>Query power</td><td>Semantic + exact counts</td><td>+ precise numeric/relational filters</td></tr>
+    <tr><td>Coverage</td><td>33 curated offers</td><td>Your full offer + drawing archive</td></tr>
+  </table>
+
+  <h2>6. Technology</h2>
+  <table>
+    <tr><th>Layer</th><th>Built with</th></tr>
+    <tr><td>Backend / API</td><td>Python · FastAPI</td></tr>
+    <tr><td>Retrieval</td><td>ChromaDB vector store · MiniLM embeddings (on-device)</td></tr>
+    <tr><td>Reasoning</td><td>Rule engine (Pydantic) + case-based reasoning + validation</td></tr>
+    <tr><td>Language model</td><td>Ollama · Qwen2.5 (runs locally — your data stays in-house)</td></tr>
+    <tr><td>Documents</td><td>fpdf2 (quotation PDF)</td></tr>
+    <tr><td>Frontend</td><td>React · Vite</td></tr>
+    <tr><td>Planned (extraction)</td><td>pdfplumber · ezdxf · Tesseract (OCR) · SQLite</td></tr>
+  </table>
+
+  <h2>7. The vision</h2>
+  <div class="vision">
+    <h3>One grounded engineering brain for Vitech</h3>
+    <p>A private, in-house AI platform that learns from <b>every</b> Vitech offer and drawing, holds it in one
+    structured knowledge base, and turns any new requirement into a <b>specification → quotation → drawing</b>
+    from a single source of truth — with every number traceable and every output an engineer-reviewed draft.</p>
+    <p class="chain">Requirement &nbsp;→&nbsp; Specification &nbsp;→&nbsp; Quotation &nbsp;→&nbsp; CAD drawing</p>
+    <p style="margin-top:10px;">Generative AI for speed and language; deterministic engineering for trust. Faster quotes,
+    consistent engineering, and institutional knowledge that never walks out the door.</p>
+  </div>
+
+  <div class="foot">
+    ATS Engineering Assistant &nbsp;·&nbsp; Vitech Enviro Systems &nbsp;·&nbsp; Generative AI, grounded in your data.<br/>
+    Pairs with the architecture diagram (architecture.html) and the client review (client-meeting.html).
+  </div>
+
+</div>
+</body>
+</html>

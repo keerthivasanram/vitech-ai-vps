@@ -1,0 +1,10 @@
+# Install with prebuilt wheels on Windows (no C++ build tools needed):
+#   pip install --only-binary=:all: -r requirements.txt
+chromadb>=0.5,<0.6
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+pydantic
+fpdf2                 # pure-Python PDF generation for quotation export (no system deps)
+python-multipart      # file uploads (multipart/form-data) for the Upload page

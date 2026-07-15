@@ -1,0 +1,179 @@
+document_id,field,value
+OFF-MECCA-DC-147R4,air_volume_cmh,25000
+OFF-MECCA-DC-147R4,dust_type,powder form
+OFF-MECCA-DC-147R4,collector_type,pulse jet antistatic pleated polyester bag filter
+OFF-MECCA-DC-147R4,location,outdoor ground level
+OFF-MELSS-DC-160,air_volume_cmh,6000
+OFF-MELSS-DC-160,dust_type,dry mix powder form
+OFF-MELSS-DC-160,collector_type,pulse jet fabric polyester bag filter
+OFF-MELSS-DC-160,no_of_suction_points,26
+OFF-MELSS-DC-160,location,outdoor
+OFF-ASCEND-DC-FES070624R5,air_volume_cfm,6500
+OFF-ASCEND-DC-FES070624R5,air_volume_cmh,11045
+OFF-ASCEND-DC-FES070624R5,no_of_suction_points,26
+OFF-ASCEND-DC-FES070624R5,collector_type,pulse jet cartridge
+OFF-ASCEND-DC-FES070624R5,location,multi-floor
+OFF-RAPSRI-DC-203R1,air_volume_cmh,1200
+OFF-RAPSRI-DC-203R1,collector_type,portable unit dust collector (UDC-2)
+OFF-RAPSRI-DC-203R1,no_of_suction_points,1
+OFF-OMENGG-DC-323,collector_type,"unit bag filter, manual handshaker"
+OFF-OMENGG-DC-323,no_of_suction_points,1
+OFF-ZFWABCO-OVEN-424R4,length_m,1.4
+OFF-ZFWABCO-OVEN-424R4,width_m,1.4
+OFF-ZFWABCO-OVEN-424R4,height_m,1.0
+OFF-ZFWABCO-OVEN-424R4,operating_temp,80C
+OFF-ZFWABCO-OVEN-424R4,oven_type,"batch, electric"
+OFF-ZFWABCO-OVEN-424R4,heating_mode,wire element
+OFF-SURFACE-OVEN-356R3,length_m,8.5
+OFF-SURFACE-OVEN-356R3,width_m,3.5
+OFF-SURFACE-OVEN-356R3,height_m,2.4
+OFF-SURFACE-OVEN-356R3,operating_temp,230C
+OFF-SURFACE-OVEN-356R3,oven_type,"camel back, conveyorised"
+OFF-SURFACE-OVEN-356R3,job_weight_kg,150
+OFF-SURFACE-OVEN-356R3,heating_mode,diesel fired
+OFF-AG-FE-205R2,application,robot welding fume extraction with enclosure
+OFF-AG-FE-205R2,length_m,3.43
+OFF-AG-FE-205R2,width_m,3.56
+OFF-AG-FE-205R2,height_m,2.39
+OFF-AG-FE-205R2,air_volume_cfm,6000
+OFF-ARMSTRONG-CONV-395,application,paint booth conveyor improvement
+OFF-ARMSTRONG-CONV-395,overall_length_m,38
+OFF-ARMSTRONG-CONV-395,system,manual
+OFF-ECOCHIMNEYS-BLAST-072409R4,length_m,8
+OFF-ECOCHIMNEYS-BLAST-072409R4,width_m,4
+OFF-ECOCHIMNEYS-BLAST-072409R4,height_m,3
+OFF-ECOCHIMNEYS-BLAST-072409R4,plant_type,semi abrasive recovery system
+OFF-ECOCHIMNEYS-BLAST-072409R4,operation_method,manual
+OFF-ECOCHIMNEYS-BLAST-072409R4,dust_collection,cartridge system
+OFF-ECOCHIMNEYS-BLAST-072409R4,abrasive,steel grit
+OFF-WHEELS-PT-97R4,job,hydraulic cylinder
+OFF-WHEELS-PT-97R4,job_weight_kg,100
+OFF-WHEELS-PT-97R4,pt_plant_design,6 stage nano coat conversion
+OFF-WHEELS-PT-97R4,plant_type,conveyorised
+OFF-WHEELS-PT-97R4,conveyor_speed_m_min,0.3
+OFF-WHEELS-PT-97R4,operating_temp_c,80
+OFF-TRIDENT-PT-198R2,max_envelope_size_mm,9000 x Dia 505
+OFF-TRIDENT-PT-198R2,max_weight_kg,250
+OFF-TRIDENT-PT-198R2,process_scheme,6 stage phosphating with 6 dip baskets
+OFF-YONEX-DUCT-286R2,application,exhaust ducting for water wall paint booths
+OFF-YONEX-DUCT-286R2,qty,3
+OFF-BAKERHUGHES-PB-275R3A,length_m,2.2
+OFF-BAKERHUGHES-PB-275R3A,width_m,2.5
+OFF-BAKERHUGHES-PB-275R3A,height_m,2.3
+OFF-BAKERHUGHES-PB-275R3A,paint_type,liquid
+OFF-BAKERHUGHES-PB-275R3A,item,valves
+OFF-BAKERHUGHES-PB-275R3A,booth_type,dry type side draft
+OFF-BAKERHUGHES-PB-275R3A,material_handling,manual push-pull I-beam conveyor
+OFF-CRI-PB-082406R4,length_m,5.0
+OFF-CRI-PB-082406R4,width_m,3.0
+OFF-CRI-PB-082406R4,height_m,4.0
+OFF-CRI-PB-082406R4,paint_type,liquid
+OFF-CRI-PB-082406R4,booth_type,dry type side draft
+OFF-CRI-PB-082406R4,operators,2
+OFF-CRI-PB-082406R4,qty,3
+OFF-DMN-PB-180624R3,length_m,3.0
+OFF-DMN-PB-180624R3,width_m,3.0
+OFF-DMN-PB-180624R3,height_m,2.35
+OFF-DMN-PB-180624R3,paint_type,liquid
+OFF-DMN-PB-180624R3,booth_type,dry type cross draft
+OFF-DMN-PB-180624R3,job_size_mm,1300 x 1200 x 960
+OFF-DMN-PB-180624R3,job_weight_kg,1000
+OFF-ELGI-PB-402R5,length_m,3.2
+OFF-ELGI-PB-402R5,width_m,3.0
+OFF-ELGI-PB-402R5,height_m,3.55
+OFF-ELGI-PB-402R5,paint_type,liquid
+OFF-ELGI-PB-402R5,booth_type,dry type cross draft (batch)
+OFF-ELGI-PB-402R5,painting_method,manual
+OFF-GMR-PB-143R2,length_m,5.95
+OFF-GMR-PB-143R2,width_m,1.1
+OFF-GMR-PB-143R2,height_m,2.35
+OFF-GMR-PB-143R2,paint_type,liquid
+OFF-GMR-PB-143R2,booth_type,dry type side draft (batch)
+OFF-GMR-PB-143R2,painting_method,manual
+OFF-INNOTRANS-PB-344R4,length_m,3.0
+OFF-INNOTRANS-PB-344R4,width_m,2.25
+OFF-INNOTRANS-PB-344R4,height_m,2.9
+OFF-INNOTRANS-PB-344R4,paint_type,liquid
+OFF-INNOTRANS-PB-344R4,booth_type,dry type cross draft (batch)
+OFF-KOBELCO-PB-86R2,length_m,4.7
+OFF-KOBELCO-PB-86R2,width_m,5.0
+OFF-KOBELCO-PB-86R2,height_m,5.0
+OFF-KOBELCO-PB-86R2,paint_type,liquid
+OFF-KOBELCO-PB-86R2,booth_type,dry type cross draft
+OFF-KOBELCO-PB-86R2,painting_method,manual
+OFF-KOBELCO-PB-86R2,material_handling,motorized trolley
+OFF-KOBELCO-PB-86R2,job_size_m,3.6 x 2.6 x 3.1 including trolley
+OFF-RABWIN-PB-437R1,length_m,2.25
+OFF-RABWIN-PB-437R1,width_m,2.25
+OFF-RABWIN-PB-437R1,height_m,3.1
+OFF-RABWIN-PB-437R1,paint_type,liquid
+OFF-RABWIN-PB-437R1,item,iron casting
+OFF-RABWIN-PB-437R1,booth_type,dry type cross draft
+OFF-RABWIN-PB-437R1,material_handling,I-beam manual push-pull
+OFF-SEPL-PB-289R1,length_m,1.5
+OFF-SEPL-PB-289R1,width_m,1.5
+OFF-SEPL-PB-289R1,height_m,2.425
+OFF-SEPL-PB-289R1,paint_type,liquid
+OFF-SEPL-PB-289R1,booth_type,dry type cross draft (batch)
+OFF-SEENIVASAN-PB-204R2,length_m,3.0
+OFF-SEENIVASAN-PB-204R2,width_m,2.25
+OFF-SEENIVASAN-PB-204R2,height_m,2.4
+OFF-SEENIVASAN-PB-204R2,paint_type,PU
+OFF-SEENIVASAN-PB-204R2,booth_type,dry type cross draft
+OFF-STMSPA-PB-349R1,length_m,1.2
+OFF-STMSPA-PB-349R1,width_m,2.1
+OFF-STMSPA-PB-349R1,height_m,2.0
+OFF-STMSPA-PB-349R1,paint_type,PU
+OFF-STMSPA-PB-349R1,booth_type,dry type cross draft
+OFF-SYNERGY-PB-209R3,length_m,7.5
+OFF-SYNERGY-PB-209R3,width_m,4.0
+OFF-SYNERGY-PB-209R3,height_m,3.5
+OFF-SYNERGY-PB-209R3,paint_type,liquid
+OFF-SYNERGY-PB-209R3,booth_type,dry type cross side draft (batch)
+OFF-SYNERGY-PB-209R3,painting_method,manual
+OFF-VALV-PB-133R6,length_m,3.0
+OFF-VALV-PB-133R6,width_m,3.0
+OFF-VALV-PB-133R6,height_m,2.9
+OFF-VALV-PB-133R6,paint_type,liquid
+OFF-VALV-PB-133R6,booth_type,dry type cross draft
+OFF-VALV-PB-133R6,component_size_mm,600 x 600 x 1200
+OFF-YONEX-PB-367,length_m,0.9
+OFF-YONEX-PB-367,width_m,0.92
+OFF-YONEX-PB-367,height_m,2.0
+OFF-YONEX-PB-367,paint_type,liquid
+OFF-YONEX-PB-367,booth_type,water wall (AGL type)
+OFF-ONLOAD-PCP-346R2,floor_space_m,17.5 x 6
+OFF-ONLOAD-PCP-346R2,max_component_size_mm,1790 L x 1215 W x 1380 H
+OFF-ONLOAD-PCP-346R2,max_component_weight_kg,540
+OFF-ONLOAD-PCP-346R2,qty_per_shift,10
+OFF-ONLOAD-PCP-346R2,colours_used,3
+OFF-ONLOAD-PCP-346R2,baking_temp_c,180
+OFF-ONLOAD-PCP-346R2,baking_time_min,20
+OFF-ONLOAD-PCP-346R2,standalone_booth_size_m,6.5 W x 8 D
+OFF-C2C-WS-178,air_volume_cfm,735
+OFF-C2C-WS-178,air_volume_cmh,1250
+OFF-C2C-WS-178,operating_temp,ambient
+OFF-C2C-WS-178,tower_diameter_mm,700
+OFF-C2C-WS-178,blower_mounting,direct drive - above the scrubber
+OFF-C2C-WS-178,qty,1
+OFF-C2C-WS-20240921R1,air_volume_cfm,900
+OFF-C2C-WS-20240921R1,air_volume_cmh,1530
+OFF-C2C-WS-20240921R1,operating_temp,ambient
+OFF-C2C-WS-20240921R1,operating_pressure,atmospheric
+OFF-C2C-WS-20240921R1,nature_of_powder,hygroscopic
+OFF-C2C-WS-20240921R1,recirculation_pump_m3hr,5
+OFF-C2C-WS-20240921R1,qty,2
+OFF-OREN-WS-192,fluid,water
+OFF-OREN-WS-192,air_volume_cfm,2300
+OFF-OREN-WS-192,air_volume_cmh,4000
+OFF-OREN-WS-192,operating_temp,80C
+OFF-OREN-WS-192,tower_diameter_mm,1000
+OFF-OREN-WS-192,blower_mounting,mounting on top side
+OFF-OREN-WS-192,qty,1
+OFF-MECCA-WS-164,item_to_exhaust,oven fumes
+OFF-MECCA-WS-164,air_volume_cmh,6100
+OFF-MECCA-WS-164,qty,2
+OFF-GROWEL-WS-190,item_to_exhaust,paint solvent vapor
+OFF-GROWEL-WS-190,air_volume_cfm,7000
+OFF-GROWEL-WS-190,duct_velocity_ms,12-15
+OFF-GROWEL-WS-190,no_of_suction_points,19

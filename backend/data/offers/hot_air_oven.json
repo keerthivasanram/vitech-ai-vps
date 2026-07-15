@@ -1,0 +1,63 @@
+[
+  {
+    "id": "OFF-ZFWABCO-OVEN-424R4",
+    "type": "offer",
+    "category": "hot_air_oven",
+    "title": "Batch Type Hot Air Oven (electric, 80C) + Motorized Trolley - ZF WABCO",
+    "client": "ZF Commercial Vehicle Control Systems India Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "PS/424R4/2024-25",
+    "date": "2024-05-31",
+    "source_file": "ZF WABCO_Batch Oven 2 R4 310524.pdf",
+    "given_data": {
+      "length_m": 1.4, "width_m": 1.4, "height_m": 1.0,
+      "operating_temp": "80C",
+      "oven_type": "batch, electric",
+      "heating_mode": "wire element"
+    },
+    "technical_details": {
+      "oven_type": "box type batch, electric",
+      "chamber": "inner SS-304 / outer MS finish painted",
+      "operating_temp": "80C max",
+      "no_of_zones": 1,
+      "heating": "wire element with thyristor control",
+      "circulation_fan_hp": 2,
+      "insulation": "glass wool (to withstand 100C)",
+      "control": "PLC with auto door open logic",
+      "door": "motorized up/down, 1 no + 1 future",
+      "motorized_trolley": "1 HP geared, forward/reverse",
+      "finish": "buffing inner SS / enamel outer"
+    },
+    "price_schedule": {"oven": 1352600, "motorized_trolley": 228400, "currency": "INR"}
+  },
+  {
+    "id": "OFF-SURFACE-OVEN-356R3",
+    "type": "offer",
+    "category": "hot_air_oven",
+    "title": "Camel Back Bake Oven (diesel, 230C) + I-Beam Conveyor - Surface Treatment Systems",
+    "client": "Surface Treatment Systems",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/356R3/2023-24",
+    "date": "2024-03-15",
+    "source_file": "SURAFACE SYSTEM _CONVEYOR & BAKE OVEN FOR POWDER COAT PLANT_R3180324.pdf",
+    "given_data": {
+      "length_m": 8.5, "width_m": 3.5, "height_m": 2.4,
+      "operating_temp": "230C",
+      "oven_type": "camel back, conveyorised",
+      "job_weight_kg": 150,
+      "heating_mode": "diesel fired"
+    },
+    "technical_details": {
+      "oven_type": "conveyorised camel back, floor mounted, 0.5 m/min",
+      "chamber": "inner/outer GI 1.5mm, louver GI 1.2mm",
+      "operating_temp": "250C max, working 230C",
+      "baking_time_min": 30,
+      "insulation": "175mm blanket 96 kg/m3 + 25mm ceramic wool",
+      "heating": "diesel fired hot air generator, 400000 kcal/hr",
+      "circulation_blower_hp": 10, "circulation_blower_qty": 2, "circulation_blower_drive": "belt",
+      "conveyor": "I-beam overhead 97m, 4 inch pitch, 400mm hanger, 160 kg/hook, 5 HP caterpillar drive, VFD",
+      "finish": "inner red oxide + Al paint / outer final enamel"
+    },
+    "price_schedule": {"conveyor": 3020875, "bake_oven": 4179225, "final_price": 9000000, "currency": "INR"}
+  }
+]

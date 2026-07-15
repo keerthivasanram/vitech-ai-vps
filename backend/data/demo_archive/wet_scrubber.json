@@ -1,0 +1,118 @@
+[
+  {
+    "id": "OFF-WS-008",
+    "type": "offer",
+    "category": "wet_scrubber",
+    "title": "Wet Scrubber Offer - 500 CFM",
+    "source_file": "WetScrubber_500CFM_2nos.pdf",
+    "given_data": {
+      "air_volume_cfm": 500,
+      "air_volume_cmh": 850,
+      "operating_temp": "ambient",
+      "tower_diameter_mm": 600,
+      "blower_mounting": "direct drive - nearby platform",
+      "qty": 2
+    },
+    "technical_details": {
+      "tower_diameter_mm": 600,
+      "tower_height_m": 3.0,
+      "chamber": "SS-304 2mm",
+      "tank_material": "SS-304 2mm",
+      "no_of_tower": 1,
+      "spray_nozzle_nos": 12,
+      "spray_nozzle_material": "SS-304",
+      "pump_capacity_hp": 0.75,
+      "pump_make": "ANALA",
+      "demister": "PP 550mm x 150mm thick",
+      "tank_capacity_litre": 170,
+      "finish": "SS 2b / MS epoxy primer + epoxy top coat"
+    }
+  },
+  {
+    "id": "OFF-WS-014",
+    "type": "offer",
+    "category": "wet_scrubber",
+    "title": "Wet Scrubber Offer - 735 CFM",
+    "source_file": "WetScrubber_735CFM_4nos.pdf",
+    "given_data": {
+      "air_volume_cfm": 735,
+      "air_volume_cmh": 1250,
+      "operating_temp": "ambient",
+      "tower_diameter_mm": 700,
+      "blower_mounting": "direct drive - nearby platform",
+      "qty": 4
+    },
+    "technical_details": {
+      "tower_diameter_mm": 700,
+      "tower_height_m": 3.5,
+      "chamber": "SS-304 2mm",
+      "tank_material": "SS-304 2mm",
+      "no_of_tower": 1,
+      "spray_nozzle_nos": 17,
+      "spray_nozzle_material": "SS-304",
+      "pump_capacity_hp": 1.0,
+      "pump_make": "ANALA",
+      "demister": "PP 650mm x 150mm thick",
+      "tank_capacity_litre": 250,
+      "finish": "SS 2b / MS epoxy primer + epoxy top coat"
+    }
+  },
+  {
+    "id": "OFF-WS-021",
+    "type": "offer",
+    "category": "wet_scrubber",
+    "title": "Wet Scrubber Offer - 1000 CFM",
+    "source_file": "WetScrubber_1000CFM_2nos.pdf",
+    "given_data": {
+      "air_volume_cfm": 1000,
+      "air_volume_cmh": 1700,
+      "operating_temp": "ambient",
+      "tower_diameter_mm": 800,
+      "blower_mounting": "direct drive - nearby platform",
+      "qty": 2
+    },
+    "technical_details": {
+      "tower_diameter_mm": 800,
+      "tower_height_m": 4.0,
+      "chamber": "SS-304 2mm",
+      "tank_material": "SS-304 2mm",
+      "no_of_tower": 1,
+      "spray_nozzle_nos": 23,
+      "spray_nozzle_material": "SS-304",
+      "pump_capacity_hp": 1.5,
+      "pump_make": "ANALA",
+      "demister": "PP 750mm x 150mm thick",
+      "tank_capacity_litre": 340,
+      "finish": "SS 2b / MS epoxy primer + epoxy top coat"
+    }
+  },
+  {
+    "id": "OFF-WS-030",
+    "type": "offer",
+    "category": "wet_scrubber",
+    "title": "Wet Scrubber Offer - 1500 CFM",
+    "source_file": "WetScrubber_1500CFM_1no.pdf",
+    "given_data": {
+      "air_volume_cfm": 1500,
+      "air_volume_cmh": 2550,
+      "operating_temp": "ambient",
+      "tower_diameter_mm": 1000,
+      "blower_mounting": "direct drive - floor mounted",
+      "qty": 1
+    },
+    "technical_details": {
+      "tower_diameter_mm": 1000,
+      "tower_height_m": 4.5,
+      "chamber": "SS-304 2mm",
+      "tank_material": "SS-304 2mm",
+      "no_of_tower": 1,
+      "spray_nozzle_nos": 35,
+      "spray_nozzle_material": "SS-304",
+      "pump_capacity_hp": 2.0,
+      "pump_make": "ANALA",
+      "demister": "PP 900mm x 150mm thick",
+      "tank_capacity_litre": 510,
+      "finish": "SS 2b / MS epoxy primer + epoxy top coat"
+    }
+  }
+]

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "OFF-ONLOAD-PCP-346R2",
+    "type": "offer",
+    "category": "powder_coating_plant",
+    "title": "Powder Coating Plant (booth + pulse jet + oven + conveyor) - Onload Gears",
+    "client": "Onload Gears Pvt Ltd",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/346R2/2023-24",
+    "date": "2024-01-22",
+    "source_file": "OLG LTD POWDER COATING PLANT _R2 220123 .pdf",
+    "given_data": {
+      "floor_space_m": "17.5 x 6",
+      "max_component_size_mm": "1790 L x 1215 W x 1380 H",
+      "max_component_weight_kg": 540,
+      "qty_per_shift": 10,
+      "colours_used": 3,
+      "baking_temp_c": 180,
+      "baking_time_min": 20,
+      "standalone_booth_size_m": "6.5 W x 8 D"
+    },
+    "technical_details": {
+      "powder_spray_booth": {
+        "booth_type": "downside draft",
+        "inner_size_m": "3L x 1.9W x 2.5H",
+        "moc": "mild steel sheet metal panels",
+        "illumination": "2x40w x 2 nos NFLP",
+        "exhaust_duct": "GI 0.8mm 250mm sq - 10m x 2 lines",
+        "manual_spray_guns": "Sprayright Plus - 2 nos"
+      },
+      "pulse_jet_system": {
+        "model": "VTCCA-65",
+        "blower_motor_hp": 2.0, "blower_qty": 2,
+        "filter_bags_cartridge": "12 nos, Dia 150 x 1000",
+        "solenoid_coil": "1 inch - 6 nos",
+        "qty": "3 sets"
+      },
+      "hot_air_oven": {
+        "oven_type": "batch",
+        "inner_size_m": "3.0L x 1.8W x 2.5H",
+        "operating_temp_c": "180-200",
+        "insulation": "150mm rock wool 96 kg/m3",
+        "heating_media": "LPG burner 100000 kcal/hr",
+        "circulation_blower_hp": 5.0,
+        "temperature_control": "DTC + Fe-C thermocouple"
+      },
+      "overhead_conveyor": {
+        "type": "overhead manual push-pull",
+        "track_length_m": 35,
+        "support_structure": "MS I-beam",
+        "push_pull_trolley": "1T capacity - 6 nos"
+      }
+    },
+    "price_schedule": {
+      "powder_booth_pulse_jet": 1180550,
+      "manual_guns": 624700,
+      "hot_air_oven": 1063960,
+      "overhead_conveyor": 421200,
+      "installation": 400000,
+      "grand_total": 3775410,
+      "final_price": 3397869,
+      "currency": "INR"
+    }
+  }
+]

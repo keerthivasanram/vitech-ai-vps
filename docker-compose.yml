@@ -1,0 +1,78 @@
+# Vitech AI Engineering Platform — full stack.
+# Run on the VPS: `docker compose up -d`. Set secrets in a .env file first
+# (see .env.example). All services share this compose network, so they reach
+# each other by SERVICE NAME (e.g. http://ollama:11434), never localhost.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes: [ollama:/root/.ollama]
+    ports: ["11434:11434"]
+    restart: unless-stopped
+    # RunPod GPU — uncomment to give Ollama the GPU (needs nvidia-container-toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
+  chroma:
+    image: chromadb/chroma:latest
+    environment: [IS_PERSISTENT=TRUE]
+    volumes: [chroma:/chroma/chroma]
+    ports: ["8000:8000"]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes: [redis:/data]
+    ports: ["6379:6379"]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vitech}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vitech}
+      POSTGRES_DB: ${POSTGRES_DB:-vitech}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+    restart: unless-stopped
+
+  flowise:
+    image: flowiseai/flowise:latest
+    depends_on: [postgres, ollama, chroma, redis]
+    environment:
+      - PORT=3000
+      - DATABASE_TYPE=postgres
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=${POSTGRES_DB:-vitech}
+      - DATABASE_USER=${POSTGRES_USER:-vitech}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-vitech}
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME:-admin}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD:-changeme}
+    volumes: [flowise:/root/.flowise]
+    ports: ["3000:3000"]
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    depends_on: [ollama]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend:/app          # live code; remove for a frozen prod image
+      - chroma_store:/app/chroma_store
+    # host 8080 -> container 8000 (chroma already owns host 8000)
+    ports: ["8080:8000"]
+    restart: unless-stopped
+
+volumes:
+  ollama:
+  chroma:
+  chroma_store:
+  redis:
+  pgdata:
+  flowise:

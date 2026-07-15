@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vitech AI — Current Agent → Flowise Transition</title>
+<style>
+  :root{--bg:#fff;--bg2:#f8fafc;--panel:#f1f5f9;--text:#0f172a;--muted:#64748b;
+    --accent:#4f6ef7;--accent2:#3451e0;--navy:#1e3a8a;--ok:#059669;--okbg:#dcfce7;
+    --warn:#d97706;--warnbg:#fef3e2;--border:#e2e8f0;--shadow:0 1px 3px rgba(0,0,0,.05),0 8px 28px rgba(15,23,42,.06);}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg2);color:var(--text);line-height:1.55;
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:940px;margin:0 auto;padding:36px 26px 60px;}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  h1{font-size:26px;margin:6px 0 4px;letter-spacing:-.02em;}
+  h2{font-size:18px;margin:32px 0 12px;padding-bottom:7px;border-bottom:2px solid var(--panel);}
+  .sub{color:var(--muted);font-size:15px;margin:0;}
+  p{margin:8px 0;} code{background:var(--panel);border-radius:5px;padding:1px 6px;font-size:12.5px;color:var(--navy);font-family:Consolas,monospace;}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0;}
+  .card{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);}
+  .card.before{border-top:3px solid var(--muted);}
+  .card.after{border-top:3px solid var(--accent);}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 9px;border-radius:999px;margin-bottom:8px;}
+  .tag.b{background:var(--panel);color:var(--muted);} .tag.a{background:rgba(79,110,247,.12);color:var(--accent);}
+  .flow{font-family:Consolas,monospace;font-size:12.5px;color:#334155;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;white-space:pre-wrap;}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top;}
+  th{background:var(--panel);color:var(--navy);font-size:12px;text-transform:uppercase;letter-spacing:.04em;}
+  .keep{color:var(--ok);font-weight:700;} .repl{color:var(--warn);font-weight:700;}
+  .rule{background:var(--okbg);border:1px solid #bbf7d0;border-radius:12px;padding:14px 18px;margin:12px 0;font-size:15px;}
+  .agents{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;}
+  .agent{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--bg);box-shadow:var(--shadow);min-width:150px;flex:1;}
+  .agent b{font-size:13.5px;} .agent span{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;}
+  .agent.live{border-top:3px solid var(--ok);} .agent.soon{border-top:3px solid var(--muted);opacity:.85;}
+  .sup{background:linear-gradient(135deg,#1e3a8a,#3451e0);color:#fff;border:none;}
+  .sup span{color:#c7d2fe;}
+  .foot{margin-top:32px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12.5px;text-align:center;}
+  @media (max-width:720px){.cols{grid-template-columns:1fr;}}
+  @media print{body{background:#fff}.card,.agent{box-shadow:none}.sup{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Vitech AI Engineering Platform</div>
+    <h1>What happens to the current agent</h1>
+    <p class="sub">Building the Flowise agent doesn't replace our work — the engine is promoted to tools; only the chat shell changes.</p>
+  </header>
+
+  <h2>Before → After</h2>
+  <div class="cols">
+    <div class="card before">
+      <span class="tag b">Today (prototype)</span>
+      <div class="flow">React
+  → FastAPI
+      • understand + route
+      • ENGINE: resolver, pricing,
+        quotation, analytics, rules
+      • LLM narration (chat)
+  → Ollama (qwen 3B) · Chroma</div>
+      <p style="font-size:13px;color:#475569;margin-top:10px;">One process does everything: reasoning <em>and</em> conversation.</p>
+    </div>
+    <div class="card after">
+      <span class="tag a">Target (Flowise)</span>
+      <div class="flow">React
+  → FastAPI
+  → Flowise ENGINEERING AGENT
+      • decides which tool
+      • Llama 3 narration + memory
+      → TOOLS = FastAPI engine
+        /api/tools/spec · /quote · /lookup
+  → Ollama (Llama 3) · Chroma</div>
+      <p style="font-size:13px;color:#475569;margin-top:10px;">Flowise orchestrates &amp; talks; Python still computes every number.</p>
+    </div>
+  </div>
+
+  <h2>What happens to each piece</h2>
+  <table>
+    <tr><th>Current piece</th><th>Fate</th><th>Where it lives</th></tr>
+    <tr><td>Resolver · pricing · quotation · analytics · rules · validation</td><td class="keep">KEPT</td><td>Becomes the Python <b>tools</b> Flowise calls (<code>/api/tools/*</code> — built)</td></tr>
+    <tr><td><code>understand</code> + mode routing (data vs knowledge)</td><td class="keep">KEPT</td><td>Stays in Python, <em>inside</em> the tool endpoints</td></tr>
+    <tr><td>Chat orchestration + prompts + <code>/api/query</code></td><td class="repl">REPLACED</td><td>By the Flowise Engineering Agent (Llama 3 + memory)</td></tr>
+    <tr><td>React frontend</td><td class="keep">KEPT</td><td>Talks to FastAPI, which now calls Flowise for conversation</td></tr>
+    <tr><td>Ollama <code>qwen2.5:3b</code></td><td class="repl">UPGRADED</td><td>To Llama 3 on the RunPod GPU</td></tr>
+  </table>
+
+  <div class="rule"><b>The one rule:</b> one brain, one engine. Flowise orchestrates; Python computes. Never re-implement the reasoning inside Flowise, and don't let the old chat and the Flowise agent answer independently — they'd drift. Because Flowise calls the <em>same</em> engine, both always give the same numbers.</div>
+
+  <h2>Safe transition (no big-bang)</h2>
+  <p>1. Keep the current app running (it's the demo). &nbsp; 2. Stand up Flowise <b>alongside</b>, calling the same tool endpoints. &nbsp; 3. When the Flowise agent matches the current chat, retire <code>/api/query</code> and point the frontend at Flowise. The engine/tools never change through any of it.</p>
+
+  <h2>Where the agents are heading</h2>
+  <div class="agents">
+    <div class="agent live"><b>Engineering</b><span>Live — specs + knowledge (this engine)</span></div>
+    <div class="agent live"><b>Quotation</b><span>Working — budgetary pricing + PDF</span></div>
+    <div class="agent soon"><b>Consultant</b><span>Next</span></div>
+    <div class="agent soon"><b>Standards</b><span>Next</span></div>
+    <div class="agent soon"><b>Drawing</b><span>Later — 2D GA</span></div>
+  </div>
+  <div class="agents">
+    <div class="agent sup" style="min-width:100%"><b>Supervisor Agent</b><span>Orchestrates the specialised agents above — each one calls the same deterministic Python tools.</span></div>
+  </div>
+
+  <div class="foot">Vitech AI Engineering Platform &nbsp;·&nbsp; the engine we built becomes the tools; Flowise becomes the brain.</div>
+</div>
+</body>
+</html>

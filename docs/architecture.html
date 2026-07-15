@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ATS Engineering Assistant — Architecture</title>
+<style>
+  :root{
+    --bg:#ffffff; --bg2:#f8fafc; --text:#0f172a; --muted:#64748b;
+    --accent:#4f6ef7; --accent-2:#3451e0; --ok:#059669; --border:#e2e8f0;
+    --shadow:0 1px 3px rgba(0,0,0,.06), 0 8px 30px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg2); color:var(--text);
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px; margin:0 auto; padding:32px 24px 56px}
+  header.page{margin-bottom:18px}
+  header.page .kicker{
+    font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent);
+  }
+  header.page h1{margin:6px 0 4px; font-size:26px; letter-spacing:-.01em}
+  header.page p{margin:0; color:var(--muted); font-size:15px}
+  .card{
+    background:var(--bg); border:1px solid var(--border); border-radius:16px;
+    box-shadow:var(--shadow); padding:20px 20px 8px;
+  }
+  svg{width:100%; height:auto; display:block}
+  .notes{
+    margin-top:26px; display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
+  }
+  .note{
+    background:var(--bg); border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .note h3{margin:0 0 6px; font-size:14px; display:flex; align-items:center; gap:8px}
+  .note h3 .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .note p{margin:0; font-size:13px; color:#475569; line-height:1.5}
+  .foot{margin-top:22px; text-align:center; color:var(--muted); font-size:12.5px}
+  @media (max-width:820px){ .notes{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <div class="kicker">ATS Engineering Assistant</div>
+    <h1>How the system works</h1>
+    <p>From a client requirement to a traceable engineering specification — and the roadmap beyond it.</p>
+  </header>
+
+  <div class="card">
+  <svg viewBox="0 0 1280 820" role="img" aria-label="Architecture flow diagram">
+    <defs>
+      <marker id="arw" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+      </marker>
+      <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="1.2" stdDeviation="2.2" flood-color="#0f172a" flood-opacity="0.12"/>
+      </filter>
+      <style>
+        text{font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+        .mid{text-anchor:middle}
+      </style>
+    </defs>
+
+    <!-- ===== Title ===== -->
+    <text class="mid" x="640" y="42" font-size="24" font-weight="700" fill="#0f172a">ATS Engineering Assistant</text>
+    <text class="mid" x="640" y="66" font-size="13.5" fill="#64748b">Requirement → understanding → retrieval → the resolver → plain-language answer</text>
+
+    <!-- ===== KNOWLEDGE (loaded once) ===== -->
+    <text x="40" y="112" font-size="12" font-weight="700" letter-spacing="1.5" fill="#64748b">KNOWLEDGE · LOADED ONCE</text>
+
+    <rect x="40"  y="126" width="196" height="60" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
+    <text class="mid" x="138" y="152" font-size="13" font-weight="700" fill="#334155">33 real Vitech offers</text>
+    <text class="mid" x="138" y="171" font-size="11" fill="#64748b">structured JSON</text>
+
+    <line x1="238" y1="156" x2="264" y2="156" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+
+    <rect x="266" y="126" width="168" height="60" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
+    <text class="mid" x="350" y="152" font-size="13" font-weight="700" fill="#334155">Embed · MiniLM</text>
+    <text class="mid" x="350" y="171" font-size="11" fill="#64748b">local, on-device</text>
+
+    <line x1="436" y1="156" x2="462" y2="156" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+
+    <rect x="464" y="126" width="300" height="60" rx="10" fill="#1e3a8a" filter="url(#sh)"/>
+    <text class="mid" x="614" y="152" font-size="14" font-weight="700" fill="#ffffff">ChromaDB Knowledge Base</text>
+    <text class="mid" x="614" y="171" font-size="11" fill="#c7d2fe">vectors + structured fields</text>
+
+    <rect x="812" y="126" width="428" height="60" rx="10" fill="#d9f7f1" stroke="#0d9488" filter="url(#sh)"/>
+    <text class="mid" x="1026" y="151" font-size="13.5" font-weight="700" fill="#0f5f57">Engineering standards &amp; ATS design rules</text>
+    <text class="mid" x="1026" y="171" font-size="11" fill="#0f5f57">airflow velocities · sizing formulas · material specs</text>
+
+    <!-- ===== LIVE lane ===== -->
+    <text x="40" y="248" font-size="12" font-weight="700" letter-spacing="1.5" fill="#64748b">LIVE · EVERY QUESTION</text>
+
+    <!-- feeders -->
+    <line x1="590" y1="188" x2="470" y2="388" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arw)"/>
+    <line x1="990" y1="188" x2="838" y2="300" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arw)"/>
+
+    <!-- User -->
+    <rect x="30" y="390" width="150" height="80" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
+    <text class="mid" x="105" y="424" font-size="13" font-weight="700" fill="#334155">User question</text>
+    <text class="mid" x="105" y="444" font-size="11" fill="#64748b">React UI</text>
+    <line x1="180" y1="430" x2="204" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+
+    <!-- Understand -->
+    <rect x="206" y="390" width="150" height="80" rx="10" fill="#fef3e2" stroke="#d97706" filter="url(#sh)"/>
+    <text class="mid" x="281" y="418" font-size="13" font-weight="700" fill="#92400e">Understand</text>
+    <text class="mid" x="281" y="437" font-size="10.5" fill="#92400e">intent · category</text>
+    <text class="mid" x="281" y="453" font-size="10.5" fill="#92400e">· parameters</text>
+    <line x1="356" y1="430" x2="382" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+
+    <!-- Retrieve -->
+    <rect x="384" y="390" width="150" height="80" rx="10" fill="#e5eaff" stroke="#4f6ef7" filter="url(#sh)"/>
+    <text class="mid" x="459" y="418" font-size="13" font-weight="700" fill="#26308a">Retrieve</text>
+    <text class="mid" x="459" y="437" font-size="10.5" fill="#26308a">similar past offers</text>
+    <text class="mid" x="459" y="453" font-size="10.5" fill="#26308a">(category-filtered)</text>
+    <line x1="534" y1="430" x2="556" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+
+    <!-- ===== RESOLVER (hero) ===== -->
+    <rect x="558" y="300" width="322" height="282" rx="14" fill="#ffffff" stroke="#4f6ef7" stroke-width="2.5" filter="url(#sh)"/>
+    <text class="mid" x="719" y="329" font-size="15" font-weight="700" fill="#26308a">Specification Resolver</text>
+    <text class="mid" x="719" y="348" font-size="11" fill="#64748b">one engine — the policy decides who may author a value</text>
+
+    <rect x="574" y="362" width="140" height="30" rx="7" fill="#fef3e2" stroke="#d97706"/>
+    <text class="mid" x="644" y="381" font-size="11" font-weight="700" fill="#92400e">Consulting · knowledge</text>
+    <rect x="724" y="362" width="150" height="30" rx="7" fill="#4f6ef7"/>
+    <text class="mid" x="799" y="381" font-size="11" font-weight="700" fill="#ffffff">ATS · data</text>
+
+    <rect x="574" y="402" width="300" height="28" rx="7" fill="#d9f7f1" stroke="#0d9488"/>
+    <text class="mid" x="724" y="421" font-size="11" font-weight="600" fill="#0f5f57">Rule engine — formulas + standards</text>
+    <rect x="574" y="436" width="300" height="28" rx="7" fill="#e5eaff" stroke="#4f6ef7"/>
+    <text class="mid" x="724" y="455" font-size="11" font-weight="600" fill="#26308a">Case-based — your historical offers</text>
+    <rect x="574" y="470" width="300" height="28" rx="7" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text class="mid" x="724" y="489" font-size="11" font-weight="600" fill="#334155">Provenance + decision ledger</text>
+    <rect x="574" y="504" width="300" height="28" rx="7" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text class="mid" x="724" y="523" font-size="11" font-weight="600" fill="#334155">Validation + confidence score</text>
+    <text class="mid" x="719" y="556" font-size="10.5" font-style="italic" fill="#64748b">Rules + your data write the numbers — never invented</text>
+
+    <line x1="880" y1="430" x2="904" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+
+    <!-- LLM -->
+    <rect x="906" y="390" width="150" height="80" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
+    <text class="mid" x="981" y="424" font-size="13" font-weight="700" fill="#334155">LLM</text>
+    <text class="mid" x="981" y="444" font-size="11" fill="#64748b">writes the wording only</text>
+    <line x1="1056" y1="430" x2="1080" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+
+    <!-- Answer -->
+    <rect x="1082" y="380" width="168" height="100" rx="10" fill="#dcfce7" stroke="#059669" filter="url(#sh)"/>
+    <text class="mid" x="1166" y="414" font-size="14" font-weight="700" fill="#065f46">Specification</text>
+    <text class="mid" x="1166" y="436" font-size="10.5" fill="#065f46">GIVEN → TECHNICAL</text>
+    <text class="mid" x="1166" y="454" font-size="10.5" fill="#065f46">+ confidence + sources</text>
+
+    <!-- ===== ROADMAP ===== -->
+    <text x="40" y="628" font-size="12" font-weight="700" letter-spacing="1.5" fill="#64748b">PRODUCTION ROADMAP</text>
+
+    <!-- bus: one spec feeds many deliverables -->
+    <path d="M1166,480 L1166,620 L525,620" fill="none" stroke="#94a3b8" stroke-width="1.8"/>
+    <text class="mid" x="812" y="611" font-size="10.5" fill="#64748b">one spec → many deliverables</text>
+    <line x1="525" y1="620" x2="525" y2="648" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arw)"/>
+    <line x1="890" y1="620" x2="890" y2="648" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arw)"/>
+
+    <rect x="360" y="650" width="330" height="72" rx="12" fill="#eef2ff" stroke="#4f6ef7" stroke-dasharray="6 4" stroke-width="1.8"/>
+    <text class="mid" x="525" y="680" font-size="13" font-weight="700" fill="#26308a">Quotation Agent · NEXT</text>
+    <text class="mid" x="525" y="701" font-size="10.5" fill="#475569">Spec → BOM → pricing → quotation PDF</text>
+
+    <rect x="740" y="650" width="300" height="72" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="6 4" stroke-width="1.8"/>
+    <text class="mid" x="890" y="680" font-size="13" font-weight="700" fill="#334155">CAD Agent · later</text>
+    <text class="mid" x="890" y="701" font-size="10.5" fill="#64748b">Spec → 2D dimensioned GA drawing</text>
+
+    <!-- ===== Callout banner ===== -->
+    <rect x="30" y="744" width="1220" height="58" rx="12" fill="#eef2ff" stroke="#c7d0f5"/>
+    <text class="mid" x="640" y="770" font-size="14" font-weight="700" fill="#26308a">The AI writes the words — engineering rules and your 33 real offers write every number.</text>
+    <text class="mid" x="640" y="790" font-size="12" fill="#475569">Every value carries its source (given / rule / historical) and a confidence score. No hallucinated specifications.</text>
+  </svg>
+  </div>
+
+  <!-- plain-language read for the client -->
+  <div class="notes">
+    <div class="note">
+      <h3><span class="dot" style="background:#d97706"></span>Understands the request</h3>
+      <p>A local language model reads the enquiry and extracts the equipment type and sizing inputs. Casual chat and “how many offers…” questions are answered directly — the counts are computed in code, not guessed.</p>
+    </div>
+    <div class="note">
+      <h3><span class="dot" style="background:#4f6ef7"></span>One resolver, two modes</h3>
+      <p>A single engine builds the specification. A <b>policy</b> decides the source of truth: <b>Consulting</b> uses engineering knowledge; <b>ATS</b> (say “refer db”) builds from your historical offers. Same schema, different evidence.</p>
+    </div>
+    <div class="note">
+      <h3><span class="dot" style="background:#059669"></span>Every number is traceable</h3>
+      <p>Each value is tagged with its origin (client-given, engineering rule, or historical consensus), sanity-checked against engineering limits, and given a confidence score — with the source offer cited.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    FastAPI · ChromaDB · MiniLM embeddings · Rule Engine (Pydantic) · Ollama Qwen2.5 · React &nbsp;•&nbsp;
+    Human-in-the-loop: outputs are engineer-reviewed drafts.
+  </div>
+</div>
+</body>
+</html>

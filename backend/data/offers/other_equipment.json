@@ -1,0 +1,161 @@
+[
+  {
+    "id": "OFF-AG-FE-205R2",
+    "type": "offer",
+    "category": "fume_extraction",
+    "title": "Fume Exhaust System with Enclosure for Robot Welding - AG Industries",
+    "client": "AG Industries Pvt Ltd",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/205R2/2023-24",
+    "date": "2023-11-23",
+    "source_file": "AG Industries_Robotic welding Enclosure _Fume extraction _R2201123.pdf",
+    "given_data": {
+      "application": "robot welding fume extraction with enclosure",
+      "length_m": 3.43, "width_m": 3.56, "height_m": 2.39,
+      "air_volume_cfm": 6000
+    },
+    "technical_details": {
+      "booth_type": "fume exhaust enclosure",
+      "internal_dimension_m": "3.56W x 3.43D x 2.39H",
+      "construction": "base frame MS channels & square tubes / panels transparent polycarbonate 3mm green",
+      "illumination": "FLP LED 90w - 2 nos",
+      "sliding_door": "3 nos",
+      "blower_cfm": 6000, "blower_motor_hp": 5.0, "blower_motor": "NFLP", "blower_finish": "powder coated",
+      "suction_hood": "MS 2mm, air inlet filter 600x600x50 - 9 nos",
+      "exhaust_duct": "GI 22swg 500x500 - 10m",
+      "finish": "primer + final enamel"
+    },
+    "price_schedule": {"grand_total": 865750, "final_price": 798000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-ARMSTRONG-CONV-395",
+    "type": "offer",
+    "category": "conveyor",
+    "title": "Paint Booth Conveyor Nonrotating Stopper (38m) - Armstrong International",
+    "client": "Armstrong International",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "PS/395/2023-24",
+    "date": "2024-03-18",
+    "source_file": "ARMSTRONG_Conveyor Improvements_180324.pdf",
+    "given_data": {
+      "application": "paint booth conveyor improvement",
+      "overall_length_m": 38,
+      "system": "manual"
+    },
+    "technical_details": {
+      "type": "conveyor nonrotating stopper for hangers",
+      "overall_length_m": 38,
+      "moc": "MS flat, MS angle with fasteners",
+      "operation": "manual system only"
+    },
+    "price_schedule": {"supply": 165000, "installation": 85000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-ECOCHIMNEYS-BLAST-072409R4",
+    "type": "offer",
+    "category": "blast_booth",
+    "title": "Dry Type Grit Blast Booth + Paint Suction - Eco Chimneys",
+    "client": "Eco Chimneys Private Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "072409-R4(C)/24-25",
+    "date": "2024-10-11",
+    "source_file": "Eco Chimneys- blasting & paint suction system R4(corrected) -11.10.24.pdf",
+    "given_data": {
+      "length_m": 8, "width_m": 4, "height_m": 3,
+      "plant_type": "semi abrasive recovery system",
+      "operation_method": "manual",
+      "dust_collection": "cartridge system",
+      "abrasive": "steel grit"
+    },
+    "technical_details": {
+      "blast_booth": "8L x 4W x 3H, MS HR panels, cross draft, sand trap louvers, 3mm rubber lining",
+      "suction_fan_hp": 15, "suction_fan_type": "centrifugal",
+      "shot_recovery": "direct bucket elevator + air wash separator, 2 HP",
+      "illumination": "10 nos LED floodlight",
+      "dust_collector": "reverse pulse jet cartridge, 120 sqm filtration, 12 filters, 15 HP",
+      "paint_suction": "down draft with suction pit, dry filter, 20 HP blower x2",
+      "control_panel": "relay logic with interlocks"
+    },
+    "price_schedule": {"grand_total": 3864400, "final_price": 3300000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-WHEELS-PT-97R4",
+    "type": "offer",
+    "category": "pretreatment_plant",
+    "title": "6-Stage Nano PT Plant + Hot Air Oven with SCADA - Wheels India (Sundaram)",
+    "client": "Wheels India Ltd",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/97R4/2023-24",
+    "date": "2023-06-24",
+    "source_file": "SUNDARAM HYDRALICS _PT & BAKE OVEN WITH SCADA _R4240623.pdf",
+    "given_data": {
+      "job": "hydraulic cylinder",
+      "job_weight_kg": 100,
+      "pt_plant_design": "6 stage nano coat conversion",
+      "plant_type": "conveyorised",
+      "conveyor_speed_m_min": 0.3,
+      "operating_temp_c": 80
+    },
+    "technical_details": {
+      "pt_plant": "6 zones (pre-degrease, degrease, water rinse, activation, nano coat, RO rinse)",
+      "tunnel_moc": "SS-304 1.5mm",
+      "tank_moc": "SS-304 3mm",
+      "spray_nozzles": "PP VJet clip-on, 32-64 per stage",
+      "pump": "SS Anala centrifugal, 5-7.5 HP x 2 (standby)",
+      "tank_heating": "immersion heater 36-60 KW",
+      "hot_air_oven": "conveyorised U-type 6.5L x 3W x 2.25H, 80C, diesel HAG 300000 kcal, 10 HP blower x2, 100mm insulation",
+      "control": "PLC (Siemens) + HMI + SCADA monitoring",
+      "oil_skimmer": "belt type 10 L/hr",
+      "filter_bags": "SS-302 25 micron - 2 nos"
+    },
+    "price_schedule": {"grand_total": 9964925, "final_price": 8600000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-TRIDENT-PT-198R2",
+    "type": "offer",
+    "category": "pretreatment_plant",
+    "title": "6-Stage Phosphating Dip Tank Plant + Dry Off Oven - Trident Coating",
+    "client": "Trident Coating Pvt Ltd",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/198R2/2023-24",
+    "date": "2023-07-24",
+    "source_file": "TRIDENT COATING _PHOSPHATING TANK PROCESS PLANT_R2 24723.pdf",
+    "given_data": {
+      "max_envelope_size_mm": "9000 x Dia 505",
+      "max_weight_kg": 250,
+      "process_scheme": "6 stage phosphating with 6 dip baskets"
+    },
+    "technical_details": {
+      "pt_plant": "6 dip tanks (degrease, water rinse, DM rinse, conversion coating, DM rinse x2)",
+      "tank_size_mm": "9415 L x 1400 W x 1000 H",
+      "tank_moc": "SS-316L 3mm, outside stiffener SS-304",
+      "air_agitation": "roots blower + SS-316 pipes for 5 tanks",
+      "material_baskets": "SS-316 - 4 nos, 9100 x 1100 x 820",
+      "dry_off_oven": "batch 9.6L x 1.5W x 1.2H, 150C, electric heater 144 KW, 5 HP blower x2, SS-316L inner, 100mm rock wool",
+      "access_platform": "13.65m MS with handrails, anti-slip",
+      "oil_skimmer": "belt type"
+    },
+    "price_schedule": {"grand_total": 12407100, "final_price": 11166390, "currency": "INR"}
+  },
+  {
+    "id": "OFF-YONEX-DUCT-286R2",
+    "type": "offer",
+    "category": "ducting",
+    "title": "Exhaust Ducting for Paint Booths (3 sets) - Yonex India",
+    "client": "Yonex India Private Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/PS/286R2/2024",
+    "date": "2024-04-02",
+    "source_file": "Yonex _Ducting work_020424.pdf",
+    "given_data": {
+      "application": "exhaust ducting for water wall paint booths",
+      "qty": 3
+    },
+    "technical_details": {
+      "exhaust_duct": "GI 22swg 300 x 300mm - 40m per set",
+      "supports": "MS structures",
+      "quantity": "3 sets (for 3 paint booths)"
+    },
+    "price_schedule": {"duct": 150000, "supports": 70000, "erection": 140000, "currency": "INR"}
+  }
+]

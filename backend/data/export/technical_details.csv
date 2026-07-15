@@ -1,0 +1,361 @@
+document_id,field,value
+OFF-MECCA-DC-147R4,air_volume_cmh,25000
+OFF-MECCA-DC-147R4,collector_size_m,3.9L x 4.0W x 8.3H
+OFF-MECCA-DC-147R4,casing_hopper_moc,MS 3mm
+OFF-MECCA-DC-147R4,filter_bags,"needle felt antistatic polyester, Dia 160 x 2500mm - 225 nos"
+OFF-MECCA-DC-147R4,solenoid_valve,2 inch flame proof - 15 nos
+OFF-MECCA-DC-147R4,blower_type,centrifugal
+OFF-MECCA-DC-147R4,blower_motor_hp,60
+OFF-MECCA-DC-147R4,blower_drive,belt
+OFF-MECCA-DC-147R4,blower_motor,FLP
+OFF-MECCA-DC-147R4,exhaust_duct,MS 2mm Dia 700mm
+OFF-MECCA-DC-147R4,rotary_airlock,0.5 HP - 2 nos
+OFF-MECCA-DC-147R4,control_panel,"VFD ABB, PLC Delta, HMI Delta"
+OFF-MELSS-DC-160,air_volume_cmh,6000
+OFF-MELSS-DC-160,collector_size_m,2.4L x 1.7W x 5.5H
+OFF-MELSS-DC-160,casing_hopper_moc,MS 3mm
+OFF-MELSS-DC-160,filter_bags,"cartridge fabric polyester, Dia 225 x 1000mm - 24 nos"
+OFF-MELSS-DC-160,solenoid_valve,2 inch - 4 nos
+OFF-MELSS-DC-160,blower_type,centrifugal
+OFF-MELSS-DC-160,blower_cmh,10200
+OFF-MELSS-DC-160,blower_motor_hp,25
+OFF-MELSS-DC-160,blower_drive,direct
+OFF-MELSS-DC-160,blower_motor,NFLP
+OFF-MELSS-DC-160,exhaust_duct,MS 2mm Dia 500mm - 6m
+OFF-MELSS-DC-160,suction_duct,MS 2mm Dia 114 to 400mm - 135m
+OFF-MELSS-DC-160,rotary_airlock,0.5 HP
+OFF-ASCEND-DC-FES070624R5,air_volume_cfm,6500
+OFF-ASCEND-DC-FES070624R5,collector_size_m,2.15L x 1.15W x 4.95H
+OFF-ASCEND-DC-FES070624R5,casing_hopper_moc,MS 3mm
+OFF-ASCEND-DC-FES070624R5,filter_bags,"cartridge polyester, Dia 225 x 1500mm - 18 nos"
+OFF-ASCEND-DC-FES070624R5,solenoid_valve,1.5 inch - 6 nos
+OFF-ASCEND-DC-FES070624R5,blower_motor_hp,40
+OFF-ASCEND-DC-FES070624R5,blower_drive,belt
+OFF-ASCEND-DC-FES070624R5,exhaust_duct,MS 2mm Dia 500mm - 8m
+OFF-ASCEND-DC-FES070624R5,explosion_vent,570 x 470mm
+OFF-ASCEND-DC-FES070624R5,dry_scrubber,"activated carbon chamber 2.2L x 1.1W x 4H GI 2mm, blower 8000 CFM 25HP CG, PVC eliminator, activated carbon 1000x1000x20 - 6 nos"
+OFF-ASCEND-DC-FES070624R5,co2_fire_suppression,1x45kg CO2 cylinder + 4-zone alarm + 20 heat detectors + stop damper
+OFF-ASCEND-DC-FES070624R5,flap_damper,CARZ 400 explosion isolation
+OFF-RAPSRI-DC-203R1,air_volume_cmh,1200
+OFF-RAPSRI-DC-203R1,casing_hopper_moc,MS
+OFF-RAPSRI-DC-203R1,filter_bags,special purpose filter bag
+OFF-RAPSRI-DC-203R1,blower_type,centrifugal
+OFF-RAPSRI-DC-203R1,blower_motor_hp,2
+OFF-RAPSRI-DC-203R1,blower_drive,direct flanged
+OFF-RAPSRI-DC-203R1,suction_hose,PVC flexible Dia 100mm - 1m
+OFF-RAPSRI-DC-203R1,pressure_mmwc,8 inch WC
+OFF-RAPSRI-DC-203R1,finish,primer + enamel
+OFF-OMENGG-DC-323,collector_size_mm,900 x 900 x 1400
+OFF-OMENGG-DC-323,casing_moc,MS 2mm
+OFF-OMENGG-DC-323,filter_bags,"2 nos, manual handshaker method"
+OFF-ZFWABCO-OVEN-424R4,oven_type,"box type batch, electric"
+OFF-ZFWABCO-OVEN-424R4,chamber,inner SS-304 / outer MS finish painted
+OFF-ZFWABCO-OVEN-424R4,operating_temp,80C max
+OFF-ZFWABCO-OVEN-424R4,no_of_zones,1
+OFF-ZFWABCO-OVEN-424R4,heating,wire element with thyristor control
+OFF-ZFWABCO-OVEN-424R4,circulation_fan_hp,2
+OFF-ZFWABCO-OVEN-424R4,insulation,glass wool (to withstand 100C)
+OFF-ZFWABCO-OVEN-424R4,control,PLC with auto door open logic
+OFF-ZFWABCO-OVEN-424R4,door,"motorized up/down, 1 no + 1 future"
+OFF-ZFWABCO-OVEN-424R4,motorized_trolley,"1 HP geared, forward/reverse"
+OFF-ZFWABCO-OVEN-424R4,finish,buffing inner SS / enamel outer
+OFF-SURFACE-OVEN-356R3,oven_type,"conveyorised camel back, floor mounted, 0.5 m/min"
+OFF-SURFACE-OVEN-356R3,chamber,"inner/outer GI 1.5mm, louver GI 1.2mm"
+OFF-SURFACE-OVEN-356R3,operating_temp,"250C max, working 230C"
+OFF-SURFACE-OVEN-356R3,baking_time_min,30
+OFF-SURFACE-OVEN-356R3,insulation,175mm blanket 96 kg/m3 + 25mm ceramic wool
+OFF-SURFACE-OVEN-356R3,heating,"diesel fired hot air generator, 400000 kcal/hr"
+OFF-SURFACE-OVEN-356R3,circulation_blower_hp,10
+OFF-SURFACE-OVEN-356R3,circulation_blower_qty,2
+OFF-SURFACE-OVEN-356R3,circulation_blower_drive,belt
+OFF-SURFACE-OVEN-356R3,conveyor,"I-beam overhead 97m, 4 inch pitch, 400mm hanger, 160 kg/hook, 5 HP caterpillar drive, VFD"
+OFF-SURFACE-OVEN-356R3,finish,inner red oxide + Al paint / outer final enamel
+OFF-AG-FE-205R2,booth_type,fume exhaust enclosure
+OFF-AG-FE-205R2,internal_dimension_m,3.56W x 3.43D x 2.39H
+OFF-AG-FE-205R2,construction,base frame MS channels & square tubes / panels transparent polycarbonate 3mm green
+OFF-AG-FE-205R2,illumination,FLP LED 90w - 2 nos
+OFF-AG-FE-205R2,sliding_door,3 nos
+OFF-AG-FE-205R2,blower_cfm,6000
+OFF-AG-FE-205R2,blower_motor_hp,5.0
+OFF-AG-FE-205R2,blower_motor,NFLP
+OFF-AG-FE-205R2,blower_finish,powder coated
+OFF-AG-FE-205R2,suction_hood,"MS 2mm, air inlet filter 600x600x50 - 9 nos"
+OFF-AG-FE-205R2,exhaust_duct,GI 22swg 500x500 - 10m
+OFF-AG-FE-205R2,finish,primer + final enamel
+OFF-ARMSTRONG-CONV-395,type,conveyor nonrotating stopper for hangers
+OFF-ARMSTRONG-CONV-395,overall_length_m,38
+OFF-ARMSTRONG-CONV-395,moc,"MS flat, MS angle with fasteners"
+OFF-ARMSTRONG-CONV-395,operation,manual system only
+OFF-ECOCHIMNEYS-BLAST-072409R4,blast_booth,"8L x 4W x 3H, MS HR panels, cross draft, sand trap louvers, 3mm rubber lining"
+OFF-ECOCHIMNEYS-BLAST-072409R4,suction_fan_hp,15
+OFF-ECOCHIMNEYS-BLAST-072409R4,suction_fan_type,centrifugal
+OFF-ECOCHIMNEYS-BLAST-072409R4,shot_recovery,"direct bucket elevator + air wash separator, 2 HP"
+OFF-ECOCHIMNEYS-BLAST-072409R4,illumination,10 nos LED floodlight
+OFF-ECOCHIMNEYS-BLAST-072409R4,dust_collector,"reverse pulse jet cartridge, 120 sqm filtration, 12 filters, 15 HP"
+OFF-ECOCHIMNEYS-BLAST-072409R4,paint_suction,"down draft with suction pit, dry filter, 20 HP blower x2"
+OFF-ECOCHIMNEYS-BLAST-072409R4,control_panel,relay logic with interlocks
+OFF-WHEELS-PT-97R4,pt_plant,"6 zones (pre-degrease, degrease, water rinse, activation, nano coat, RO rinse)"
+OFF-WHEELS-PT-97R4,tunnel_moc,SS-304 1.5mm
+OFF-WHEELS-PT-97R4,tank_moc,SS-304 3mm
+OFF-WHEELS-PT-97R4,spray_nozzles,"PP VJet clip-on, 32-64 per stage"
+OFF-WHEELS-PT-97R4,pump,"SS Anala centrifugal, 5-7.5 HP x 2 (standby)"
+OFF-WHEELS-PT-97R4,tank_heating,immersion heater 36-60 KW
+OFF-WHEELS-PT-97R4,hot_air_oven,"conveyorised U-type 6.5L x 3W x 2.25H, 80C, diesel HAG 300000 kcal, 10 HP blower x2, 100mm insulation"
+OFF-WHEELS-PT-97R4,control,PLC (Siemens) + HMI + SCADA monitoring
+OFF-WHEELS-PT-97R4,oil_skimmer,belt type 10 L/hr
+OFF-WHEELS-PT-97R4,filter_bags,SS-302 25 micron - 2 nos
+OFF-TRIDENT-PT-198R2,pt_plant,"6 dip tanks (degrease, water rinse, DM rinse, conversion coating, DM rinse x2)"
+OFF-TRIDENT-PT-198R2,tank_size_mm,9415 L x 1400 W x 1000 H
+OFF-TRIDENT-PT-198R2,tank_moc,"SS-316L 3mm, outside stiffener SS-304"
+OFF-TRIDENT-PT-198R2,air_agitation,roots blower + SS-316 pipes for 5 tanks
+OFF-TRIDENT-PT-198R2,material_baskets,"SS-316 - 4 nos, 9100 x 1100 x 820"
+OFF-TRIDENT-PT-198R2,dry_off_oven,"batch 9.6L x 1.5W x 1.2H, 150C, electric heater 144 KW, 5 HP blower x2, SS-316L inner, 100mm rock wool"
+OFF-TRIDENT-PT-198R2,access_platform,"13.65m MS with handrails, anti-slip"
+OFF-TRIDENT-PT-198R2,oil_skimmer,belt type
+OFF-YONEX-DUCT-286R2,exhaust_duct,GI 22swg 300 x 300mm - 40m per set
+OFF-YONEX-DUCT-286R2,supports,MS structures
+OFF-YONEX-DUCT-286R2,quantity,3 sets (for 3 paint booths)
+OFF-BAKERHUGHES-PB-275R3A,booth_type,dry type side draft
+OFF-BAKERHUGHES-PB-275R3A,construction,base frame ISMC / panels MS 18swg
+OFF-BAKERHUGHES-PB-275R3A,illumination,40w x 2 FLP - 5 nos
+OFF-BAKERHUGHES-PB-275R3A,air_inlet_filter,625 x 625 10 micron - 10 nos
+OFF-BAKERHUGHES-PB-275R3A,blower_cfm,9000
+OFF-BAKERHUGHES-PB-275R3A,blower_motor_hp,10
+OFF-BAKERHUGHES-PB-275R3A,blower_moc,MS
+OFF-BAKERHUGHES-PB-275R3A,exhaust_duct,GI 22g 600x600 - 15m
+OFF-BAKERHUGHES-PB-275R3A,conveyor,I-beam 30m + 30 nos 1T manual push-pull trolley
+OFF-BAKERHUGHES-PB-275R3A,activated_carbon_chamber,"1.2L x 1.1W x 2.5H, MS 2mm"
+OFF-BAKERHUGHES-PB-275R3A,voc_monitor,"online PID, Alpha Sense UK"
+OFF-BAKERHUGHES-PB-275R3A,finish,red oxide + final paint
+OFF-CRI-PB-082406R4,booth_type,"dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4)"
+OFF-CRI-PB-082406R4,construction,panels MS 1.6mm / supports MS tubes
+OFF-CRI-PB-082406R4,illumination,flame proof LED 700-800 LUX
+OFF-CRI-PB-082406R4,paint_arresting,paper filter system
+OFF-CRI-PB-082406R4,blower_motor_hp,"7.5 / 10 / 12.5 (2 nos each, IE3 FLP)"
+OFF-CRI-PB-082406R4,exhaust_duct,GI 22swg 10m
+OFF-CRI-PB-082406R4,activated_carbon_chamber,"2 sets/booth (cartridge, frame type)"
+OFF-CRI-PB-082406R4,finish,MS finish paint
+OFF-DMN-PB-180624R3,booth_type,dry type cross draft
+OFF-DMN-PB-180624R3,construction,"MS 1.2mm, MS structure"
+OFF-DMN-PB-180624R3,illumination,18w x 2 tube light - 4 nos
+OFF-DMN-PB-180624R3,paper_filter,700 x 1500mm - 4 nos (two layers folded perforated)
+OFF-DMN-PB-180624R3,blower_motor_hp,10
+OFF-DMN-PB-180624R3,blower_drive,direct
+OFF-DMN-PB-180624R3,exhaust_duct,GI 22g 550x550 - 10m
+OFF-DMN-PB-180624R3,dry_scrubber,"1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos"
+OFF-DMN-PB-180624R3,finish,casing powder coated
+OFF-ELGI-PB-402R5,booth_type,"dry type cross draft, open front, side draft"
+OFF-ELGI-PB-402R5,construction,panels MS 18swg
+OFF-ELGI-PB-402R5,illumination,90w LED tube - 6 nos
+OFF-ELGI-PB-402R5,paper_filter,"three layers folded perforated, 3.2 x 2.10m"
+OFF-ELGI-PB-402R5,blower_cfm,14000
+OFF-ELGI-PB-402R5,blower_motor_hp,15
+OFF-ELGI-PB-402R5,blower_motor,FLP
+OFF-ELGI-PB-402R5,exhaust_duct,"GI 22g 800x800 - 10m, self-support 10m height"
+OFF-ELGI-PB-402R5,activated_carbon_scrubber,"1.425L x 1.1W x 3.5H, MS, 6 carbon filters"
+OFF-ELGI-PB-402R5,hoist,"3T motorized FLP, 4m travel"
+OFF-ELGI-PB-402R5,finish,red oxide + final enamel
+OFF-GMR-PB-143R2,booth_type,"dry type side draft, non-pressurized"
+OFF-GMR-PB-143R2,construction,base frame ISMC / panels MS 18swg
+OFF-GMR-PB-143R2,illumination,NFLP LED 18w - 12 nos
+OFF-GMR-PB-143R2,air_inlet_filter,box type 10 micron - 10 nos
+OFF-GMR-PB-143R2,paint_arrestor_filter,primary paper + secondary glass fibre
+OFF-GMR-PB-143R2,blower_cfm,10000
+OFF-GMR-PB-143R2,blower_motor_hp,7.5
+OFF-GMR-PB-143R2,blower_type,centrifugal
+OFF-GMR-PB-143R2,exhaust_duct,GI 22swg 550x550 - 10m
+OFF-GMR-PB-143R2,sanding_buffing_booth,"1.1W x 4L x 2.35H, cyclone 800x3.8m, blower 3300 CFM 7.5HP"
+OFF-GMR-PB-143R2,air_shower,900x900x2000
+OFF-GMR-PB-143R2,finish,primer + final enamel
+OFF-INNOTRANS-PB-344R4,booth_type,dry type cross draft
+OFF-INNOTRANS-PB-344R4,construction,MS 1.2mm
+OFF-INNOTRANS-PB-344R4,illumination,40w x 2 LED - 3 nos
+OFF-INNOTRANS-PB-344R4,paper_filter,700 x 3000mm - 2 nos
+OFF-INNOTRANS-PB-344R4,blower_motor_hp,5.0
+OFF-INNOTRANS-PB-344R4,blower_qty,2
+OFF-INNOTRANS-PB-344R4,blower_drive,direct
+OFF-INNOTRANS-PB-344R4,exhaust_duct,GI 22g 400x400 - 8m x 2
+OFF-INNOTRANS-PB-344R4,clean_dry_enclosures,2.0x2.25x3.0 - 2 sets
+OFF-INNOTRANS-PB-344R4,finish,powder coated
+OFF-KOBELCO-PB-86R2,booth_type,dry type side draft
+OFF-KOBELCO-PB-86R2,construction,base frame ISMC / panels MS 1.2mm
+OFF-KOBELCO-PB-86R2,illumination,150w LED flame proof - 8 nos
+OFF-KOBELCO-PB-86R2,glass_fibre_filter,550 x 2500 - 6 nos
+OFF-KOBELCO-PB-86R2,blower_cmh,11000
+OFF-KOBELCO-PB-86R2,blower_motor_hp,12.5
+OFF-KOBELCO-PB-86R2,blower_qty,2
+OFF-KOBELCO-PB-86R2,blower_motor,IE2 flame proof
+OFF-KOBELCO-PB-86R2,exhaust_duct,GI 22g 700x700 - 190 sqm
+OFF-KOBELCO-PB-86R2,fresh_air_system_ahu,"26000 CFM, 20 HP FLP"
+OFF-KOBELCO-PB-86R2,motorized_trolley,"60 ton, 3.7x2.7x0.6, Bonfiglioli geared motor FLP"
+OFF-KOBELCO-PB-86R2,sprinkler_fire_protection,UL/FM quick response pendent
+OFF-KOBELCO-PB-86R2,finish,red oxide + final paint
+OFF-RABWIN-PB-437R1,booth_type,"dry type side draft, non-pressurized"
+OFF-RABWIN-PB-437R1,construction,base frame MS ISMC / panels MS 18swg
+OFF-RABWIN-PB-437R1,illumination,90w non-FLP - 4 nos
+OFF-RABWIN-PB-437R1,air_inlet_filter,box filter
+OFF-RABWIN-PB-437R1,paper_filter,2.1H x 2.25W
+OFF-RABWIN-PB-437R1,blower_motor_hp,10
+OFF-RABWIN-PB-437R1,blower_motor,IE2 non-FLP
+OFF-RABWIN-PB-437R1,exhaust_duct,GI 22swg 550x550 - 10m
+OFF-RABWIN-PB-437R1,conveyor,"I-beam 16m + 10 trolleys (1T x5, 2T x5)"
+OFF-RABWIN-PB-437R1,activated_carbon_chamber,1.2L x 1.1W x 2.5H (optional)
+OFF-RABWIN-PB-437R1,finish,red oxide + final paint
+OFF-SEPL-PB-289R1,booth_type,dry type cross draft (2 stator + 1 rotor booths)
+OFF-SEPL-PB-289R1,construction,MS 1.2mm
+OFF-SEPL-PB-289R1,illumination,40w x 2 tube light - 2 nos
+OFF-SEPL-PB-289R1,paper_filter,700 x 1500mm - 2 nos
+OFF-SEPL-PB-289R1,blower_motor_hp,5.0 (stator) / 3.0 (rotor)
+OFF-SEPL-PB-289R1,blower_drive,direct
+OFF-SEPL-PB-289R1,exhaust_duct,GI 350x350 - 25m stator / 5m rotor
+OFF-SEPL-PB-289R1,finish,powder coated
+OFF-SEENIVASAN-PB-204R2,booth_type,"dry type cross draft, full open"
+OFF-SEENIVASAN-PB-204R2,construction,panels MS / base frame ISMC
+OFF-SEENIVASAN-PB-204R2,illumination,40w x 2 tube light - 3 nos NFLP
+OFF-SEENIVASAN-PB-204R2,paper_filter,700 x 3000mm - 3 nos (three layers)
+OFF-SEENIVASAN-PB-204R2,blower_motor_hp,7.5
+OFF-SEENIVASAN-PB-204R2,blower_type,centrifugal
+OFF-SEENIVASAN-PB-204R2,blower_motor,CG NFLP
+OFF-SEENIVASAN-PB-204R2,exhaust_duct,GI 22g 580x580 - 10m
+OFF-SEENIVASAN-PB-204R2,finish,red oxide + final enamel
+OFF-STMSPA-PB-349R1,booth_type,dry type cross draft
+OFF-STMSPA-PB-349R1,construction,"MS 1.2mm, MS channel 100x50mm"
+OFF-STMSPA-PB-349R1,illumination,40w x 2 tube light - 2 nos
+OFF-STMSPA-PB-349R1,paper_filter,700 x 2000mm - 1 no
+OFF-STMSPA-PB-349R1,blower_motor_hp,3.0
+OFF-STMSPA-PB-349R1,blower_drive,direct
+OFF-STMSPA-PB-349R1,exhaust_duct,GI 22g 500x500 - 3m
+OFF-STMSPA-PB-349R1,finish,powder coated
+OFF-SYNERGY-PB-209R3,booth_type,"dry type side down draft, non-pressurized, 0.6 m/s cross velocity"
+OFF-SYNERGY-PB-209R3,construction,base frame ISMC / panels MS 1.2mm
+OFF-SYNERGY-PB-209R3,illumination,20w x 10 LED weatherproof
+OFF-SYNERGY-PB-209R3,paper_filter,"paper with synthetic, 1.4H x 7.0W both sides"
+OFF-SYNERGY-PB-209R3,air_intake_filter,10 micron velcro type
+OFF-SYNERGY-PB-209R3,blower_cfm,20000
+OFF-SYNERGY-PB-209R3,blower_motor_hp,15
+OFF-SYNERGY-PB-209R3,blower_qty,2
+OFF-SYNERGY-PB-209R3,blower_moc,MS
+OFF-SYNERGY-PB-209R3,finish,primer + final coats
+OFF-VALV-PB-133R6,booth_type,dry type cross draft
+OFF-VALV-PB-133R6,construction,panels MS / base frame ISMC
+OFF-VALV-PB-133R6,illumination,LED tube light - 4 nos FLP
+OFF-VALV-PB-133R6,paper_filter,"three layers folded perforated, 1.46 x 2.25m"
+OFF-VALV-PB-133R6,blower_motor_hp,7.5
+OFF-VALV-PB-133R6,blower_motor,CG FLP
+OFF-VALV-PB-133R6,blower_drive,direct
+OFF-VALV-PB-133R6,abrasive_blasting_booth,"2.5L x 2.5W x 3.0H, cartridge pulse jet DC 7.5HP, rubber lining"
+OFF-VALV-PB-133R6,finish,red oxide + finish paint
+OFF-YONEX-PB-367,booth_type,"water wall, AGL type"
+OFF-YONEX-PB-367,construction,panels SS-304 1.2mm / tank SS-304 3.0mm / base frame MS
+OFF-YONEX-PB-367,illumination,40w LED - 1 no FLP
+OFF-YONEX-PB-367,filter_mesh,SS-304 four stage
+OFF-YONEX-PB-367,blower_motor_hp,2.0
+OFF-YONEX-PB-367,blower_moc,MS
+OFF-YONEX-PB-367,sludge_pump_hp,1.0
+OFF-YONEX-PB-367,sludge_pump_moc,CI monobloc
+OFF-YONEX-PB-367,exhaust_duct,GI 22swg 300x300 - 15m
+OFF-YONEX-PB-367,control_panel,with VFD (Delta)
+OFF-YONEX-PB-367,finish,tank/panels no painting; blower powder coated
+OFF-ONLOAD-PCP-346R2,powder_spray_booth.booth_type,downside draft
+OFF-ONLOAD-PCP-346R2,powder_spray_booth.inner_size_m,3L x 1.9W x 2.5H
+OFF-ONLOAD-PCP-346R2,powder_spray_booth.moc,mild steel sheet metal panels
+OFF-ONLOAD-PCP-346R2,powder_spray_booth.illumination,2x40w x 2 nos NFLP
+OFF-ONLOAD-PCP-346R2,powder_spray_booth.exhaust_duct,GI 0.8mm 250mm sq - 10m x 2 lines
+OFF-ONLOAD-PCP-346R2,powder_spray_booth.manual_spray_guns,Sprayright Plus - 2 nos
+OFF-ONLOAD-PCP-346R2,pulse_jet_system.model,VTCCA-65
+OFF-ONLOAD-PCP-346R2,pulse_jet_system.blower_motor_hp,2.0
+OFF-ONLOAD-PCP-346R2,pulse_jet_system.blower_qty,2
+OFF-ONLOAD-PCP-346R2,pulse_jet_system.filter_bags_cartridge,"12 nos, Dia 150 x 1000"
+OFF-ONLOAD-PCP-346R2,pulse_jet_system.solenoid_coil,1 inch - 6 nos
+OFF-ONLOAD-PCP-346R2,pulse_jet_system.qty,3 sets
+OFF-ONLOAD-PCP-346R2,hot_air_oven.oven_type,batch
+OFF-ONLOAD-PCP-346R2,hot_air_oven.inner_size_m,3.0L x 1.8W x 2.5H
+OFF-ONLOAD-PCP-346R2,hot_air_oven.operating_temp_c,180-200
+OFF-ONLOAD-PCP-346R2,hot_air_oven.insulation,150mm rock wool 96 kg/m3
+OFF-ONLOAD-PCP-346R2,hot_air_oven.heating_media,LPG burner 100000 kcal/hr
+OFF-ONLOAD-PCP-346R2,hot_air_oven.circulation_blower_hp,5.0
+OFF-ONLOAD-PCP-346R2,hot_air_oven.temperature_control,DTC + Fe-C thermocouple
+OFF-ONLOAD-PCP-346R2,overhead_conveyor.type,overhead manual push-pull
+OFF-ONLOAD-PCP-346R2,overhead_conveyor.track_length_m,35
+OFF-ONLOAD-PCP-346R2,overhead_conveyor.support_structure,MS I-beam
+OFF-ONLOAD-PCP-346R2,overhead_conveyor.push_pull_trolley,1T capacity - 6 nos
+OFF-C2C-WS-178,air_volume_cfm,735
+OFF-C2C-WS-178,air_volume_cmh,1250
+OFF-C2C-WS-178,tower_diameter_mm,700
+OFF-C2C-WS-178,tower_height_m,3.5
+OFF-C2C-WS-178,chamber,SS-304 2mm
+OFF-C2C-WS-178,tank_material,SS-304 2mm
+OFF-C2C-WS-178,no_of_tower,1
+OFF-C2C-WS-178,spray_nozzle_nos,17
+OFF-C2C-WS-178,spray_nozzle_material,SS-304
+OFF-C2C-WS-178,pump_capacity_hp,1.0
+OFF-C2C-WS-178,pump_make,ANALA
+OFF-C2C-WS-178,demister,PP 650mm dia x 150mm thick
+OFF-C2C-WS-178,tank_capacity_litre,250
+OFF-C2C-WS-178,blower_type,centrifugal
+OFF-C2C-WS-178,blower_static_pressure_mmwc,200
+OFF-C2C-WS-178,blower_motor_hp,2.0
+OFF-C2C-WS-178,finish,SS scrubber 2b; MS - epoxy primer and epoxy top coat
+OFF-C2C-WS-20240921R1,air_volume_cfm,900
+OFF-C2C-WS-20240921R1,air_volume_cmh,1530
+OFF-C2C-WS-20240921R1,scrubber_type,horizontal baffle plate - blower mounted over scrubber
+OFF-C2C-WS-20240921R1,scrubber_dimension,700mm W x 1700mm L
+OFF-C2C-WS-20240921R1,chamber,SS-304 2mm
+OFF-C2C-WS-20240921R1,tank_material,SS-304 2mm (MS painted base/supports)
+OFF-C2C-WS-20240921R1,spray_nozzle_nos,12
+OFF-C2C-WS-20240921R1,spray_nozzle_material,SS-304
+OFF-C2C-WS-20240921R1,pump_capacity_hp,1.0
+OFF-C2C-WS-20240921R1,pump_make,ANALA
+OFF-C2C-WS-20240921R1,demister,PP 250mm W x 650mm L x 150mm thick
+OFF-C2C-WS-20240921R1,tank_capacity_litre,380
+OFF-C2C-WS-20240921R1,blower_type,centrifugal
+OFF-C2C-WS-20240921R1,blower_static_pressure_mmwc,250
+OFF-C2C-WS-20240921R1,blower_motor_hp,3.0
+OFF-C2C-WS-20240921R1,finish,SS 2B scrubber; MS - epoxy primer + epoxy black top coat
+OFF-OREN-WS-192,air_volume_cfm,2300
+OFF-OREN-WS-192,air_volume_cmh,4000
+OFF-OREN-WS-192,tower_diameter_mm,1000
+OFF-OREN-WS-192,tower_height_m,4.5
+OFF-OREN-WS-192,chamber,SS-304 2mm
+OFF-OREN-WS-192,tank_material,SS-304 3mm
+OFF-OREN-WS-192,no_of_tower,1
+OFF-OREN-WS-192,spray_nozzle_nos,17
+OFF-OREN-WS-192,pump_capacity_hp,2.0
+OFF-OREN-WS-192,pump_make,ANALA
+OFF-OREN-WS-192,demister,PP 950mm dia x 150mm thick
+OFF-OREN-WS-192,tank_capacity_litre,650
+OFF-OREN-WS-192,blower_type,centrifugal
+OFF-OREN-WS-192,blower_static_pressure_mmwc,200
+OFF-OREN-WS-192,blower_motor_hp,5.0
+OFF-OREN-WS-192,blower_moc,SS-304
+OFF-OREN-WS-192,finish,SS-304
+OFF-MECCA-WS-164,air_volume_cmh,6100
+OFF-MECCA-WS-164,tower_diameter_mm,1250
+OFF-MECCA-WS-164,tower_height_m,4.7
+OFF-MECCA-WS-164,chamber,10mm (5mm PP + 5mm FRP lining)
+OFF-MECCA-WS-164,no_of_tower,2
+OFF-MECCA-WS-164,spray_nozzle_nos,10
+OFF-MECCA-WS-164,spray_nozzle_material,PP
+OFF-MECCA-WS-164,pump_capacity_hp,2.0
+OFF-MECCA-WS-164,pump_make,ANALA
+OFF-MECCA-WS-164,packing,PP pall rings
+OFF-MECCA-WS-164,demister,PP mist eliminator / pall rings
+OFF-MECCA-WS-164,blower_type,centrifugal
+OFF-MECCA-WS-164,blower_motor_hp,12.5
+OFF-MECCA-WS-164,blower_moc,PP + FRP
+OFF-MECCA-WS-164,ph_controller,Mepcco PhM 600-1
+OFF-GROWEL-WS-190,air_volume_cfm,7000
+OFF-GROWEL-WS-190,tower_diameter_mm,1800
+OFF-GROWEL-WS-190,tower_height_m,4.7
+OFF-GROWEL-WS-190,chamber,10mm (5mm PP + 5mm FRP lining)
+OFF-GROWEL-WS-190,spray_nozzle_nos,40
+OFF-GROWEL-WS-190,spray_nozzle_material,PP
+OFF-GROWEL-WS-190,pump_capacity_hp,7.5
+OFF-GROWEL-WS-190,pump_make,ANALA
+OFF-GROWEL-WS-190,pump_motor,FLP
+OFF-GROWEL-WS-190,packing,PP pall rings
+OFF-GROWEL-WS-190,demister,PP mist eliminator
+OFF-GROWEL-WS-190,blower_type,centrifugal
+OFF-GROWEL-WS-190,blower_motor_hp,25
+OFF-GROWEL-WS-190,blower_moc,PP + FRP
+OFF-GROWEL-WS-190,blower_motor,FLP IE3

@@ -1,0 +1,140 @@
+[
+  {
+    "id": "OFF-MECCA-DC-147R4",
+    "type": "offer",
+    "category": "dust_collector",
+    "title": "Pulse Jet Bag Filter Dust Collector - Meccanotecnica (25000 CMH)",
+    "client": "Meccanotecnica India Pvt. Ltd.",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/147R4/2022-23",
+    "date": "2023-06-24",
+    "source_file": "MECCANOTECNICA_DCS_R4_240623.pdf",
+    "given_data": {
+      "air_volume_cmh": 25000,
+      "dust_type": "powder form",
+      "collector_type": "pulse jet antistatic pleated polyester bag filter",
+      "location": "outdoor ground level"
+    },
+    "technical_details": {
+      "air_volume_cmh": 25000,
+      "collector_size_m": "3.9L x 4.0W x 8.3H",
+      "casing_hopper_moc": "MS 3mm",
+      "filter_bags": "needle felt antistatic polyester, Dia 160 x 2500mm - 225 nos",
+      "solenoid_valve": "2 inch flame proof - 15 nos",
+      "blower_type": "centrifugal", "blower_motor_hp": 60, "blower_drive": "belt", "blower_motor": "FLP",
+      "exhaust_duct": "MS 2mm Dia 700mm",
+      "rotary_airlock": "0.5 HP - 2 nos",
+      "control_panel": "VFD ABB, PLC Delta, HMI Delta"
+    },
+    "price_schedule": {"dust_collection_system": 3625350, "currency": "INR"}
+  },
+  {
+    "id": "OFF-MELSS-DC-160",
+    "type": "offer",
+    "category": "dust_collector",
+    "title": "Pulse Jet Cartridge Dust Collector - MEL Systems (6000 CMH)",
+    "client": "MEL Systems and Services Limited",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "E/PS/160/2022-23",
+    "date": "2023-05-02",
+    "source_file": "MELSS _DCS_020523.pdf",
+    "given_data": {
+      "air_volume_cmh": 6000,
+      "dust_type": "dry mix powder form",
+      "collector_type": "pulse jet fabric polyester bag filter",
+      "no_of_suction_points": 26,
+      "location": "outdoor"
+    },
+    "technical_details": {
+      "air_volume_cmh": 6000,
+      "collector_size_m": "2.4L x 1.7W x 5.5H",
+      "casing_hopper_moc": "MS 3mm",
+      "filter_bags": "cartridge fabric polyester, Dia 225 x 1000mm - 24 nos",
+      "solenoid_valve": "2 inch - 4 nos",
+      "blower_type": "centrifugal", "blower_cmh": 10200, "blower_motor_hp": 25, "blower_drive": "direct", "blower_motor": "NFLP",
+      "exhaust_duct": "MS 2mm Dia 500mm - 6m",
+      "suction_duct": "MS 2mm Dia 114 to 400mm - 135m",
+      "rotary_airlock": "0.5 HP"
+    },
+    "price_schedule": {"dust_collector": 1352000, "ducts_dampers": 662000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-ASCEND-DC-FES070624R5",
+    "type": "offer",
+    "category": "dust_collector",
+    "title": "Dust Collection + Dry Scrubber + Fire Suppression - Ascend Performance Materials",
+    "client": "Ascend Performance Materials India Pvt Ltd",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "FES070624-R5/2024-25",
+    "date": "2024-10-23",
+    "source_file": "Ascend R5 23.10.24.pdf",
+    "given_data": {
+      "air_volume_cfm": 6500,
+      "air_volume_cmh": 11045,
+      "no_of_suction_points": 26,
+      "collector_type": "pulse jet cartridge",
+      "location": "multi-floor"
+    },
+    "technical_details": {
+      "air_volume_cfm": 6500,
+      "collector_size_m": "2.15L x 1.15W x 4.95H",
+      "casing_hopper_moc": "MS 3mm",
+      "filter_bags": "cartridge polyester, Dia 225 x 1500mm - 18 nos",
+      "solenoid_valve": "1.5 inch - 6 nos",
+      "blower_motor_hp": 40, "blower_drive": "belt",
+      "exhaust_duct": "MS 2mm Dia 500mm - 8m",
+      "explosion_vent": "570 x 470mm",
+      "dry_scrubber": "activated carbon chamber 2.2L x 1.1W x 4H GI 2mm, blower 8000 CFM 25HP CG, PVC eliminator, activated carbon 1000x1000x20 - 6 nos",
+      "co2_fire_suppression": "1x45kg CO2 cylinder + 4-zone alarm + 20 heat detectors + stop damper",
+      "flap_damper": "CARZ 400 explosion isolation"
+    },
+    "price_schedule": {"grand_total": 6410000, "currency": "INR"}
+  },
+  {
+    "id": "OFF-RAPSRI-DC-203R1",
+    "type": "offer",
+    "category": "dust_collector",
+    "title": "Portable Unit Dust Collector (2 HP) - Rapsri Engineering",
+    "client": "Rapsri Engineering Products Company Ltd",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "ENV/DCS/203R1/23-24",
+    "date": "2024-01-06",
+    "source_file": "Rapsri Engineering- Unit Dust Collectors_R1060124 .pdf",
+    "given_data": {
+      "air_volume_cmh": 1200,
+      "collector_type": "portable unit dust collector (UDC-2)",
+      "no_of_suction_points": 1
+    },
+    "technical_details": {
+      "air_volume_cmh": 1200,
+      "casing_hopper_moc": "MS",
+      "filter_bags": "special purpose filter bag",
+      "blower_type": "centrifugal", "blower_motor_hp": 2, "blower_drive": "direct flanged",
+      "suction_hose": "PVC flexible Dia 100mm - 1m",
+      "pressure_mmwc": "8 inch WC",
+      "finish": "primer + enamel"
+    },
+    "price_schedule": {"unit": 285000, "final_price": 270750, "currency": "INR"}
+  },
+  {
+    "id": "OFF-OMENGG-DC-323",
+    "type": "offer",
+    "category": "dust_collector",
+    "title": "Unit Bag Filter Dust Collector (manual) - Om Muruga Engineering",
+    "client": "Om Muruga Engineering",
+    "vendor": "Vitech Enviro Systems Private Limited",
+    "ref": "PS/323/2023-24",
+    "date": "2023-11-30",
+    "source_file": "OM ENGG BAG FILTER _301123.pdf",
+    "given_data": {
+      "collector_type": "unit bag filter, manual handshaker",
+      "no_of_suction_points": 1
+    },
+    "technical_details": {
+      "collector_size_mm": "900 x 900 x 1400",
+      "casing_moc": "MS 2mm",
+      "filter_bags": "2 nos, manual handshaker method"
+    },
+    "price_schedule": {"unit": 53500, "currency": "INR"}
+  }
+]

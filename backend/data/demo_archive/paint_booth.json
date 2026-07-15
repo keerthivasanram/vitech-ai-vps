@@ -1,0 +1,130 @@
+[
+  {
+    "id": "OFF-PB-101",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Paint Booth Offer - 10x6 Powder",
+    "source_file": "PaintBooth_PB101_10x6.pdf",
+    "given_data": {
+      "length_m": 10,
+      "width_m": 6,
+      "height_m": 4,
+      "paint_type": "powder",
+      "industry": "Automotive",
+      "qty": 1
+    },
+    "technical_details": {
+      "airflow_m3h": 38880,
+      "fans": 3,
+      "filters": 36,
+      "filter_type": "dry",
+      "material": "GI",
+      "access": "side maintenance access",
+      "standard": "NFPA 33"
+    }
+  },
+  {
+    "id": "OFF-PB-102",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Paint Booth Offer - 8x5 Powder",
+    "source_file": "PaintBooth_PB102_8x5.pdf",
+    "given_data": {
+      "length_m": 8,
+      "width_m": 5,
+      "height_m": 3.5,
+      "paint_type": "powder",
+      "industry": "General Manufacturing",
+      "qty": 1
+    },
+    "technical_details": {
+      "airflow_m3h": 28350,
+      "fans": 3,
+      "filters": 24,
+      "filter_type": "dry",
+      "material": "GI",
+      "access": "rear access door",
+      "standard": "NFPA 33"
+    }
+  },
+  {
+    "id": "OFF-PB-104",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Paint Booth Offer - 12x6 Powder",
+    "source_file": "PaintBooth_PB104_12x6.pdf",
+    "given_data": {
+      "length_m": 12,
+      "width_m": 6,
+      "height_m": 4,
+      "paint_type": "powder",
+      "industry": "Automotive",
+      "qty": 1
+    },
+    "technical_details": {
+      "airflow_m3h": 38880,
+      "fans": 3,
+      "filters": 44,
+      "filter_type": "dry",
+      "material": "GI",
+      "access": "side maintenance access",
+      "standard": "NFPA 33"
+    }
+  },
+  {
+    "id": "OFF-PB-115",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Paint Booth Offer - 12x7 Liquid",
+    "source_file": "PaintBooth_PB115_12x7.pdf",
+    "given_data": {
+      "length_m": 12,
+      "width_m": 7,
+      "height_m": 4.5,
+      "paint_type": "liquid",
+      "industry": "Heavy Engineering",
+      "qty": 1
+    },
+    "technical_details": {
+      "airflow_m3h": 51030,
+      "fans": 4,
+      "filters": 51,
+      "filter_type": "water-wash",
+      "material": "SS304",
+      "access": "double side access",
+      "standard": "NFPA 33"
+    }
+  },
+  {
+    "id": "OFF-PB-120",
+    "type": "offer",
+    "category": "paint_booth",
+    "title": "Paint Booth Offer - 9x6 Powder",
+    "source_file": "PaintBooth_PB120_9x6.pdf",
+    "given_data": {
+      "length_m": 9,
+      "width_m": 6,
+      "height_m": 4,
+      "paint_type": "powder",
+      "industry": "Automotive",
+      "qty": 1
+    },
+    "technical_details": {
+      "airflow_m3h": 38880,
+      "fans": 3,
+      "filters": 33,
+      "filter_type": "dry",
+      "material": "GI",
+      "access": "side maintenance access",
+      "standard": "NFPA 33"
+    }
+  },
+  {
+    "id": "STD-PB-SIZING",
+    "type": "spec",
+    "category": "paint_booth",
+    "title": "Engineering Standard - Paint Booth Sizing",
+    "source_file": "ATS_Standard_PaintBooth_Sizing.pdf",
+    "notes": "ATS / NFPA 33 design standard. Exhaust airflow = open face area (width x height) x face velocity (0.4-0.5 m/s, use 0.45) x 3600. One axial exhaust fan per ~13000 m3/h. Dry filter panels sized at 0.6 per m2 of floor area for adequate overspray capture. Powder process -> GI construction with dry filters; liquid/solvent -> SS304 with water-wash filtration."
+  }
+]
