@@ -1,9 +1,22 @@
 # Data Guide — feeding the ATS Engineering Assistant
 
-No loader/extraction is built in this prototype (that comes in product
-development). This document is the **data contract**: the exact shape every
-record must have, how it must be stored in Chroma so the reasoning engine can
-read it, and how to register a **new equipment type** so it reasons correctly.
+This document is the **data contract** for the ATS reasoning engine: the exact
+shape every *offer record* must have, how it must be stored in Chroma so the
+reasoning engine can read it, and how to register a **new equipment type** so
+it reasons correctly.
+
+> **Two ingestion paths, one collection.**
+> - **Offer records** (this guide) — hand-curated `given_data`/`technical_details`
+>   JSON that the deterministic ATS spec/quote engine reasons over. Ingest with
+>   `python -m app.ingest`.
+> - **Reference documents** (PDF/DOCX/XLSX/TXT — standards, catalogs, datasheets,
+>   past offers as source files) now have a real loader/extraction pipeline in
+>   [`backend/rag/`](backend/rag/README.md): it preserves pages, tables and
+>   engineering sections and writes rich filterable metadata (customer, project,
+>   equipment type, revision, offer number, date, section). Ingest with
+>   `python -m rag.ingest <path>`. These are stored as `type="document"` and
+>   ground conversational/Consulting answers; they never alter a calculated
+>   number (the engine only reasons over `type="offer"`).
 
 ---
 

@@ -8,3 +8,6 @@ python-dotenv
 pydantic
 fpdf2                 # pure-Python PDF generation for quotation export (no system deps)
 python-multipart      # file uploads (multipart/form-data) for the Upload page
+pdfplumber            # page-aware PDF text + table extraction for the RAG loader
+python-docx            # DOCX text + table extraction for the RAG document loader
+openpyxl               # XLSX text extraction for the RAG document loader
