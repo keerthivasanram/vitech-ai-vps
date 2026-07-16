@@ -60,7 +60,7 @@ services:
     depends_on: [ollama]
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./backend:/app          # live code; remove for a frozen prod image

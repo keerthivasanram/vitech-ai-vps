@@ -20,6 +20,12 @@ const THINK_LABELS = [
 const fmtTime = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const newId  = () => Math.random().toString(36).slice(2, 14);
 
+// The Engineering Agent chatflow in Flowise. Override with VITE_ENGINEERING_AGENT_ID
+// in an .env if the chatflow id changes.
+const ENGINEERING_AGENT_ID =
+  import.meta.env.VITE_ENGINEERING_AGENT_ID || "c4bfba16-aeb0-4c1b-840e-21b474639a8d";
+const AGENT_URL = `/flowise/api/v1/prediction/${ENGINEERING_AGENT_ID}`;
+
 function HexIcon({ size = 20, className = "" }) {
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 24 24"
@@ -52,12 +58,8 @@ export default function App() {
   useEffect(() => {
     fetch("/api/health").then(r => r.json()).then(setHealth).catch(() => {});
   }, []);
-  useEffect(() => {
-    fetch(`/api/session/${sessionId}`)
-      .then(r => r.json())
-      .then(d => d.messages?.length && setMessages(d.messages.map(m => ({ role: m.role, text: m.content }))))
-      .catch(() => {});
-  }, [sessionId]);
+  // Conversation memory now lives in Flowise (keyed by chatId=sessionId); the UI
+  // starts fresh on reload. "New chat" rotates the sessionId for a clean context.
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
   async function send(q) {
@@ -71,17 +73,19 @@ export default function App() {
     let idx = 0;
     setMessages(m => { idx = m.length; return [...m, { role: "assistant", text: "", streaming: true }]; });
     const patch = (p) => setMessages(m => m.map((x, i) => (i === idx ? { ...x, ...p } : x)));
-    const body = JSON.stringify({ question: text, session_id: sessionId, agent: agent });
+    // Flowise keys conversation memory by chatId — reuse the session so the
+    // Engineering Agent remembers context across turns.
+    const body = JSON.stringify({ question: text, streaming: true, chatId: sessionId });
 
     try {
-      const resp = await fetch("/api/query/stream", {
+      const resp = await fetch(AGENT_URL, {
         method: "POST", headers: { "Content-Type": "application/json" }, body,
       });
       if (!resp.ok || !resp.body) throw new Error("no stream");
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
-      let buf = "", acc = "";
+      let buf = "", acc = "", tools = [];
       // coalesce tokens: render at most once per animation frame, not per token
       let raf = 0;
       const flush = () => { raf = 0; patch({ text: acc }); };
@@ -92,35 +96,41 @@ export default function App() {
         if (done) break;
         buf += decoder.decode(value, { stream: true });
         let nl;
+        // Flowise SSE record: "message:\ndata:{"event":..,"data":..}", split on blank line
         while ((nl = buf.indexOf("\n\n")) >= 0) {
           const raw = buf.slice(0, nl); buf = buf.slice(nl + 2);
-          const line = raw.replace(/^data:\s?/, "").trim();
-          if (!line) continue;
-          let evt; try { evt = JSON.parse(line); } catch { continue; }
-          if (evt.type === "token") {
-            acc += evt.v;
+          const dataLine = raw.split("\n").find(l => l.startsWith("data:"));
+          if (!dataLine) continue;
+          const json = dataLine.replace(/^data:\s?/, "").trim();
+          if (!json || json === "[DONE]") continue;
+          let evt; try { evt = JSON.parse(json); } catch { continue; }
+          if (evt.event === "token" && evt.data) {
+            acc += evt.data;
             schedule();
-          } else if (evt.type === "done") {
-            const p = evt.payload || {};
+          } else if (evt.event === "usedTools" && Array.isArray(evt.data)) {
+            tools = evt.data.map(t => t.tool).filter(Boolean);
+          } else if (evt.event === "end") {
             if (raf) { cancelAnimationFrame(raf); raf = 0; }
-            if (p.session_id && p.session_id !== sessionId) setSessionId(p.session_id);
-            patch({ text: p.answer ?? acc, data: p, streaming: false, time: fmtTime() });
+            patch({ text: acc, data: { usedTools: tools }, streaming: false, time: fmtTime() });
           }
         }
       }
       if (raf) cancelAnimationFrame(raf);
-      patch({ streaming: false });
+      if (!acc) throw new Error("empty stream");
+      patch({ text: acc, data: { usedTools: tools }, streaming: false, time: fmtTime() });
     } catch {
-      // fall back to the non-streaming endpoint
+      // fall back to a non-streaming prediction call
       try {
-        const resp = await fetch("/api/query", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body,
+        const resp = await fetch(AGENT_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: text, chatId: sessionId }),
         });
+        if (!resp.ok) throw new Error("bad status");
         const data = await resp.json();
-        if (data.session_id && data.session_id !== sessionId) setSessionId(data.session_id);
-        patch({ text: data.answer, data, streaming: false, time: fmtTime() });
+        const answer = data.text ?? data.answer ?? "(no response)";
+        patch({ text: answer, data: { usedTools: (data.usedTools || []).map(t => t.tool) }, streaming: false, time: fmtTime() });
       } catch {
-        patch({ text: "Backend not reachable (API on :8000?).", streaming: false });
+        patch({ text: "Engineering Agent not reachable — is Flowise running on :3000?", streaming: false });
       }
     } finally {
       setLoading(false);
@@ -128,7 +138,7 @@ export default function App() {
   }
 
   function newChat() {
-    fetch(`/api/session/${sessionId}`, { method: "DELETE" }).catch(() => {});
+    // A fresh sessionId gives the Flowise agent a clean memory context.
     setSessionId(newId());
     setMessages([]);
   }

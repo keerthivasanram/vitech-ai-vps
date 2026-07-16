@@ -294,7 +294,7 @@ def _spec_text(a: dict) -> str:
             f"Design from engineering knowledge; do not copy historical values.")
 
 
-@app.post("/api/tools/spec")
+@app.post("/api/tools/spec", operation_id="generate_specification")
 def tool_spec(payload: dict = Body(...)):
     """Requirement -> engineering specification (deterministic + structured)."""
     q = _tool_q(payload)
@@ -318,7 +318,7 @@ def tool_spec(payload: dict = Body(...)):
     }
 
 
-@app.post("/api/tools/quote")
+@app.post("/api/tools/quote", operation_id="generate_quotation")
 def tool_quote(payload: dict = Body(...)):
     """Requirement -> budgetary quotation (deterministic pricing from history)."""
     q = _tool_q(payload)
@@ -335,7 +335,7 @@ def tool_quote(payload: dict = Body(...)):
     return {"ok": True, **quote}
 
 
-@app.post("/api/tools/lookup")
+@app.post("/api/tools/lookup", operation_id="lookup_project")
 def tool_lookup(payload: dict = Body(...)):
     """Named client / offer -> exactly the data extracted from that file(s)."""
     q = _tool_q(payload)
@@ -361,7 +361,7 @@ _RETRIEVE_FILTER_KEYS = ("equipment_type", "customer", "project", "doc_category"
                          "revision", "offer_number", "date", "section", "kind")
 
 
-@app.post("/api/tools/retrieve")
+@app.post("/api/tools/retrieve", operation_id="retrieve_knowledge")
 def tool_retrieve(payload: dict = Body(...)):
     """Search the engineering knowledge base (ingested reference documents:
     standards, catalogs, past-offer source files) with an optional metadata
@@ -398,7 +398,7 @@ def tool_retrieve(payload: dict = Body(...)):
     }
 
 
-@app.get("/api/tools/filters")
+@app.get("/api/tools/filters", operation_id="list_filters")
 def tool_filters():
     """Distinct metadata values present across the knowledge base, so the agent
     (or UI) can pick a filter that actually matches something."""
