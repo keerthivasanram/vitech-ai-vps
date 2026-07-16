@@ -194,6 +194,17 @@ so the stack runs **natively** on the pod, not via `docker compose`:
 - **Restart after a pod stop/start:** `bash /workspace/persistent/start-all.sh`
   (idempotent; brings up PG, Redis, Ollama, backend, Flowise, frontend).
   Stop with `stop-all.sh`. These are plain background procs (no systemd here).
+- **If the CONTAINER DISK was wiped** (start-all.sh fails because psql/node/ollama are
+  gone): `bash /workspace/persistent/bootstrap-pod.sh` FIRST, then `start-all.sh`.
+  It reinstalls PG + Redis + Node 20 + the Ollama binary + Flowise (/opt/flowise-app),
+  relinks `/root/.ollama` to the volume's models, recreates the DB role/database,
+  restores the Engineering Agent from `postgres-backups/vitech.sql`, and regenerates
+  the git SSH key (printing the pubkey to add to GitHub). Idempotent; it refuses to
+  restore over an existing chatflow. Verified: the dump restores 1 chatflow + 4 tools
+  + 33 offers with the tuned prompt intact.
+- **The agent lives in Postgres on the container disk** — the dump on the volume is its
+  only lifeline. Run `bash /workspace/persistent/pg-backup.sh` after ANY agent change
+  (prompt tuning included) and before stopping the pod.
 - Native = services talk over **`localhost`** (NOT the Docker service names in
   `docs/vps-setup.md`): Ollama `localhost:11434`, backend tools
   `http://localhost:8000/api/tools/*`, Postgres `localhost:5432`.
