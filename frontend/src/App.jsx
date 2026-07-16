@@ -165,7 +165,8 @@ export default function App() {
       <div className="body">
         <Sidebar view={view} setView={setView} />
         <div className="viewport">
-          {view === "knowledge" ? <KnowledgeBase />
+          {view === "dashboard" ? <Dashboard setView={setView} />
+            : view === "knowledge" ? <KnowledgeBase />
             : view === "upload" ? <UploadPage />
             : view === "quotation" ? <QuotationPage />
             : view === "drawing" ? <AgentPlaceholder id={view} />
@@ -257,6 +258,7 @@ export default function App() {
 
 /* ---- Multi-agent shell ---- */
 const NAV = [
+  { id: "dashboard",   name: "Dashboard",         desc: "Workspace overview",  status: "live", group: "Workspace" },
   { id: "engineering", name: "Engineering Agent", desc: "Specs & knowledge",   status: "live", group: "Agents" },
   { id: "quotation",   name: "Quotation Agent",   desc: "Budgetary quotes",    status: "live", group: "Agents" },
   { id: "drawing",     name: "Drawing Agent",     desc: "2D GA drawings",      status: "soon", group: "Agents" },
@@ -300,6 +302,117 @@ function AgentPlaceholder({ id }) {
 
 const catLabel = c => (c || "other").replace(/_/g, " ").replace(/\b\w/g, m => m.toUpperCase());
 const inrMaybe = n => (n == null ? "—" : "₹ " + Number(n).toLocaleString("en-IN"));
+
+function Dashboard({ setView }) {
+  const [health, setHealth] = useState(null);
+  const [offers, setOffers] = useState(null);
+  const [agentUp, setAgentUp] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/health").then(r => r.json()).then(setHealth).catch(() => setHealth({ status: "down" }));
+    fetch("/api/offers").then(r => r.json()).then(setOffers).catch(() => setOffers({ count: 0, offers: [] }));
+    fetch("/flowise/api/v1/ping").then(r => setAgentUp(r.ok)).catch(() => setAgentUp(false));
+  }, []);
+
+  if (!offers) return <div className="dash"><p className="dash-load">Loading workspace…</p></div>;
+
+  const list    = offers.offers || [];
+  const clients = new Set(list.map(o => o.client).filter(Boolean)).size;
+  const priced  = list.filter(o => o.price_total != null).length;
+
+  const counts = {};
+  list.forEach(o => { const c = o.category || "other"; counts[c] = (counts[c] || 0) + 1; });
+  const cats = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const max  = Math.max(...cats.map(c => c[1]), 1);
+
+  const recent = list.filter(o => o.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 6);
+
+  const backendOk = health?.status === "ok";
+  const svc = [
+    { name: "Backend API",       ok: backendOk,      detail: backendOk ? "Deterministic engine online" : "Not reachable — run start-all.sh" },
+    { name: "Engineering Agent", ok: agentUp === true, detail: agentUp === null ? "Checking…" : agentUp ? "Flowise reachable" : "Flowise not reachable on :3000" },
+    { name: "Language model",    ok: !!health?.llm_model, detail: health?.llm_model || "unknown" },
+    { name: "Knowledge index",   ok: (health?.documents_indexed || 0) > 0, detail: `${health?.documents_indexed ?? 0} records in ChromaDB` },
+  ];
+
+  return (
+    <div className="dash">
+      <div className="dash-head">
+        <h1>Dashboard</h1>
+        <p>Live overview of the Vitech engineering workspace.</p>
+      </div>
+
+      {/* Headline numbers — stat tiles, not a chart */}
+      <div className="dash-kpis">
+        <Kpi n={offers.count ?? list.length} l="Offers indexed" />
+        <Kpi n={clients}                     l="Clients" />
+        <Kpi n={cats.length}                 l="Equipment categories" />
+        <Kpi n={priced}                      l="Offers with pricing" />
+      </div>
+
+      <div className="dash-grid">
+        {/* One measure across categories -> single-hue ranked bars */}
+        <section className="dash-card">
+          <h2>Offers by equipment category</h2>
+          <div className="bars">
+            {cats.map(([c, n]) => (
+              <div className="bar-row" key={c} title={`${catLabel(c)}: ${n} offer${n === 1 ? "" : "s"}`}>
+                <span className="bar-label">{catLabel(c)}</span>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${(n / max) * 100}%` }} />
+                </div>
+                <span className="bar-val">{n}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="dash-card">
+          <h2>System health</h2>
+          <ul className="svc">
+            {svc.map(s => (
+              <li key={s.name}>
+                <span className={`dot ${s.ok ? "dot-ok" : "dot-bad"}`} aria-hidden="true" />
+                <span className="svc-name">{s.name}</span>
+                <span className="svc-state">{s.ok ? "OK" : "Down"}</span>
+                <span className="svc-detail">{s.detail}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="dash-actions">
+            <button className="ap-btn" onClick={() => setView("engineering")}>Open Engineering Chat</button>
+            <button className="dash-btn2" onClick={() => setView("quotation")}>Generate a quotation</button>
+          </div>
+        </section>
+
+        <section className="dash-card dash-wide">
+          <h2>Recent offers</h2>
+          <table className="dash-table">
+            <thead>
+              <tr><th>Client</th><th>Category</th><th>Reference</th><th>Date</th><th className="ta-r">Value</th></tr>
+            </thead>
+            <tbody>
+              {recent.map(o => (
+                <tr key={o.id}>
+                  <td>{o.client || "—"}</td>
+                  <td><span className="pill">{catLabel(o.category)}</span></td>
+                  <td className="mono">{o.ref || "—"}</td>
+                  <td>{o.date || "—"}</td>
+                  <td className="ta-r mono">{inrMaybe(o.price_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ n, l }) {
+  return <div className="kpi"><b>{n}</b><span>{l}</span></div>;
+}
 
 function KnowledgeBase() {
   const [data, setData] = useState(null);

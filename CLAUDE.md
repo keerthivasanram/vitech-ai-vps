@@ -116,11 +116,22 @@ UI is broken in 3.0.13 — see below), stored in Postgres `chat_flow` + `tool` t
   `http://localhost:8000/api/tools/*` with a `question` string input).
 - **Tools**: `generate_specification`, `generate_quotation`, `lookup_project`,
   `retrieve_knowledge`.
-- **System prompt** (on the Tool Agent node) enforces the golden rules and, critically:
-  pass the customer's requirement to tools **verbatim** (preserve "4 nos" — rephrasing
-  loses the qty); copy numbers from tool results **exactly** (llama3.1 otherwise renders
-  ₹6,35,000 as ₹63,50,000); on `count:0`/empty **say "No matching records found"** and
-  never fabricate refs/materials (it hallucinated `VES-2022-001` before this rule).
+- **System prompt** (on the Tool Agent node) defines **TWO MODES** — this balance is the
+  whole trick, mirroring `app/prompt.py::CHAT_SYSTEM`. Do not make it stricter without
+  re-reading this:
+  - **Mode A — Consulting / general engineering (no tools)**: concepts, how/why,
+    comparisons, selection guidance, materials, formulas, greetings. Answer from
+    engineering knowledge, labelled as general knowledge. An earlier over-strict prompt
+    made it answer "No matching records found" to *"how does a wet scrubber work?"* —
+    that phrase belongs ONLY to a failed records lookup.
+  - **Mode B — Vitech project work (tools mandatory)**: spec, quote, price, client/offer
+    lookup. Pass the requirement **verbatim** (rephrasing loses "4 nos" → qty=1); copy
+    tool numbers **exactly**; never invent a client/ref/price/material; on `count:0` say
+    records have no match, then optionally help via Mode A knowledge.
+  - **Constants** are given in the prompt (1 CFM = 1.699 CMH) because llama3.1 invented
+    "1 CFM = 1725 CMH" when left to itself.
+  - Known nit: llama3.1 often fires `retrieve_knowledge` even on Mode A questions. It
+    then answers from knowledge anyway — wasteful, not wrong.
 - **Rebuild scripts** (after a pod delete): `/workspace/persistent/agent-build.py`
   then `agent-harden-prompt.py`. Easier: restore `/workspace/persistent/postgres-backups/vitech.sql`.
 - **Verify without the UI**: `POST http://localhost:3000/api/v1/prediction/<id>`
