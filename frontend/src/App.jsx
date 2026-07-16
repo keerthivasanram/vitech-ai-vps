@@ -26,6 +26,25 @@ const ENGINEERING_AGENT_ID =
   import.meta.env.VITE_ENGINEERING_AGENT_ID || "c4bfba16-aeb0-4c1b-840e-21b474639a8d";
 const AGENT_URL = `/flowise/api/v1/prediction/${ENGINEERING_AGENT_ID}`;
 
+// Tools whose numbers come from the deterministic engine (not the model).
+const DETERMINISTIC_TOOLS = ["generate_quotation", "generate_specification"];
+
+// Shape the agent's reply the way <AssistantBody> expects: it renders
+// data.answer, so `answer` is required — without it the reply renders blank.
+// The badges then fall out of which tools ran: no tools = Mode A consulting,
+// a spec/quote tool = Mode B deterministic project work.
+function agentData(answer, tools, llm) {
+  const deterministic = tools.some(t => DETERMINISTIC_TOOLS.includes(t));
+  return {
+    answer,
+    llm,
+    deterministic,
+    grounded: tools.length > 0,
+    spec_mode: deterministic ? "data" : (tools.length === 0 ? "knowledge" : undefined),
+    intent: tools.length ? tools.join(" · ") : undefined,
+  };
+}
+
 function HexIcon({ size = 20, className = "" }) {
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 24 24"
@@ -111,13 +130,13 @@ export default function App() {
             tools = evt.data.map(t => t.tool).filter(Boolean);
           } else if (evt.event === "end") {
             if (raf) { cancelAnimationFrame(raf); raf = 0; }
-            patch({ text: acc, data: { usedTools: tools }, streaming: false, time: fmtTime() });
+            patch({ text: acc, data: agentData(acc, tools, health?.llm_model), streaming: false, time: fmtTime() });
           }
         }
       }
       if (raf) cancelAnimationFrame(raf);
       if (!acc) throw new Error("empty stream");
-      patch({ text: acc, data: { usedTools: tools }, streaming: false, time: fmtTime() });
+      patch({ text: acc, data: agentData(acc, tools, health?.llm_model), streaming: false, time: fmtTime() });
     } catch {
       // fall back to a non-streaming prediction call
       try {
@@ -128,7 +147,8 @@ export default function App() {
         if (!resp.ok) throw new Error("bad status");
         const data = await resp.json();
         const answer = data.text ?? data.answer ?? "(no response)";
-        patch({ text: answer, data: { usedTools: (data.usedTools || []).map(t => t.tool) }, streaming: false, time: fmtTime() });
+        const used = (data.usedTools || []).map(t => t.tool).filter(Boolean);
+        patch({ text: answer, data: agentData(answer, used, health?.llm_model), streaming: false, time: fmtTime() });
       } catch {
         patch({ text: "Engineering Agent not reachable — is Flowise running on :3000?", streaming: false });
       }
