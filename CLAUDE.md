@@ -170,6 +170,41 @@ The Engineering Chat calls **Flowise**, not the backend's `/api/query`:
 - The backend's own `/api/query` engine still exists and still works — it is simply no
   longer what the chat calls. Other pages (Quotation, Knowledge Base) still use `/api/*`.
 
+## KNOWN ISSUES — start the next session here (in this order)
+1. **10x price bug (do this first; blocks trusting quotes).** The tool returns
+   `amount: 2550000`; llama3.1 has printed it as `₹63,50,000`, then `₹2,550,000`, then
+   `₹25,500,000` (10x). Prompt rules have failed at this FOUR times — the model simply
+   cannot format Indian digit grouping. **Fix structurally, not by prompting**: add a
+   preformatted `"price_display": "₹25,50,000"` field to `/api/tools/quote` (and the
+   spec's numbers) and tell the agent to copy that field verbatim, so the number never
+   passes through the model. This is exactly what golden rule #2 implies.
+2. **No enumeration tool.** The 4 tools are point lookups/computations. `lookup_project`
+   returns `ok:false` for "list all clients", so the agent invented "2 of 30 clients"
+   and presented it confidently. `GET /api/offers` already returns all 33 records with
+   clients (the Dashboard uses it). Add a 5th Custom Tool `list_projects` -> `/api/offers`
+   for "how many / list all / which clients / what categories". Recipe: clone the
+   customTool pattern in `/workspace/persistent/agent-build.py`, rewrite the node ids,
+   edge it to `toolAgent_0-input-tools-Tool`, then re-run agent-harden-prompt.py.
+3. **Phase 3 ingestion** — `retrieve_knowledge` still returns `count:0`; only the 33
+   offers (type=`offer`) exist, no type=`document` corpus. See Immediate next steps.
+4. **Phase 2 pages** — Dashboard done; Historical Projects / Specification / Projects /
+   Settings remain. Follow the Dashboard pattern in `App.jsx` (NAV entry + view ternary
+   + component + styles).
+
+## Agent gotchas learned the hard way
+- **Poisoned memory**: if the agent starts emitting `{"name": "...", "parameters": {...}}`
+  JSON at the user, its BufferMemory contains earlier leaked replies and it is COPYING
+  its own history. No prompt fix can clean that. **Click "+ New chat"** (rotates
+  sessionId → fresh memory). Always test prompt changes with a FRESH chatId.
+- **Keep the system prompt SHORT.** It grew to 5,643 chars by appending a rule per bug;
+  llama3.1:8b then narrated tool mechanics instead of acting. Rewriting to ~3,300 chars,
+  leading with "never show the mechanics", fixed four bugs at once. Resist appending.
+- **Never let a non-requirement reach a tool.** Passing "i'm keerthivasan" to
+  generate_specification returned a paint-booth skeleton and the model narrated an
+  "iron casting" project that never existed.
+- There is only ONE agent. The "Consulting Engineer" / "ATS Quotation Engineer" badges
+  are derived in `App.jsx::agentData()` from which tools ran — they are not two agents.
+
 ## Immediate next steps
 - **Phase 3 (highest value)**: ingest real documents so `retrieve_knowledge` stops
   returning `count:0` — drop files in `backend/data/bulk/`, then
