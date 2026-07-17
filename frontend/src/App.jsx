@@ -202,7 +202,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar-title">{VIEW_TITLES[view] || "ATS Engineering Assistant"}</div>
+        <div className="topbar-l">
+          <span className="topbar-ic"><NavIcon id={view} /></span>
+          <div className="topbar-t">
+            <div className="topbar-title">{VIEW_TITLES[view] || "ATS Engineering Assistant"}</div>
+            {VIEW_SUBS[view] && <div className="topbar-sub">{VIEW_SUBS[view]}</div>}
+          </div>
+        </div>
         <div className="status">
           {health && (
             <>
@@ -335,6 +341,18 @@ const VIEW_TITLES = {
   historical_projects: "Historical Projects", standards: "Engineering Standards",
   vendor_catalogues: "Vendor Documents", specifications: "Specifications",
   quotations: "Quotations", drawings: "Drawings", rules: "Engineering Rules",
+};
+const VIEW_SUBS = {
+  dashboard: "Live overview of the Vitech engineering workspace",
+  engineering: "Specs & general engineering, grounded in Vitech history",
+  quotation: "Budgetary quotations from historical offers",
+  drawing: "2D general-arrangement drawings — on the roadmap",
+  knowledge: "Structured engineering knowledge — organised & searchable",
+  upload: "Add offer / CAD files to the knowledge base",
+  historical_projects: "Extracted client offers", standards: "Design codes & standards",
+  vendor_catalogues: "Supplier catalogues", specifications: "Generated on demand",
+  quotations: "Generated on demand", drawings: "CAD / GA drawings",
+  rules: "Equipment profiles & sizing rules in the engine",
 };
 
 function NavIcon({ id }) {
@@ -776,50 +794,65 @@ function _fields(obj) {
   return Object.entries(obj || {}).map(([k, v]) => ({ k: k.replace(/_/g, " "), v: fmt(v) }));
 }
 
+function DrawerSection({ title, sub, rows }) {
+  if (!rows.length) return null;
+  return (
+    <div className="dsection">
+      <div className="dsection-h">
+        <span>{title}</span>
+        {sub && <span className="dsection-sub">{sub}</span>}
+        <span className="dsection-n">{rows.length}</span>
+      </div>
+      <div className="dsection-b">
+        {rows.map((f, i) => (
+          <div className="dg-row" key={i}><span>{f.k}</span><b>{f.v}</b></div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OfferDrawer({ rec, onClose }) {
   const ps = rec.price_schedule || {};
   const priceItems = Object.entries(ps).filter(([k]) => k !== "currency");
+  const cur = ps.currency || "INR";
   return (
     <>
       <div className="drawer-scrim" onClick={onClose} />
       <aside className="drawer">
         <div className="drawer-head">
-          <div>
+          <div className="drawer-head-l">
+            {rec.category && <span className="badge cat drawer-cat">{catLabel(rec.category)}</span>}
             <div className="drawer-id">{rec.id}</div>
-            <div className="drawer-client">{rec.client}</div>
+            <div className="drawer-client">{rec.client || "—"}</div>
           </div>
-          <button className="drawer-x" onClick={onClose}>×</button>
+          <button className="drawer-x" onClick={onClose} aria-label="Close">×</button>
         </div>
         <div className="drawer-meta">
-          {rec.source_file && <span>📄 {rec.source_file}</span>}
-          {rec.ref && <span>Ref: {rec.ref}</span>}
-          {rec.date && <span>{rec.date}</span>}
+          {rec.source_file && <span className="dmeta" title={rec.source_file}>{rec.source_file}</span>}
+          {rec.ref && <span className="dmeta">Ref {rec.ref}</span>}
+          {rec.date && <span className="dmeta">{rec.date}</span>}
+          {rec.vendor && <span className="dmeta">{rec.vendor}</span>}
         </div>
 
-        <div className="drawer-sec-t">Given data (requirement)</div>
-        <div className="drawer-grid">
-          {_fields(rec.given_data).map((f, i) => (
-            <div className="dg-row" key={i}><span>{f.k}</span><b>{f.v}</b></div>
-          ))}
-        </div>
-
-        <div className="drawer-sec-t">Technical details (engineered solution)</div>
-        <div className="drawer-grid">
-          {_fields(rec.technical_details).map((f, i) => (
-            <div className="dg-row" key={i}><span>{f.k}</span><b>{f.v}</b></div>
-          ))}
-        </div>
+        <DrawerSection title="Given data" sub="what the client supplied" rows={_fields(rec.given_data)} />
+        <DrawerSection title="Technical details" sub="what Vitech engineered" rows={_fields(rec.technical_details)} />
 
         {priceItems.length > 0 && (
-          <>
-            <div className="drawer-sec-t">Price schedule</div>
-            <div className="drawer-grid">
+          <div className="dsection dsection-price">
+            <div className="dsection-h">
+              <span>Price schedule</span>
+              <span className="dsection-sub">{cur}</span>
+              <span className="dsection-n">{priceItems.length}</span>
+            </div>
+            <div className="dsection-b">
               {priceItems.map(([k, v], i) => (
                 <div className="dg-row" key={i}><span>{k.replace(/_/g, " ")}</span>
-                  <b>{typeof v === "number" ? inrMaybe(v) : String(v)}</b></div>
+                  <b className={typeof v === "number" ? "dg-price" : ""}>
+                    {typeof v === "number" ? inrMaybe(v) : String(v)}</b></div>
               ))}
             </div>
-          </>
+          </div>
         )}
       </aside>
     </>
