@@ -126,9 +126,18 @@
 
 html, body, #root { height: 100%; }
 
+/* Ambient green wash so the light theme reads as Vitech's rather than plain
+   white. Fixed + non-scrolling, and kept under ~7% so text contrast is
+   untouched — these sit behind opaque cards, tinting only the gaps. */
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(58rem 32rem at 12% -6%,  rgba(var(--accent-rgb), 0.13) 0%, transparent 60%),
+    radial-gradient(45rem 30rem at 96% 8%,   rgba(var(--secondary-rgb), 0.09) 0%, transparent 62%),
+    radial-gradient(52rem 34rem at 78% 104%, rgba(var(--accent-rgb), 0.11) 0%, transparent 60%),
+    radial-gradient(38rem 26rem at 4% 92%,   rgba(var(--secondary-rgb), 0.07) 0%, transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
   font-size: var(--fs-body);
@@ -136,7 +145,16 @@ body {
   letter-spacing: var(--lsp-tight);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background var(--t), color var(--t);
+  transition: color var(--t);
+}
+
+/* Dark already carries its own depth; a green wash there turns it murky. */
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(50rem 30rem at 10% -8%, rgba(var(--primary-rgb), 0.1) 0%, transparent 60%),
+    radial-gradient(46rem 30rem at 92% 100%, rgba(var(--primary-rgb), 0.08) 0%, transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
 }
 
 h1, h2, h3, h4, p, figure { margin: 0; }

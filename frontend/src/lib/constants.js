@@ -28,31 +28,48 @@ export const COLLECTION_KEYS = [
 /* --------------------------------------------------------------------------
    Navigation. `icon` is a lucide icon name resolved in <NavIcon>.
    Items with status "soon" are roadmap pages and render a marker dot.
+   An item with `children` is an expandable group rather than a destination.
+
+   Documents / Standards / Vendor Documents are intentionally absent: they are
+   internal surfaces we don't expose to clients. Their pages and routes still
+   exist and are reachable from the Knowledge Base collection cards.
    -------------------------------------------------------------------------- */
 export const NAV = [
-  { id: "engineering", label: "AI Agent",        icon: "Bot",             group: "Workspace", status: "live" },
-  { id: "dashboard",   label: "Dashboard",       icon: "LayoutDashboard", group: "Workspace", status: "live" },
-  { id: "quotation",   label: "Quotation Agent", icon: "ReceiptText",     group: "Workspace", status: "live" },
+  {
+    id: "agents",
+    label: "AI Agent",
+    icon: "Bot",
+    group: "Workspace",
+    children: [
+      { id: "engineering", label: "Engineering Agent", icon: "Bot",         status: "live" },
+      { id: "quotation",   label: "Quotation Agent",   icon: "ReceiptText", status: "live" },
+      { id: "drawing",     label: "Drawing Agent",     icon: "PenTool",     status: "soon" },
+    ],
+  },
+  { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard", group: "Workspace", status: "live" },
 
-  { id: "knowledge",           label: "Knowledge Base",   icon: "Database",      group: "Data", status: "live" },
-  { id: "historical_projects", label: "Projects",         icon: "FolderKanban",  group: "Data", status: "live" },
-  { id: "upload",              label: "Documents",        icon: "FileText",      group: "Data", status: "live" },
-  { id: "standards",           label: "Standards",        icon: "BookOpen",      group: "Data", status: "soon" },
-  { id: "vendor_catalogues",   label: "Vendor Documents", icon: "Package",       group: "Data", status: "soon" },
+  { id: "knowledge",           label: "Knowledge Base", icon: "Database",     group: "Data", status: "live" },
+  { id: "historical_projects", label: "Projects",       icon: "FolderKanban", group: "Data", status: "live" },
 
-  { id: "drawing",  label: "Drawing Agent", icon: "PenTool",  group: "System", status: "soon" },
-  { id: "settings", label: "Settings",      icon: "Settings", group: "System", status: "soon" },
+  { id: "profile",   label: "Profile",   icon: "UserRound",      group: "System", status: "live" },
+  { id: "live_help", label: "Live Help", icon: "LifeBuoy",       group: "System", status: "live" },
+  { id: "settings",  label: "Settings",  icon: "Settings",       group: "System", status: "soon" },
 ];
+
+/* Every child id under the collapsible agent group. */
+export const AGENT_VIEWS = NAV.find((n) => n.id === "agents").children.map((c) => c.id);
 
 // Header title + hero copy per view.
 export const VIEW_TITLES = {
   dashboard: "Dashboard",
-  engineering: "AI Agent",
+  engineering: "Engineering Agent",
   quotation: "Quotation Agent",
   drawing: "Drawing Agent",
   knowledge: "Knowledge Base",
   upload: "Documents",
   settings: "Settings",
+  profile: "Profile",
+  live_help: "Live Help",
   historical_projects: "Projects",
   standards: "Engineering Standards",
   vendor_catalogues: "Vendor Documents",

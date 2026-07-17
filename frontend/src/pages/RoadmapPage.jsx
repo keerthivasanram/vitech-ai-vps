@@ -1,9 +1,12 @@
 import { NavIcon } from "../components/NavIcon";
 import { NAV } from "../lib/constants";
 
+/* Flatten the nav so nested items (the agents) resolve too. */
+const flatNav = NAV.flatMap((n) => (n.children ? n.children : [n]));
+
 /** Shared state for pages on the roadmap (Drawing Agent, Settings, …). */
 export function RoadmapPage({ id }) {
-  const item = NAV.find((n) => n.id === id) || { label: "Coming soon", icon: "Hexagon" };
+  const item = flatNav.find((n) => n.id === id) || { label: "Coming soon", icon: "Hexagon" };
 
   const note = {
     drawing:

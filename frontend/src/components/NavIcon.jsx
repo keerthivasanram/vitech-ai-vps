@@ -2,7 +2,7 @@ import { memo } from "react";
 import {
   Bot, LayoutDashboard, ReceiptText, Database, FolderKanban, FileText,
   BookOpen, Package, PenTool, Settings, Search, Sparkles, ClipboardList,
-  BarChart3, ShieldCheck, Hexagon,
+  BarChart3, ShieldCheck, Hexagon, UserRound, LifeBuoy,
 } from "lucide-react";
 
 /* Icons are imported by name rather than dynamically resolved: the bundler can
@@ -10,7 +10,7 @@ import {
 const ICONS = {
   Bot, LayoutDashboard, ReceiptText, Database, FolderKanban, FileText,
   BookOpen, Package, PenTool, Settings, Search, Sparkles, ClipboardList,
-  BarChart3, ShieldCheck, Hexagon,
+  BarChart3, ShieldCheck, Hexagon, UserRound, LifeBuoy,
 };
 
 /** Resolve a lucide icon by the name used in constants.js. */

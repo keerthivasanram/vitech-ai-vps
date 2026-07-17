@@ -8,6 +8,8 @@ import { Dashboard } from "./pages/Dashboard";
 import { KnowledgeBase } from "./pages/KnowledgeBase";
 import { CollectionPage } from "./pages/CollectionPage";
 import { UploadPage } from "./pages/UploadPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { LiveHelpPage } from "./pages/LiveHelpPage";
 import { RoadmapPage } from "./pages/RoadmapPage";
 import { useAgentChat } from "./hooks/useAgentChat";
 import { useHealth } from "./hooks/useHealth";
@@ -115,6 +117,21 @@ export default function App() {
     if (view === "dashboard") return <Dashboard setView={go} />;
     if (view === "knowledge") return <KnowledgeBase setView={go} />;
     if (view === "upload") return <UploadPage />;
+    if (view === "profile") {
+      return (
+        <ProfilePage
+          user={USER}
+          health={health}
+          sessionId={chat.sessionId}
+          conversationCount={chat.conversations.length}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+        />
+      );
+    }
+    if (view === "live_help") {
+      return <LiveHelpPage health={health} onOpenAgent={() => go("engineering")} />;
+    }
     if (COLLECTION_KEYS.includes(view)) return <CollectionPage collection={view} setView={go} />;
     return <RoadmapPage id={view} />;
   };
