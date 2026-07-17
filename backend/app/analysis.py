@@ -639,7 +639,13 @@ def _decision_origin(breakdown):
 
 def _given_echo(category, params, chosen):
     src = params if params else _given(chosen)
-    return [{"label": label_for(category, k), "value": _fmt(v)} for k, v in src.items()]
+    # When booth dimensions were DERIVED from a job envelope, the client did not
+    # give length/width/height — show the job size they gave; the booth size
+    # appears in the technical section as a computed value. Internal ("_") keys
+    # are never echoed.
+    skip = {"length_m", "width_m", "height_m"} if "job_size" in src else set()
+    return [{"label": label_for(category, k), "value": _fmt(v)}
+            for k, v in src.items() if not k.startswith("_") and k not in skip]
 
 
 def _justify(u, exact, nearest, category, match):

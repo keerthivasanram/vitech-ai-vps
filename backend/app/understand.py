@@ -32,6 +32,43 @@ _MM = re.compile(r"(\d+(?:\.\d+)?)\s*mm", re.I)
 _HP = re.compile(r"(\d+(?:\.\d+)?)\s*hp", re.I)
 _QTY = re.compile(r"(?:qty\s*[:\-]?\s*|(\d+)\s*(?:nos|no\.?|units?))", re.I)
 
+
+def _dims_to_metres(dims: list[float], q: str, end: int) -> list[float]:
+    """Normalise an L x W (x H) dimension group to metres.
+
+    Booth/oven dimensions feed engineering rules that assume metres. A user may
+    give them in mm ("1500 x 1200 x 1000 mm"), which without conversion produces
+    absurd results (a 1500 m booth -> ~1.9 billion m3/h airflow). Convert when
+    the group is explicitly suffixed 'mm', or when a value is far too large to be
+    a booth in metres (no real booth is >= 100 m, so treat those as mm)."""
+    explicit_mm = q[end:end + 4].lstrip().lower().startswith("mm")
+    if explicit_mm or max(dims) >= 100:
+        return [round(d / 1000.0, 3) for d in dims]
+    return dims
+
+
+# The user may state the JOB / workpiece envelope rather than the booth itself.
+# When they do, derive the booth internal size instead of sizing the booth AS
+# the part (which produced a tiny booth whose airflow disagreed with the blower).
+_JOB_SIZE_CTX = re.compile(
+    r"\b(?:job\s*size|work[\s-]?piece|component\s*size|part\s*size|product\s*size|"
+    r"max(?:imum)?\s*(?:job|part|component|workpiece)|size\s*of\s*(?:job|part|component))\b",
+    re.I)
+_BOOTH_LIKE = {"paint_booth", "blast_booth"}
+
+
+def _fmt_dims(dims: list[float]) -> str:
+    return " x ".join(f"{d:g}" for d in dims) + " m"
+
+
+def _job_to_booth(dims: list[float]) -> list[float]:
+    """Booth internal size from the job envelope: add working clearance around the
+    part (ATS practice ~1 m each side; minimum 2.5 m clear height)."""
+    out = [round(dims[0] + 2.0, 2), round(dims[1] + 2.0, 2)]
+    if len(dims) >= 3:
+        out.append(round(max(dims[2] + 1.0, 2.5), 2))
+    return out
+
 _CATEGORY_KEYWORDS = {
     "wet_scrubber": ("scrubber", "wet scrubber", "demister", "spray nozzle"),
     "paint_booth": ("paint booth", "booth", "powder coat", "spray booth"),
@@ -126,17 +163,28 @@ def _fallback(question: str) -> QueryUnderstanding:
     u.category = _detect_category(q)
     params: dict = {}
 
+    job_ctx = bool(_JOB_SIZE_CTX.search(q)) and u.category in _BOOTH_LIKE
     if (m := _DIM_TRIPLE.search(q)):
-        params["length_m"] = float(m.group(1))
-        params["width_m"] = float(m.group(2))
-        params["height_m"] = float(m.group(3))
+        dims = _dims_to_metres([float(m.group(1)), float(m.group(2)), float(m.group(3))], q, m.end())
+        if job_ctx:
+            params["job_size"] = _fmt_dims(dims)
+            dims = _job_to_booth(dims)
+        params["length_m"], params["width_m"], params["height_m"] = dims
     elif (m := _DIM_PAIR.search(q)):
-        params["length_m"], params["width_m"] = float(m.group(1)), float(m.group(2))
+        dims = _dims_to_metres([float(m.group(1)), float(m.group(2))], q, m.end())
+        if job_ctx:
+            params["job_size"] = _fmt_dims(dims)
+            dims = _job_to_booth(dims)
+        params["length_m"], params["width_m"] = dims[0], dims[1]
     if (c := _CFM.search(q)):
         params["air_volume_cfm"] = float(c.group(1))
     if (c := _CMH.search(q)):
         params["air_volume_cmh"] = float(c.group(1))
-    if (c := _MM.search(q)):
+    # Only read a bare "NNN mm" as a tower/blower diameter when the text actually
+    # talks about a tower or diameter. Without this guard the mm suffix on a booth
+    # dimension triple ("1500 x 1200 x 1000 mm") was mis-captured as a tower
+    # diameter on categories (e.g. paint_booth) that have no tower at all.
+    if (c := _MM.search(q)) and re.search(r"tower|diameter|\bdia\b", q):
         params["tower_diameter_mm"] = float(c.group(1))
     if (c := _HP.search(q)):
         params["pump_capacity_hp"] = float(c.group(1))
@@ -147,6 +195,12 @@ def _fallback(question: str) -> QueryUnderstanding:
         if p in q:
             params["paint_type"] = p.replace(" ", "-")
             break
+    else:
+        # Application methods that imply a WET/liquid paint process (not powder).
+        # "Air spray painting" is a liquid application; without this it was left
+        # unrecognised and the spec kept asking for an already-stated paint process.
+        if re.search(r"air[\s-]?spray|wet paint|conventional spray|\benamel\b", q):
+            params["paint_type"] = "liquid"
     if "ambient" in q:
         params["operating_temp"] = "ambient"
     mt = re.search(r"operating temperature[:\s]+([a-z]+)", q)

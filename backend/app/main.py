@@ -518,6 +518,30 @@ def tool_list_projects(payload: dict = Body(...)):
         "price_total": o.get("price_total"),
         "price_total_display": inr_display(o["price_total"]) if o.get("price_total") else None,
     } for o in offers]
+
+    # DETERMINISTIC RANKING (golden rule #2: Python ranks, the LLM only reads).
+    # The model must never sort/compare prices itself — llama3.1:8b gets it wrong
+    # and invents figures. We hand it the answer pre-computed and pre-formatted.
+    priced = sorted(
+        (p for p in projects if isinstance(p.get("price_total"), (int, float))),
+        key=lambda p: p["price_total"], reverse=True,
+    )
+    ranked = [{
+        "rank": i + 1, "client": p["client"], "category": p["category"],
+        "ref": p.get("ref"), "price_total": p["price_total"],
+        "price_total_display": p["price_total_display"],
+    } for i, p in enumerate(priced)]
+    top_by_price = ranked[:10]
+    highest_project = ranked[0] if ranked else None
+    lowest_project = ranked[-1] if ranked else None
+    # A ready-to-print sentence so the model has nothing to compute or reword.
+    highest_answer = (
+        f"{highest_project['client']} has the highest quotation cost: "
+        f"{highest_project['price_total_display']} "
+        f"({highest_project['category']}, ref {highest_project['ref']})."
+        if highest_project else "No priced offers on record."
+    )
+
     return {
         "ok": True,
         "count": len(offers),
@@ -525,6 +549,10 @@ def tool_list_projects(payload: dict = Body(...)):
         "clients": clients,
         "categories": categories,
         "projects": projects,
+        "top_by_price": top_by_price,
+        "highest_project": highest_project,
+        "lowest_project": lowest_project,
+        "highest_answer": highest_answer,
     }
 
 

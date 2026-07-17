@@ -147,6 +147,7 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             "material": "Construction material",
             "access": "Access",
             "standard": "Standard",
+            "job_size": "Job / workpiece envelope",
         },
     },
     # Consulting-ready categories (engineering rules come in a later sprint).
