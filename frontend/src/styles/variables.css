@@ -72,7 +72,7 @@
           Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
 
-  --fs-hero:   clamp(30px, 2.6vw, 48px);
+  --fs-hero:   clamp(22px, 1.9vw, 32px);
   --fs-section: 30px;
   --fs-card:   18px;
   --fs-body:   15px;

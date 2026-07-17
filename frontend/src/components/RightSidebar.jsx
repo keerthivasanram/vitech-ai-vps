@@ -1,30 +1,27 @@
 import { memo } from "react";
-import { OverviewCard } from "./OverviewCard";
-import { CapabilityCard } from "./CapabilityCard";
-import { ConversationCard } from "./ConversationCard";
+import { ChatHistoryCard } from "./ChatHistoryCard";
 import { UpgradeCard } from "./UpgradeCard";
 
 /**
- * Right rail: agent overview, capabilities, recent conversations, upgrade.
- * `open` only matters below 1024px, where the rail is a drawer.
+ * Right rail: chat history, with the upgrade banner pinned beneath it.
+ * `open` drives both the desktop minimize/maximize state and, below 1024px,
+ * the drawer.
  */
 export const RightSidebar = memo(function RightSidebar({
-  ui, conversations, activeId, onPick, onOpenConversation, onDeleteConversation,
-  onViewAll, open,
+  conversations, activeId, onOpenConversation, onDeleteConversation,
+  onNewChat, onMinimize, onViewAll, open,
 }) {
   return (
-    <aside className={`rightbar${open ? " is-open" : ""}`} aria-label="Agent panel">
-      <OverviewCard name={ui.name} description={ui.overview} index={0} />
-      <CapabilityCard onPick={onPick} onViewAll={onViewAll} index={1} />
-      <ConversationCard
+    <aside className={`rightbar${open ? " is-open" : ""}`} aria-label="Chat history">
+      <ChatHistoryCard
         conversations={conversations}
         activeId={activeId}
         onOpen={onOpenConversation}
         onDelete={onDeleteConversation}
-        onViewAll={onViewAll}
-        index={2}
+        onNewChat={onNewChat}
+        onMinimize={onMinimize}
       />
-      <UpgradeCard onExplore={onViewAll} index={3} />
+      <UpgradeCard onExplore={onViewAll} index={1} />
     </aside>
   );
 });

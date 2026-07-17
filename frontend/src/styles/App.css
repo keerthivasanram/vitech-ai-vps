@@ -326,9 +326,6 @@
 
 .topheader-r { display: flex; align-items: center; gap: 6px; }
 
-/* Right-rail toggle: only meaningful once the rail becomes a drawer (<=1024).
-   Compounded with .icon-btn so it outranks that rule's `display: grid`. */
-.icon-btn.topheader-panel-btn { display: none; }
 
 .icon-btn {
   position: relative;
@@ -394,9 +391,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 24px;
-  min-height: 210px;
-  padding: 30px 34px;
+  gap: 18px;
+  min-height: 132px;
+  padding: 20px 24px;
   border: 1px solid var(--border);
   border-radius: var(--r-card);
   background:
@@ -411,36 +408,36 @@
 .hero-greet {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--fs-card);
+  gap: 7px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--primary);
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 .hero-wave { display: inline-block; animation: orb-float 2.6s ease-in-out infinite; }
 
 .hero-h1 {
   font-size: var(--fs-hero);
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.15;
   letter-spacing: var(--lsp-hero);
   color: var(--text);
-  margin-bottom: 12px;
+  margin-bottom: 7px;
 }
 
 .hero-sub {
-  font-size: var(--fs-body);
+  font-size: 13.5px;
   color: var(--text-secondary);
-  line-height: 1.6;
-  max-width: 46ch;
+  line-height: 1.55;
+  max-width: 52ch;
 }
 
 /* ---- Glowing AI orb ---- */
 .orb {
   position: relative;
   flex: 0 0 auto;
-  width: 190px;
-  height: 190px;
+  width: 118px;
+  height: 118px;
   display: grid;
   place-items: center;
 }
@@ -478,8 +475,8 @@
 /* Glass core holding the bot mark */
 .orb-core {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -502,18 +499,22 @@
    -------------------------------------------------------------------------- */
 .quick {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
+/* min-width:0 is load-bearing: grid items default to min-width:auto, so the
+   nowrap subtitle sets a min-content floor and the track refuses to shrink —
+   which pushed a horizontal scrollbar into the chat surface. */
 .quick-card {
   display: flex;
   align-items: center;
-  gap: 13px;
-  min-height: 100px;
-  padding: 18px;
+  gap: 11px;
+  min-width: 0;
+  min-height: 68px;
+  padding: 13px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--r-card);
+  border-radius: 16px;
   background: var(--card);
   box-shadow: var(--shadow-xs);
   text-align: left;
@@ -527,10 +528,10 @@
 
 .quick-ic {
   flex: 0 0 auto;
-  width: 40px; height: 40px;
+  width: 34px; height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--hover-green);
   color: var(--primary);
 }
@@ -538,14 +539,17 @@
 .quick-t { flex: 1; min-width: 0; }
 .quick-title {
   display: block;
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .quick-sub {
   display: block;
-  font-size: var(--fs-sm);
+  font-size: 12px;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -775,23 +779,52 @@
 .rightbar {
   width: var(--rightbar-w);
   flex: 0 0 var(--rightbar-w);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  overflow-y: auto;
+  gap: 16px;
   padding-bottom: 4px;
-  scrollbar-width: none;
 }
-.rightbar::-webkit-scrollbar { display: none; }
+/* Minimized at any width — the chat column takes the space back. */
+.rightbar:not(.is-open) { display: none; }
+
+/* Chat history owns the rail; the upgrade banner keeps its natural height. */
+.history {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+}
+.history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
 
 .panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
-.panel-title { font-size: 16px; font-weight: 600; color: var(--text); }
+.panel-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.panel-head-actions { display: flex; align-items: center; gap: 2px; }
+.panel-icon {
+  width: 28px; height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  transition: background var(--t), color var(--t);
+}
+.panel-icon:hover { background: var(--hover-green); color: var(--primary); }
+
 .panel-link {
   border: none;
   background: transparent;
@@ -859,6 +892,10 @@
   transition: background var(--t), transform var(--t);
 }
 .rowitem:hover { background: var(--hover-green); transform: translateX(2px); }
+/* The conversation currently loaded in the chat column. */
+.rowitem.is-active { background: var(--hover-green); }
+.rowitem.is-active .rowitem-title { color: var(--primary); font-weight: 600; }
+.rowitem.is-active .conv-ic { color: var(--primary); }
 
 .rowitem-ic {
   flex: 0 0 auto;
@@ -1018,7 +1055,8 @@
   .hero-sub { font-size: 14px; }
 }
 
-/* 1024: right panel becomes a drawer. */
+/* 1024: right panel stops being a column and becomes an overlay drawer.
+   Hiding when minimized is handled by the base rule, at every width. */
 @media (max-width: 1024px) {
   .rightbar {
     position: fixed;
@@ -1030,11 +1068,8 @@
     background: var(--bg);
     border-left: 1px solid var(--border);
     box-shadow: var(--shadow-lg);
-    overflow-y: auto;
     animation: slide-in-right var(--t-slow) both;
   }
-  .rightbar:not(.is-open) { display: none; }
-  .icon-btn.topheader-panel-btn { display: grid; }
   .orb { display: none; }
   .hero { min-height: 0; }
 }

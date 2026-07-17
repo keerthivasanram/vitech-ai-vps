@@ -25,7 +25,7 @@ const Orb = memo(function Orb() {
       <span className="orb-node orb-node-2" />
       <span className="orb-node orb-node-3" />
       <span className="orb-core">
-        <Bot size={44} strokeWidth={1.8} />
+        <Bot size={28} strokeWidth={1.8} />
       </span>
     </motion.div>
   );

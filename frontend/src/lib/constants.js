@@ -68,7 +68,6 @@ export const AGENT_UI = {
     name: "Vitech AI Agent",
     hero: "How can I assist you today?",
     sub: "Your intelligent assistant for Vitech knowledge, documents, analytics and more.",
-    overview: "Your intelligent assistant for Vitech knowledge and operations.",
     chips: [
       "Generate a wet scrubber spec for 800 CFM, 750 mm tower, 4 nos.",
       "Generate a specification for a 10 x 6 powder paint booth.",
@@ -82,7 +81,6 @@ export const AGENT_UI = {
     name: "Vitech Quotation Agent",
     hero: "Budgetary quotations, on demand",
     sub: "Generate a budgetary quotation from your historical offers, revise the quantity or size, or compare past quotes.",
-    overview: "Builds budgetary quotations from your historical offers, deterministically.",
     chips: [
       "Quote a wet scrubber 800 CFM, 750 mm tower, 4 nos.",
       "Make that 6 nos instead.",
@@ -99,14 +97,6 @@ export const QUICK_ACTIONS = [
   { icon: "FileText",  title: "Analyze",   sub: "Documents",        prompt: "What did C2C Engineering order?" },
   { icon: "ClipboardList", title: "Summarize", sub: "Reports",      prompt: "How many projects have we quoted, and in which categories?" },
   { icon: "Sparkles",  title: "Ask",       sub: "Anything",         prompt: "How does a wet scrubber remove particulates from air?" },
-];
-
-/* Right panel — Top Capabilities. */
-export const CAPABILITIES = [
-  { icon: "FileText",   title: "Document Intelligence", sub: "Search and analyze company documents", prompt: "What did C2C Engineering order?" },
-  { icon: "BarChart3",  title: "Data Analysis",         sub: "Generate insights from data",          prompt: "How many projects have we quoted, and in which categories?" },
-  { icon: "FolderKanban", title: "Project Updates",     sub: "Get real-time project information",    prompt: "Which clients are in the database?" },
-  { icon: "ShieldCheck", title: "Policy & Compliance",  sub: "Access company policies",              prompt: "What design standards apply to a wet scrubber?" },
 ];
 
 export const THINK_LABELS = [

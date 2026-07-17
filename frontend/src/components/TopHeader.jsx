@@ -1,5 +1,7 @@
 import { memo, useCallback, useState } from "react";
-import { Bell, Maximize2, Menu, Minimize2, Moon, PanelRight, Search, Sun } from "lucide-react";
+import {
+  Bell, Maximize2, Menu, Minimize2, Moon, PanelRight, PanelRightClose, Search, Sun,
+} from "lucide-react";
 import { StatusBadge } from "../common/Badge";
 
 /** Fullscreen toggle, tracking real document state rather than a local guess. */
@@ -25,7 +27,7 @@ function useFullscreen() {
  */
 export const TopHeader = memo(function TopHeader({
   title, online, notifications = 0,
-  isDark, onToggleTheme, onToggleSidebar, onTogglePanel, showPanelToggle,
+  isDark, onToggleTheme, onToggleSidebar, onTogglePanel, showPanelToggle, panelOpen,
 }) {
   const { isFull, toggle: toggleFull } = useFullscreen();
 
@@ -80,16 +82,20 @@ export const TopHeader = memo(function TopHeader({
             : <Maximize2 size={20} strokeWidth={1.8} aria-hidden="true" />}
         </button>
 
-        {/* Only rendered on views that have a right rail, and only visible
-            below 1024px where that rail becomes a drawer. */}
+        {/* Maximize / minimize the chat-history rail. Rendered only on views
+            that have one. */}
         {showPanelToggle && (
           <button
             type="button"
-            className="icon-btn topheader-panel-btn"
+            className={`icon-btn${panelOpen ? " is-on" : ""}`}
             onClick={onTogglePanel}
-            aria-label="Open agent panel"
+            aria-label={panelOpen ? "Minimize chat history" : "Maximize chat history"}
+            aria-pressed={panelOpen}
+            title={panelOpen ? "Minimize panel" : "Maximize panel"}
           >
-            <PanelRight size={20} strokeWidth={1.8} aria-hidden="true" />
+            {panelOpen
+              ? <PanelRightClose size={20} strokeWidth={1.8} aria-hidden="true" />
+              : <PanelRight size={20} strokeWidth={1.8} aria-hidden="true" />}
           </button>
         )}
       </div>

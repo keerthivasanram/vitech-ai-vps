@@ -18,10 +18,21 @@ import { AGENT_UI, COLLECTION_KEYS, VIEW_TITLES, isChatView } from "./lib/consta
 /* Signed-in user. Wire to real auth when the multi-user phase lands. */
 const USER = { name: "Loganathan R", role: "Admin" };
 
+const PANEL_KEY = "vitech_panel";
+
+/* The rail is maximized by default on a roomy screen and minimized on a narrow
+   one, but an explicit choice always wins and is remembered. */
+const initialPanel = () => {
+  const saved = localStorage.getItem(PANEL_KEY);
+  if (saved === "1") return true;
+  if (saved === "0") return false;
+  return window.innerWidth > 1024;
+};
+
 export default function App() {
   const [view, setView] = useState("engineering");
   const [navOpen, setNavOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(initialPanel);
 
   const health = useHealth();
   const { isDark, toggle: toggleTheme } = useTheme();
@@ -42,14 +53,6 @@ export default function App() {
     setPanelOpen(false);
   }, []);
 
-  /* Asking a question from a non-chat page (a capability row, a quick action)
-     lands you in the agent with the answer already streaming. */
-  const ask = useCallback((prompt) => {
-    if (!chatView) setView("engineering");
-    setPanelOpen(false);
-    send(prompt);
-  }, [chatView, send]);
-
   const startNewChat = useCallback(() => {
     if (!chatView) setView("engineering");
     setNavOpen(false);
@@ -59,8 +62,24 @@ export default function App() {
   const openConvo = useCallback((id) => {
     const convoView = openConversation(id);
     if (convoView) setView(convoView);
+    // Only a drawer needs dismissing; on desktop the rail stays put.
+    if (isCompact) setPanelOpen(false);
+  }, [openConversation, isCompact]);
+
+  /* Persist only a deliberate maximize/minimize. Writing this from an effect
+     instead would record the responsive default on first paint, so opening the
+     app once in a narrow window would stick as "minimized" forever. */
+  const togglePanel = useCallback(() => {
+    setPanelOpen((v) => {
+      localStorage.setItem(PANEL_KEY, v ? "0" : "1");
+      return !v;
+    });
+  }, []);
+
+  const minimizePanel = useCallback(() => {
+    localStorage.setItem(PANEL_KEY, "0");
     setPanelOpen(false);
-  }, [openConversation]);
+  }, []);
 
   /* Esc closes whichever drawer is open. */
   useEffect(() => {
@@ -74,9 +93,10 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [navOpen, panelOpen]);
 
-  /* Leaving the breakpoint that made a rail a drawer resets its open state. */
+  /* Leaving mobile closes the nav drawer; entering the drawer breakpoint closes
+     the rail so it never covers the chat unasked. */
   useEffect(() => { if (!isMobile) setNavOpen(false); }, [isMobile]);
-  useEffect(() => { if (!isCompact) setPanelOpen(false); }, [isCompact]);
+  useEffect(() => { if (isCompact) setPanelOpen(false); }, [isCompact]);
 
   const page = () => {
     if (chatView) {
@@ -119,8 +139,9 @@ export default function App() {
           isDark={isDark}
           onToggleTheme={toggleTheme}
           onToggleSidebar={() => setNavOpen((v) => !v)}
-          onTogglePanel={() => setPanelOpen((v) => !v)}
+          onTogglePanel={togglePanel}
           showPanelToggle={chatView}
+          panelOpen={panelOpen}
         />
 
         <Workspace>
@@ -128,12 +149,12 @@ export default function App() {
 
           {chatView && (
             <RightSidebar
-              ui={ui}
               conversations={chat.conversations}
               activeId={chat.sessionId}
-              onPick={ask}
               onOpenConversation={openConvo}
               onDeleteConversation={chat.deleteConversation}
+              onNewChat={startNewChat}
+              onMinimize={minimizePanel}
               onViewAll={() => go("knowledge")}
               open={panelOpen}
             />
