@@ -202,16 +202,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
-          <HexIcon size={22} className="logo-icon" />
-          <span className="brand-name">ATS Engineering Assistant</span>
-          {VIEW_TITLES[view] && (
-            <>
-              <span className="brand-sep">/</span>
-              <span className="brand-context">{VIEW_TITLES[view]}</span>
-            </>
-          )}
-        </div>
+        <div className="topbar-title">{VIEW_TITLES[view] || "ATS Engineering Assistant"}</div>
         <div className="status">
           {health && (
             <>
@@ -378,23 +369,37 @@ function Sidebar({ view, setView }) {
   const groups = [...new Set(NAV.map(n => n.group))];
   return (
     <aside className="sidebar">
-      {groups.map(g => (
-        <div key={g} className="side-group">
-          <div className="side-label">{g}</div>
-          {NAV.filter(n => n.group === g).map(n => (
-            <button key={n.id} className={`side-item${view === n.id ? " active" : ""}`}
-                    onClick={() => setView(n.id)}>
-              <span className="side-ic"><NavIcon id={n.id} /></span>
-              <span className="side-text">
-                <span className="side-name">{n.name}</span>
-                <span className="side-desc">{n.desc}</span>
-              </span>
-              <span className={`side-dot ${n.status}`}
-                    title={n.status === "soon" ? "Coming soon" : "Live"} />
-            </button>
-          ))}
-        </div>
-      ))}
+      <div className="side-brand">
+        <HexIcon size={22} className="logo-icon" />
+        <span className="side-brand-name">ATS Assistant</span>
+      </div>
+      <div className="side-divider" />
+      <nav className="side-nav">
+        {groups.map(g => (
+          <div key={g} className="side-group">
+            <div className="side-label">{g}</div>
+            {NAV.filter(n => n.group === g).map(n => (
+              <button key={n.id} className={`side-item${view === n.id ? " active" : ""}`}
+                      onClick={() => setView(n.id)}>
+                <span className="side-ic"><NavIcon id={n.id} /></span>
+                <span className="side-text">
+                  <span className="side-name">{n.name}</span>
+                  <span className="side-desc">{n.desc}</span>
+                </span>
+                <span className={`side-dot ${n.status}`}
+                      title={n.status === "soon" ? "Coming soon" : "Live"} />
+              </button>
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div className="side-foot">
+        <span className="side-foot-av"><HexIcon size={16} /></span>
+        <span className="side-foot-t">
+          <b>Vitech Enviro</b>
+          <span>Engineering AI · llama3.1</span>
+        </span>
+      </div>
     </aside>
   );
 }
@@ -457,10 +462,10 @@ function Dashboard({ setView }) {
 
       {/* Headline numbers — stat tiles, not a chart */}
       <div className="dash-kpis">
-        <Kpi n={offers.count ?? list.length} l="Offers indexed" />
-        <Kpi n={clients}                     l="Clients" />
-        <Kpi n={cats.length}                 l="Equipment categories" />
-        <Kpi n={priced}                      l="Offers with pricing" />
+        <Kpi n={offers.count ?? list.length} l="Offers indexed"       icon={<DIcon k="offers" />}  color="primary" />
+        <Kpi n={clients}                     l="Clients"              icon={<DIcon k="clients" />} color="blue" />
+        <Kpi n={cats.length}                 l="Equipment categories" icon={<DIcon k="cats" />}    color="violet" />
+        <Kpi n={priced}                      l="Offers with pricing"  icon={<DIcon k="priced" />}  color="amber" />
       </div>
 
       <div className="dash-grid">
@@ -522,8 +527,25 @@ function Dashboard({ setView }) {
   );
 }
 
-function Kpi({ n, l }) {
-  return <div className="kpi"><b>{n}</b><span>{l}</span></div>;
+function DIcon({ k }) {
+  const p = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none",
+    stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (k) {
+    case "offers": return <svg {...p}><path d="M4 3h9l5 5v13H4z"/><path d="M13 3v5h5"/><path d="M8 13h6M8 17h4"/></svg>;
+    case "clients": return <svg {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>;
+    case "cats": return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
+    case "priced": return <svg {...p}><path d="M3 7a2 2 0 0 1 2-2h14v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 11h4v4h-4a2 2 0 0 1 0-4z"/></svg>;
+    default: return <HexIcon size={16} />;
+  }
+}
+
+function Kpi({ n, l, icon, color = "primary" }) {
+  return (
+    <div className="kpi">
+      {icon && <span className={`kpi-ic ${color}`}>{icon}</span>}
+      <b>{n}</b><span>{l}</span>
+    </div>
+  );
 }
 
 const COLL_BADGE = { live: "ok", on_demand: "info", ingest: "soft", roadmap: "soft", engine: "gen" };
