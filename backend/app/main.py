@@ -17,8 +17,10 @@ from pathlib import Path
 from . import config, jobs, session
 from .analysis import essential_present, requirement_completeness
 from .analytics import record_detail
+from .analytics import _label as category_label
 from .resolver import ATS, CONSULTING, resolve
 from .prompt import spec_summary, spec_writeup
+from .pricing import inr_display
 from .quotation import build_quotation
 from .quotation_pdf import render_quotation_pdf
 from .catalog import get_profile
@@ -346,11 +348,18 @@ def tool_lookup(payload: dict = Body(...)):
             continue
         seen.add(h["id"])
         r = h["record"]
+        ps = r.get("price_schedule") or {}
+        cur = ps.get("currency", "INR")
+        # preformatted rupee strings so the agent never regroups a historical price
+        ps_display = {k: (inr_display(v) if cur in (None, "INR", "Rs", "Rs.") else f"{cur} {v:,}")
+                      for k, v in ps.items()
+                      if k != "currency" and isinstance(v, (int, float))}
         recs.append({"id": r.get("id"), "client": r.get("client"),
                      "category": r.get("category"), "source_file": r.get("source_file"),
                      "given_data": r.get("given_data"),
                      "technical_details": r.get("technical_details"),
-                     "price_schedule": r.get("price_schedule")})
+                     "price_schedule": ps,
+                     "price_schedule_display": ps_display})
     if not recs:
         return {"ok": False, "message": "No matching client or offer found."}
     return {"ok": True, "text": text, "records": recs[:4]}
@@ -405,9 +414,41 @@ def tool_filters():
     return {"ok": True, "filters": available_filters()}
 
 
-@app.get("/api/offers")
-def list_offers():
-    """Overview of every stored offer file — powers the Knowledge Base page."""
+@app.post("/api/tools/list", operation_id="list_projects")
+def tool_list_projects(payload: dict = Body(...)):
+    """Enumerate ALL stored Vitech offers — answers 'how many / list all /
+    which clients / what categories / what have we quoted' deterministically.
+
+    The 4 other tools are point lookups; this one returns the whole set so the
+    agent never has to guess a count or invent a client. Numbers are exact.
+    """
+    offers = _offers_overview()
+    clients = sorted({o["client"] for o in offers if o.get("client")})
+    cats: dict[str, int] = {}
+    for o in offers:
+        c = o.get("category")
+        if c:
+            cats[c] = cats.get(c, 0) + 1
+    categories = [{"category": c, "count": n}
+                  for c, n in sorted(cats.items(), key=lambda kv: (-kv[1], kv[0]))]
+    projects = [{
+        "id": o.get("id"), "client": o.get("client"), "category": o.get("category"),
+        "ref": o.get("ref"), "date": o.get("date"),
+        "price_total": o.get("price_total"),
+        "price_total_display": inr_display(o["price_total"]) if o.get("price_total") else None,
+    } for o in offers]
+    return {
+        "ok": True,
+        "count": len(offers),
+        "n_clients": len(clients),
+        "clients": clients,
+        "categories": categories,
+        "projects": projects,
+    }
+
+
+def _offers_overview() -> list[dict]:
+    """One summary row per stored offer file (id, client, category, price, ...)."""
     col = get_collection()
     out = []
     if col.count():
@@ -434,7 +475,97 @@ def list_offers():
                 "price_total": total, "currency": ps.get("currency", "INR"),
             })
     out.sort(key=lambda x: (x.get("category") or "", x.get("id") or ""))
+    return out
+
+
+@app.get("/api/offers")
+def list_offers():
+    """Overview of every stored offer file — powers the Knowledge Base page."""
+    out = _offers_overview()
     return {"count": len(out), "offers": out}
+
+
+@app.get("/api/knowledge/overview")
+def knowledge_overview():
+    """Structured view of the engineering knowledge base — the deterministic
+    'Database Organization' surface for the Knowledge Base page. Every count is
+    computed from what is actually stored (no invented numbers).
+
+    - collections: the platform's content buckets (Historical Projects is the
+      populated corpus today; the rest are structured and ingestion-ready).
+    - equipment: the offer corpus organised by equipment category, with counts.
+    - stats + facets: totals, distinct clients/manufacturers, date coverage.
+    """
+    col = get_collection()
+    metas = col.get(include=["metadatas"])["metadatas"] if col.count() else []
+    offers = [m for m in metas if m.get("type") == "offer"]
+    documents = [m for m in metas if m.get("type") == "document"]
+
+    # equipment breakdown of the offer corpus
+    cats: dict[str, int] = {}
+    for m in offers:
+        c = m.get("category")
+        if c:
+            cats[c] = cats.get(c, 0) + 1
+    equipment = [{"key": c, "label": category_label(c), "count": n}
+                 for c, n in sorted(cats.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+    # facets
+    clients = sorted({m.get("client") for m in offers if m.get("client")})
+    manufacturers = sorted({m.get("vendor") for m in offers if m.get("vendor")})
+    dates = sorted(m.get("date") for m in offers if m.get("date"))
+
+    # document collections (type=document) grouped by doc_category, if any ingested
+    doc_by_cat: dict[str, int] = {}
+    for m in documents:
+        dc = m.get("doc_category") or m.get("kind") or "document"
+        doc_by_cat[dc] = doc_by_cat.get(dc, 0) + 1
+
+    from .catalog import CATEGORY_PROFILES
+    n_rules = len(CATEGORY_PROFILES)
+
+    last_offer = dates[-1] if dates else None
+    collections = [
+        {"key": "historical_projects", "label": "Historical Projects", "count": len(offers),
+         "state": "live", "icon": "📁", "last_updated": last_offer,
+         "desc": "Real client offers extracted into the platform — the grounding corpus, organised by equipment."},
+        {"key": "specifications", "label": "Specifications", "count": 0,
+         "state": "on_demand", "icon": "📐", "last_updated": None,
+         "desc": "Generated on demand by the Engineering Agent from rules + history."},
+        {"key": "quotations", "label": "Quotations", "count": 0,
+         "state": "on_demand", "icon": "🧾", "last_updated": None,
+         "desc": "Generated on demand by the Quotation Agent — deterministic pricing."},
+        {"key": "standards", "label": "Standards", "count": doc_by_cat.get("standard", 0),
+         "state": "ingest", "icon": "📖", "last_updated": None,
+         "desc": "Design codes & industry standards — ready for document ingestion."},
+        {"key": "vendor_catalogues", "label": "Vendor Catalogues", "count": doc_by_cat.get("catalogue", 0),
+         "state": "ingest", "icon": "📚", "last_updated": None,
+         "desc": "Component & equipment catalogues from suppliers — ready for ingestion."},
+        {"key": "drawings", "label": "Drawings", "count": doc_by_cat.get("drawing", 0),
+         "state": "roadmap", "icon": "✏️", "last_updated": None,
+         "desc": "CAD / GA drawings — the CAD Engineering Agent is on the roadmap."},
+        {"key": "rules", "label": "Engineering Rules", "count": n_rules,
+         "state": "engine", "icon": "⚙️", "last_updated": None,
+         "desc": "Equipment profiles + sizing rules baked into the deterministic engine."},
+    ]
+
+    return {
+        "collections": collections,
+        "equipment": equipment,
+        "stats": {
+            "records": len(offers),
+            "documents": len(documents),
+            "clients": len(clients),
+            "manufacturers": len(manufacturers),
+            "equipment_types": len(equipment),
+            "date_from": dates[0] if dates else None,
+            "date_to": dates[-1] if dates else None,
+        },
+        "manufacturers": manufacturers,
+        # the Chroma metadata schema this corpus is organised by
+        "metadata_fields": ["Equipment", "Category", "Manufacturer", "Project / Client",
+                            "Reference", "Date", "Document Type", "Source"],
+    }
 
 
 @app.get("/api/offers/{offer_id}")

@@ -24,10 +24,23 @@ grounded in historical offers + engineering knowledge. **Not** a general chatbot
   `llama3` is NOT, so the Flowise Tool Agent can't call tools with it).
 - **Frontend**: React + Vite in `frontend/`. Multi-agent UI, 3 agents: **Engineering**,
   **Quotation**, **Drawing** (roadmap) + **Knowledge Base** and **Upload** pages.
-  The Engineering Chat is wired to the **Flowise agent** (see below); other pages
-  still call the FastAPI backend directly.
+  Both the Engineering AND Quotation chats are wired to their **Flowise agents**
+  (the chat is agent-aware: `agentUrl(view)` picks the id by nav view; switching
+  between them starts a fresh session). Other pages still call the backend directly.
+  The old deterministic `QuotationPage` form component is retained but no longer routed.
+  The **Knowledge Base** page is organised (Priority 2): stats strip + collections
+  taxonomy (Historical Projects live; Standards/Specs/Quotations/Drawings/Vendor
+  Catalogues structured + ingestion-ready; Engineering Rules from the engine) +
+  equipment facet chips + searchable table, all fed by `/api/knowledge/overview`.
+  **Database Visibility (Priority 5)**: collection cards are clickable and there is a
+  "Database" nav group; each opens a `CollectionPage` (breadcrumb + stats + last-updated
+  + search/filters). Historical Projects is the populated table; the empty collections
+  get a professional state-aware panel (ingestion-ready → Upload; on-demand → open the
+  relevant agent; Rules → lists the 10 rule-backed equipment types). Sidebar has per-item
+  icons + live/soon status dots (Priority 4).
 - **Flowise**: pinned + patched `3.0.13` at `/opt/flowise-app`, Postgres-backed, with
-  the **Engineering Agent** chatflow built and verified end-to-end.
+  **TWO** chatflows built and verified end-to-end: **Engineering Agent** and
+  **Quotation Agent**.
 - **Data**: 33 real Vitech offers in `backend/data/offers/*.json` (hand-extracted).
   Record schema: `{id, category, client, vendor, ref, date, source_file,
   given_data{}, technical_details{}, price_schedule{}}`.
@@ -58,11 +71,17 @@ does the reasoning, Flowise only orchestrates + narrates). Each carries an expli
 FastAPI `operation_id` — that string becomes the tool name the agent sees, so do NOT
 remove them (without one, FastAPI auto-generates `tool_spec_api_tools_spec_post`):
 - `POST /api/tools/spec`     → `generate_specification`
-- `POST /api/tools/quote`    → `generate_quotation`
+- `POST /api/tools/quote`    → `generate_quotation` (carries preformatted `price_display`,
+  `price_range_display`, and `price.*_display` rupee strings — see 10x-price fix below)
 - `POST /api/tools/lookup`   → `lookup_project`
 - `POST /api/tools/retrieve` → `retrieve_knowledge`
+- `POST /api/tools/list`     → `list_projects` (enumerate ALL offers: count, clients,
+  category counts, projects — for "how many / list all / which clients / what categories")
 - `GET  /api/tools/filters`  → `list_filters`
-- UI data: `GET /api/offers`, `GET /api/offers/{id}`, `POST /api/uploads`, `GET /api/uploads`
+- UI data: `GET /api/offers`, `GET /api/offers/{id}`, `POST /api/uploads`, `GET /api/uploads`,
+  `GET /api/knowledge/overview` (structured "Database Organization" surface: collections
+  taxonomy + equipment facets + stats, all counts computed from the store — powers the
+  organised Knowledge Base page)
 
 ## Target architecture (in progress)
 **Flowise orchestrates; Python owns all business logic + calculations.** Stack:
@@ -85,6 +104,10 @@ above; the chat-orchestration layer (`/api/query`, `llm.py`) is what Flowise rep
 - Supabase/Postgres export: `cd backend && python export_supabase.py` → `data/export/`
 
 ## Key gotchas
+- **Frontend "failed to load" / "Blocked request. This host is not allowed."**: Vite 6
+  rejects unknown Host headers. `frontend/vite.config.js` now sets `allowedHosts: true`
+  so the app loads through the pod's forwarded URL / ngrok / VS Code port-forward
+  (whatever hostname). If it ever regresses to a pinned host, that's the cause.
 - **Embedding-model match**: the ChromaDB collection was built with **all-MiniLM-L6-v2**.
   If Flowise queries it with a different embedding model, retrieval breaks — use the
   same model or re-ingest. (This is why the agent searches via the backend's
@@ -114,8 +137,10 @@ UI is broken in 3.0.13 — see below), stored in Postgres `chat_flow` + `tool` t
 - **Graph**: `ChatOllama (llama3.1:8b @ localhost:11434, temp 0)` + `BufferMemory`
   → **Tool Agent** ← 4 **Custom Tool** nodes (each a `node-fetch` POST to
   `http://localhost:8000/api/tools/*` with a `question` string input).
-- **Tools**: `generate_specification`, `generate_quotation`, `lookup_project`,
-  `retrieve_knowledge`.
+- **Tools** (5): `generate_specification`, `generate_quotation`, `lookup_project`,
+  `retrieve_knowledge`, `list_projects` (the 5th, added for enumeration —
+  `customTool_4`, rebuilt by `/workspace/persistent/agent-add-list-tool.py`, also
+  baked into `agent-build.py` for from-scratch rebuilds).
 - **System prompt** (on the Tool Agent node) defines **TWO MODES** — this balance is the
   whole trick, mirroring `app/prompt.py::CHAT_SYSTEM`. Do not make it stricter without
   re-reading this:
@@ -137,6 +162,30 @@ UI is broken in 3.0.13 — see below), stored in Postgres `chat_flow` + `tool` t
 - **Verify without the UI**: `POST http://localhost:3000/api/v1/prediction/<id>`
   with `{"question":"...","chatId":"x"}` (this route is whitelisted — no auth).
   Add `"streaming":true` for SSE.
+
+## The Quotation Agent (BUILT AND LIVE in Flowise — 2026-07-17)
+Second chatflow **"Quotation Agent"**, id `6fa5a302-2d73-4191-bbea-ce98e4af2f1f`.
+Same architecture as the Engineering Agent (ChatOllama llama3.1:8b @ temp 0 +
+**BufferMemory** + Tool Agent), specialised for budgetary quotations.
+- **Tools (4)**: `generate_quotation`, `lookup_project`, `retrieve_knowledge`,
+  `list_projects` (drops `generate_specification` — that's the Engineering Agent's job).
+  It **reuses the same shared `tool` rows** — no new tool rows created.
+- **Build/rebuild**: `/workspace/persistent/quotation-agent-build.py` — clones the LIVE
+  Engineering Agent flow (guarantees correctly-shaped nodes for this install), keeps only
+  the quotation tools, swaps in the quotation prompt. **Idempotent**: updates the existing
+  'Quotation Agent' in place, never duplicates. Or just restore `vitech.sql`.
+- **Prompt**: quotation-centric two-mode prompt. Same price discipline as the Engineering
+  Agent (copy `..._display` verbatim). Extra rules learned in testing: never preface with
+  "Based on the tool's output"; when comparing, report each tool figure and say which is
+  higher — **do not compute percentages/ratios** (llama3.1 got them wrong); report
+  confidence as High/Med/Low and **do not expose R-squared / regression internals**.
+- **Memory note**: Flowise 3.0.13 has **no Postgres *chat*-memory node** compatible with
+  the Tool Agent (`AgentMemory` is a LangGraph checkpointer, not a `BaseChatMemory`, so it
+  won't connect). We use BufferMemory (same as Engineering, proven). If cross-restart
+  persistence is wanted later, `RedisBackedChatMemory` is the drop-in (Redis is running).
+- **Verified end-to-end (5 cases)**: generate, revise/add-qty (₹25,50,000 → ₹38,25,000
+  for 4→6 nos, matches backend), compare (two quotes, no bad math), client-specific lookup
+  (₹99,64,925 Indian grouping), enumerate. Through the UI proxy too (`:5173/flowise`).
 
 ## Flowise (ACTUAL install — pinned + patched, not vanilla)
 Isolated install at **`/opt/flowise-app`** (container disk, NOT global npm, NOT Docker).
@@ -171,20 +220,20 @@ The Engineering Chat calls **Flowise**, not the backend's `/api/query`:
   longer what the chat calls. Other pages (Quotation, Knowledge Base) still use `/api/*`.
 
 ## KNOWN ISSUES — start the next session here (in this order)
-1. **10x price bug (do this first; blocks trusting quotes).** The tool returns
-   `amount: 2550000`; llama3.1 has printed it as `₹63,50,000`, then `₹2,550,000`, then
-   `₹25,500,000` (10x). Prompt rules have failed at this FOUR times — the model simply
-   cannot format Indian digit grouping. **Fix structurally, not by prompting**: add a
-   preformatted `"price_display": "₹25,50,000"` field to `/api/tools/quote` (and the
-   spec's numbers) and tell the agent to copy that field verbatim, so the number never
-   passes through the model. This is exactly what golden rule #2 implies.
-2. **No enumeration tool.** The 4 tools are point lookups/computations. `lookup_project`
-   returns `ok:false` for "list all clients", so the agent invented "2 of 30 clients"
-   and presented it confidently. `GET /api/offers` already returns all 33 records with
-   clients (the Dashboard uses it). Add a 5th Custom Tool `list_projects` -> `/api/offers`
-   for "how many / list all / which clients / what categories". Recipe: clone the
-   customTool pattern in `/workspace/persistent/agent-build.py`, rewrite the node ids,
-   edge it to `toolAgent_0-input-tools-Tool`, then re-run agent-harden-prompt.py.
+1. **10x price bug — FIXED (2026-07-17).** Fixed structurally per golden rule #2, not by
+   prompting. `pricing.py::inr_display()` produces Indian-grouped rupee strings; the price
+   dict now carries `amount_display`/`unit_price_display`/`range_low_display`/
+   `range_high_display`/`range_display`, and `/api/tools/quote` carries top-level
+   `price_display` + `price_range_display`. The `lookup_project` path is covered too:
+   `analytics.py::record_detail` now uses `inr_display`, and each lookup record carries a
+   `price_schedule_display` map (e.g. `₹99,64,925`). The prompt tells the agent to print the
+   `..._display` string verbatim and never regroup digits. Verified end-to-end: agent
+   prints `₹25,50,000` exactly. Golden tests unaffected (ALL PASS).
+2. **No enumeration tool — FIXED (2026-07-17).** Added `POST /api/tools/list` →
+   `list_projects` (exact count, full client list, category counts, projects) and wired it
+   as the 5th Custom Tool (`customTool_4`). Verified: "how many projects / which categories"
+   now returns the true 33 with the correct breakdown, using `list_projects`. Rebuild via
+   `agent-add-list-tool.py` (additive, idempotent) or a fresh `agent-build.py` run.
 3. **Phase 3 ingestion** — `retrieve_knowledge` still returns `count:0`; only the 33
    offers (type=`offer`) exist, no type=`document` corpus. See Immediate next steps.
 4. **Phase 2 pages** — Dashboard done; Historical Projects / Specification / Projects /

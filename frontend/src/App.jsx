@@ -9,6 +9,26 @@ const SUGGESTED = [
   "Convert 800 CFM to CMH.",
 ];
 
+// Empty-state copy + starter prompts per chat agent (keyed by view).
+const AGENT_UI = {
+  engineering: {
+    title: "How can I help?",
+    sub: "Generate a technical specification, look up a stored client offer, or ask a general engineering question.",
+    chips: SUGGESTED,
+  },
+  quotation: {
+    title: "Budgetary quotations, on demand",
+    sub: "Generate a budgetary quotation from your historical offers, revise the quantity or size, or compare past quotes.",
+    chips: [
+      "Quote a wet scrubber 800 CFM, 750 mm tower, 4 nos.",
+      "Make that 6 nos instead.",
+      "What have we quoted for Wheels India Ltd?",
+      "Compare an 800 CFM scrubber with a 3000 CFM scrubber.",
+      "How many projects have we quoted, and in which categories?",
+    ],
+  },
+};
+
 const THINK_LABELS = [
   "Thinking",
   "Understanding your request",
@@ -20,11 +40,15 @@ const THINK_LABELS = [
 const fmtTime = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const newId  = () => Math.random().toString(36).slice(2, 14);
 
-// The Engineering Agent chatflow in Flowise. Override with VITE_ENGINEERING_AGENT_ID
-// in an .env if the chatflow id changes.
+// The two live Flowise chatflows. Override the ids via .env if they change.
 const ENGINEERING_AGENT_ID =
   import.meta.env.VITE_ENGINEERING_AGENT_ID || "c4bfba16-aeb0-4c1b-840e-21b474639a8d";
-const AGENT_URL = `/flowise/api/v1/prediction/${ENGINEERING_AGENT_ID}`;
+const QUOTATION_AGENT_ID =
+  import.meta.env.VITE_QUOTATION_AGENT_ID || "6fa5a302-2d73-4191-bbea-ce98e4af2f1f";
+const AGENT_IDS = { engineering: ENGINEERING_AGENT_ID, quotation: QUOTATION_AGENT_ID };
+const agentUrl = (view) =>
+  `/flowise/api/v1/prediction/${AGENT_IDS[view] || ENGINEERING_AGENT_ID}`;
+const isChatView = (v) => v === "engineering" || v === "quotation";
 
 // Tools whose numbers come from the deterministic engine (not the model).
 const DETERMINISTIC_TOOLS = ["generate_quotation", "generate_specification"];
@@ -73,10 +97,22 @@ export default function App() {
   const [agent, setAgent]       = useState("Auto (Hybrid Routing)");
   const [view, setView]         = useState("engineering");
   const endRef = useRef(null);
+  const prevChatView = useRef(view);
   useEffect(() => { localStorage.setItem("ats_session", sessionId); }, [sessionId]);
   useEffect(() => {
     fetch("/api/health").then(r => r.json()).then(setHealth).catch(() => {});
   }, []);
+  // Switching directly between the two chat agents starts a fresh transcript +
+  // memory so Engineering and Quotation conversations never blend.
+  useEffect(() => {
+    if (isChatView(view)) {
+      if (isChatView(prevChatView.current) && view !== prevChatView.current) {
+        setSessionId(newId());
+        setMessages([]);
+      }
+      prevChatView.current = view;
+    }
+  }, [view]);
   // Conversation memory now lives in Flowise (keyed by chatId=sessionId); the UI
   // starts fresh on reload. "New chat" rotates the sessionId for a clean context.
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
@@ -97,7 +133,7 @@ export default function App() {
     const body = JSON.stringify({ question: text, streaming: true, chatId: sessionId });
 
     try {
-      const resp = await fetch(AGENT_URL, {
+      const resp = await fetch(agentUrl(view), {
         method: "POST", headers: { "Content-Type": "application/json" }, body,
       });
       if (!resp.ok || !resp.body) throw new Error("no stream");
@@ -140,7 +176,7 @@ export default function App() {
     } catch {
       // fall back to a non-streaming prediction call
       try {
-        const resp = await fetch(AGENT_URL, {
+        const resp = await fetch(agentUrl(view), {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question: text, chatId: sessionId }),
         });
@@ -150,7 +186,7 @@ export default function App() {
         const used = (data.usedTools || []).map(t => t.tool).filter(Boolean);
         patch({ text: answer, data: agentData(answer, used, health?.llm_model), streaming: false, time: fmtTime() });
       } catch {
-        patch({ text: "Engineering Agent not reachable — is Flowise running on :3000?", streaming: false });
+        patch({ text: "Agent not reachable — is Flowise running on :3000?", streaming: false });
       }
     } finally {
       setLoading(false);
@@ -169,6 +205,12 @@ export default function App() {
         <div className="brand">
           <HexIcon size={22} className="logo-icon" />
           <span className="brand-name">ATS Engineering Assistant</span>
+          {VIEW_TITLES[view] && (
+            <>
+              <span className="brand-sep">/</span>
+              <span className="brand-context">{VIEW_TITLES[view]}</span>
+            </>
+          )}
         </div>
         <div className="status">
           {health && (
@@ -186,20 +228,22 @@ export default function App() {
         <Sidebar view={view} setView={setView} />
         <div className="viewport">
           {view === "dashboard" ? <Dashboard setView={setView} />
-            : view === "knowledge" ? <KnowledgeBase />
+            : view === "knowledge" ? <KnowledgeBase setView={setView} />
             : view === "upload" ? <UploadPage />
-            : view === "quotation" ? <QuotationPage />
             : view === "drawing" ? <AgentPlaceholder id={view} />
+            : COLLECTION_KEYS.includes(view) ? <CollectionPage collection={view} setView={setView} />
             : (
       <main className="chat">
         <div className="messages">
           {messages.length === 0 && (
             <div className="empty">
               <div className="hero-icon"><HexIcon size={52} className="hero-hex" /></div>
-              <h1>How can I help?</h1>
-              <p>Generate a technical specification, look up a stored client offer,<br />or ask a general engineering question.</p>
+              <h1>{(AGENT_UI[view] || AGENT_UI.engineering).title}</h1>
+              <p>{(AGENT_UI[view] || AGENT_UI.engineering).sub}</p>
               <div className="chips">
-                {SUGGESTED.map(s => <button key={s} className="chip" onClick={() => send(s)}>{s}</button>)}
+                {(AGENT_UI[view] || AGENT_UI.engineering).chips.map(s => (
+                  <button key={s} className="chip" onClick={() => send(s)}>{s}</button>
+                ))}
               </div>
             </div>
           )}
@@ -282,23 +326,71 @@ const NAV = [
   { id: "engineering", name: "Engineering Agent", desc: "Specs & knowledge",   status: "live", group: "Agents" },
   { id: "quotation",   name: "Quotation Agent",   desc: "Budgetary quotes",    status: "live", group: "Agents" },
   { id: "drawing",     name: "Drawing Agent",     desc: "2D GA drawings",      status: "soon", group: "Agents" },
-  { id: "knowledge",   name: "Knowledge Base",    desc: "Extracted offer data", status: "live", group: "Data" },
-  { id: "upload",      name: "Upload & Extract",  desc: "Add offer / CAD files", status: "live", group: "Data" },
+  { id: "knowledge",         name: "Knowledge Base",       desc: "Organised overview",    status: "live", group: "Database" },
+  { id: "historical_projects", name: "Historical Projects", desc: "Extracted client offers", status: "live", group: "Database" },
+  { id: "standards",         name: "Engineering Standards", desc: "Codes & standards",    status: "soon", group: "Database" },
+  { id: "vendor_catalogues", name: "Vendor Documents",     desc: "Supplier catalogues",   status: "soon", group: "Database" },
+  { id: "upload",            name: "Upload & Extract",     desc: "Add offer / CAD files", status: "live", group: "Database" },
 ];
+
+// Views that render the CollectionPage (a knowledge-base collection detail).
+const COLLECTION_KEYS = ["historical_projects", "specifications", "quotations",
+  "standards", "vendor_catalogues", "drawings", "rules"];
+
+// Header context label per view — communicates the active assistant / page.
+const VIEW_TITLES = {
+  dashboard: "Dashboard", engineering: "Engineering Assistant", quotation: "Quotation Assistant",
+  drawing: "Drawing Agent", knowledge: "Knowledge Base", upload: "Upload & Extract",
+  historical_projects: "Historical Projects", standards: "Engineering Standards",
+  vendor_catalogues: "Vendor Documents", specifications: "Specifications",
+  quotations: "Quotations", drawings: "Drawings", rules: "Engineering Rules",
+};
+
+function NavIcon({ id }) {
+  const p = { width: 17, height: 17, viewBox: "0 0 24 24", fill: "none",
+    stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (id) {
+    case "dashboard": return (
+      <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>);
+    case "engineering": return (
+      <svg {...p}><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 8v8M8.5 10v4M15.5 10v4"/></svg>);
+    case "quotation": return (
+      <svg {...p}><path d="M6 2h8l6 6v14H6z"/><path d="M14 2v6h6"/><path d="M9.5 13h5M9.5 17h3.5"/></svg>);
+    case "drawing": return (
+      <svg {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>);
+    case "knowledge": return (
+      <svg {...p}><ellipse cx="12" cy="5" rx="8.5" ry="3"/><path d="M3.5 5v14c0 1.66 3.8 3 8.5 3s8.5-1.34 8.5-3V5"/>
+        <path d="M3.5 12c0 1.66 3.8 3 8.5 3s8.5-1.34 8.5-3"/></svg>);
+    case "historical_projects": return (
+      <svg {...p}><path d="M3 7l0 12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2z"/></svg>);
+    case "standards": return (
+      <svg {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M9 7h6M9 11h6"/></svg>);
+    case "vendor_catalogues": return (
+      <svg {...p}><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5M3 16.5L12 21l9-4.5"/></svg>);
+    case "upload": return (
+      <svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M12 3v13M7 8l5-5 5 5"/></svg>);
+    default: return <HexIcon size={16} />;
+  }
+}
 
 function Sidebar({ view, setView }) {
   const groups = [...new Set(NAV.map(n => n.group))];
   return (
     <aside className="sidebar">
       {groups.map(g => (
-        <div key={g}>
+        <div key={g} className="side-group">
           <div className="side-label">{g}</div>
           {NAV.filter(n => n.group === g).map(n => (
             <button key={n.id} className={`side-item${view === n.id ? " active" : ""}`}
                     onClick={() => setView(n.id)}>
-              <span className="side-name">{n.name}</span>
-              <span className="side-desc">{n.desc}</span>
-              {n.status === "soon" && <span className="side-soon">soon</span>}
+              <span className="side-ic"><NavIcon id={n.id} /></span>
+              <span className="side-text">
+                <span className="side-name">{n.name}</span>
+                <span className="side-desc">{n.desc}</span>
+              </span>
+              <span className={`side-dot ${n.status}`}
+                    title={n.status === "soon" ? "Coming soon" : "Live"} />
             </button>
           ))}
         </div>
@@ -350,10 +442,10 @@ function Dashboard({ setView }) {
 
   const backendOk = health?.status === "ok";
   const svc = [
-    { name: "Backend API",       ok: backendOk,      detail: backendOk ? "Deterministic engine online" : "Not reachable — run start-all.sh" },
-    { name: "Engineering Agent", ok: agentUp === true, detail: agentUp === null ? "Checking…" : agentUp ? "Flowise reachable" : "Flowise not reachable on :3000" },
-    { name: "Language model",    ok: !!health?.llm_model, detail: health?.llm_model || "unknown" },
-    { name: "Knowledge index",   ok: (health?.documents_indexed || 0) > 0, detail: `${health?.documents_indexed ?? 0} records in ChromaDB` },
+    { name: "Backend API",     ok: backendOk,      detail: backendOk ? "Deterministic engine online" : "Not reachable — run start-all.sh" },
+    { name: "AI Agents",       ok: agentUp === true, detail: agentUp === null ? "Checking…" : agentUp ? "Engineering + Quotation live on Flowise" : "Flowise not reachable on :3000" },
+    { name: "Language model",  ok: !!health?.llm_model, detail: health?.llm_model || "unknown" },
+    { name: "Knowledge index", ok: (health?.documents_indexed || 0) > 0, detail: `${health?.documents_indexed ?? 0} records in ChromaDB` },
   ];
 
   return (
@@ -434,35 +526,81 @@ function Kpi({ n, l }) {
   return <div className="kpi"><b>{n}</b><span>{l}</span></div>;
 }
 
-function KnowledgeBase() {
-  const [data, setData] = useState(null);
+const COLL_BADGE = { live: "ok", on_demand: "info", ingest: "soft", roadmap: "soft", engine: "gen" };
+const COLL_STATE = { live: "Live", on_demand: "On demand", ingest: "Ingestion-ready", roadmap: "Roadmap", engine: "Engine" };
+
+function KnowledgeBase({ setView }) {
+  const [ov, setOv] = useState(null);        // structured overview (collections / equipment / stats)
+  const [data, setData] = useState(null);    // offer rows for the table
   const [cat, setCat] = useState("all");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);      // full record of the opened file
   useEffect(() => {
+    fetch("/api/knowledge/overview").then(r => r.json()).then(setOv).catch(() => setOv(null));
     fetch("/api/offers").then(r => r.json()).then(setData).catch(() => setData({ count: 0, offers: [] }));
   }, []);
   if (!data) return <div className="placeholder"><p>Loading knowledge base…</p></div>;
 
-  const cats = ["all", ...Array.from(new Set(data.offers.map(o => o.category))).sort()];
   const term = q.trim().toLowerCase();
   const rows = data.offers.filter(o =>
     (cat === "all" || o.category === cat) &&
     (!term || `${o.id} ${o.client} ${o.ref}`.toLowerCase().includes(term)));
   const open = id => fetch(`/api/offers/${id}`).then(r => r.json()).then(setSel).catch(() => {});
+  const rules = ov?.collections.find(c => c.key === "rules")?.count ?? 0;
 
   return (
     <div className="kb">
       <div className="kb-head">
         <h1>Knowledge Base</h1>
-        <p>{data.count} offer files extracted into the platform — click any file to see exactly what was captured.</p>
+        <p>Structured engineering knowledge — every count below is computed from what is actually stored.</p>
       </div>
+
+      {ov && (
+        <>
+          <div className="stats kb-stats">
+            <div className="stat"><b>{ov.stats.records}</b><span>Historical projects</span></div>
+            <div className="stat"><b>{ov.stats.equipment_types}</b><span>Equipment types</span></div>
+            <div className="stat"><b>{ov.stats.clients}</b><span>Clients</span></div>
+            <div className="stat"><b>{ov.stats.documents}</b><span>Reference docs</span></div>
+            <div className="stat"><b>{rules}</b><span>Engine rule sets</span></div>
+          </div>
+          <p className="kb-meta">
+            Offer coverage {ov.stats.date_from} → {ov.stats.date_to} · organised by {ov.metadata_fields.join(" · ")}
+          </p>
+
+          <h2 className="kb-h2">Collections</h2>
+          <div className="kb-collections">
+            {ov.collections.map(c => (
+              <button key={c.key} className="kb-coll" onClick={() => setView(c.key)}>
+                <div className="kb-coll-top">
+                  <span className="kb-coll-ic">{c.icon}</span>
+                  <span className="kb-coll-n">{c.count}</span>
+                </div>
+                <div className="kb-coll-label">{c.label}</div>
+                <div className="kb-coll-desc">{c.desc}</div>
+                <span className={`badge ${COLL_BADGE[c.state] || "soft"}`}>{COLL_STATE[c.state] || c.state}</span>
+              </button>
+            ))}
+          </div>
+
+          <h2 className="kb-h2">Historical projects by equipment</h2>
+          <div className="kb-equip">
+            <button className={`kb-chip${cat === "all" ? " on" : ""}`} onClick={() => setCat("all")}>
+              All <span>{ov.stats.records}</span>
+            </button>
+            {ov.equipment.map(e => (
+              <button key={e.key} className={`kb-chip${cat === e.key ? " on" : ""}`} onClick={() => setCat(e.key)}>
+                {e.label} <span>{e.count}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <h2 className="kb-h2">Records</h2>
       <div className="kb-filters">
-        <select value={cat} onChange={e => setCat(e.target.value)}>
-          {cats.map(c => <option key={c} value={c}>{c === "all" ? "All types" : catLabel(c)}</option>)}
-        </select>
         <input placeholder="Search client / id / ref…" value={q} onChange={e => setQ(e.target.value)} />
-        <span className="kb-count">{rows.length} shown</span>
+        <span className="kb-count">{rows.length} shown{cat !== "all" ? ` · ${catLabel(cat)}` : ""}</span>
       </div>
       <div className="kb-tablewrap">
         <table className="kb-table">
@@ -487,6 +625,125 @@ function KnowledgeBase() {
         </table>
       </div>
       {sel && <OfferDrawer rec={sel} onClose={() => setSel(null)} />}
+    </div>
+  );
+}
+
+function CollectionPage({ collection, setView }) {
+  const [ov, setOv] = useState(null);
+  const [data, setData] = useState(null);    // offer rows (Historical Projects only)
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState("all");
+  const [sel, setSel] = useState(null);
+  const isProjects = collection === "historical_projects";
+  useEffect(() => {
+    fetch("/api/knowledge/overview").then(r => r.json()).then(setOv).catch(() => setOv(null));
+    if (isProjects)
+      fetch("/api/offers").then(r => r.json()).then(setData).catch(() => setData({ count: 0, offers: [] }));
+    setQ(""); setCat("all"); setSel(null);
+  }, [collection]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (!ov) return <div className="placeholder"><p>Loading collection…</p></div>;
+  const meta = ov.collections.find(c => c.key === collection);
+  if (!meta) return <div className="placeholder"><p>Unknown collection.</p></div>;
+
+  const term = q.trim().toLowerCase();
+  const rows = (isProjects && data ? data.offers : []).filter(o =>
+    (cat === "all" || o.category === cat) &&
+    (!term || `${o.id} ${o.client} ${o.ref}`.toLowerCase().includes(term)));
+  const open = id => fetch(`/api/offers/${id}`).then(r => r.json()).then(setSel).catch(() => {});
+
+  return (
+    <div className="kb">
+      <div className="col-crumb">
+        <button className="crumb-link" onClick={() => setView("knowledge")}>Knowledge Base</button>
+        <span className="crumb-sep">›</span>
+        <span>{meta.label}</span>
+      </div>
+      <div className="col-head">
+        <span className="col-ic">{meta.icon}</span>
+        <div className="col-head-t">
+          <h1>{meta.label}</h1>
+          <p>{meta.desc}</p>
+        </div>
+        <span className={`badge ${COLL_BADGE[meta.state] || "soft"}`}>{COLL_STATE[meta.state] || meta.state}</span>
+      </div>
+
+      <div className="stats kb-stats">
+        <div className="stat"><b>{meta.count}</b><span>{isProjects ? "Projects" : "Documents"}</span></div>
+        {isProjects && <div className="stat"><b>{ov.equipment.length}</b><span>Equipment types</span></div>}
+        {isProjects && <div className="stat"><b>{ov.stats.clients}</b><span>Clients</span></div>}
+        <div className="stat"><b className="stat-sm">{meta.last_updated || "—"}</b><span>Last updated</span></div>
+      </div>
+
+      {isProjects ? (
+        <>
+          <div className="kb-equip">
+            <button className={`kb-chip${cat === "all" ? " on" : ""}`} onClick={() => setCat("all")}>
+              All <span>{ov.stats.records}</span>
+            </button>
+            {ov.equipment.map(e => (
+              <button key={e.key} className={`kb-chip${cat === e.key ? " on" : ""}`} onClick={() => setCat(e.key)}>
+                {e.label} <span>{e.count}</span>
+              </button>
+            ))}
+          </div>
+          <div className="kb-filters">
+            <input placeholder="Search client / id / ref…" value={q} onChange={e => setQ(e.target.value)} />
+            <span className="kb-count">{rows.length} shown{cat !== "all" ? ` · ${catLabel(cat)}` : ""}</span>
+          </div>
+          <div className="kb-tablewrap">
+            <table className="kb-table">
+              <thead><tr>
+                <th>ID</th><th>Type</th><th>Client</th><th>Ref</th><th>Date</th>
+                <th>Fields</th><th>Price</th><th>Source file</th>
+              </tr></thead>
+              <tbody>
+                {rows.map(o => (
+                  <tr key={o.id} className="kb-row" onClick={() => open(o.id)}>
+                    <td className="mono">{o.id}</td>
+                    <td>{catLabel(o.category)}</td>
+                    <td>{o.client}</td>
+                    <td className="mono">{o.ref}</td>
+                    <td>{o.date}</td>
+                    <td>{o.n_given}+{o.n_tech}</td>
+                    <td>{inrMaybe(o.price_total)}</td>
+                    <td className="kb-src" title={o.source_file}>{o.source_file}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <CollectionEmpty meta={meta} ov={ov} setView={setView} />
+      )}
+      {sel && <OfferDrawer rec={sel} onClose={() => setSel(null)} />}
+    </div>
+  );
+}
+
+function CollectionEmpty({ meta, ov, setView }) {
+  const onDemandAgent = meta.key === "quotations" ? "quotation" : "engineering";
+  const cta = ({
+    ingest: { line: "No documents ingested yet. Drop files into the pipeline and they appear here — chunked, embedded and searchable, grounding the agents.",
+      btn: { label: "Go to Upload & Extract", to: "upload" } },
+    on_demand: { line: `Not archived — these are produced on demand by the ${meta.key === "quotations" ? "Quotation" : "Engineering"} Agent, deterministically, whenever you ask.`,
+      btn: { label: `Open ${meta.key === "quotations" ? "Quotation" : "Engineering"} Agent`, to: onDemandAgent } },
+    roadmap: { line: "On the roadmap — the CAD Engineering Agent will populate this collection.", btn: null },
+    engine: { line: "These are the equipment profiles and sizing rules baked into the deterministic engine — every number the agents quote is derived from them.", btn: null },
+  })[meta.state] || { line: meta.desc, btn: null };
+
+  return (
+    <div className="col-empty">
+      <div className="col-empty-ic">{meta.icon}</div>
+      <div className="col-empty-n">{meta.count}<span> {meta.state === "engine" ? "rule sets" : "documents"}</span></div>
+      <p className="col-empty-line">{cta.line}</p>
+      {meta.state === "engine" && (
+        <div className="kb-equip col-empty-chips">
+          {ov.equipment.map(e => <span key={e.key} className="kb-chip static">{e.label}</span>)}
+        </div>
+      )}
+      {cta.btn && <button className="dash-btn2" onClick={() => setView(cta.btn.to)}>{cta.btn.label}</button>}
     </div>
   );
 }

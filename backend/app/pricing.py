@@ -113,6 +113,29 @@ def _label(pct: int) -> str:
     return "High" if pct >= 80 else "Medium" if pct >= 60 else "Low"
 
 
+def inr_display(n) -> str:
+    """Indian-grouped rupee string, e.g. 2550000 -> '₹25,50,000'.
+
+    Preformatted so the number NEVER passes through the LLM's own digit
+    grouping (llama3.1 cannot do lakh/crore grouping and mangled it 10x).
+    The agent copies this string verbatim.
+    """
+    n = int(round(n or 0))
+    neg, s = n < 0, str(abs(n))
+    if len(s) <= 3:
+        grp = s
+    else:
+        head, tail = s[:-3], s[-3:]
+        parts = []
+        while len(head) > 2:
+            parts.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            parts.insert(0, head)
+        grp = ",".join(parts) + "," + tail
+    return ("-" if neg else "") + "₹" + grp
+
+
 def estimate_price(category: str, params: dict,
                    offers: Optional[list[dict]] = None) -> Optional[dict[str, Any]]:
     """Budgetary order-value estimate for a requirement, from historical offers.
@@ -191,13 +214,21 @@ def estimate_price(category: str, params: dict,
     req_qty = _qty(params)
     unit = _round_price(estimate)              # per-unit budgetary price
     order = estimate * req_qty                 # order value for the requested qty
+    amount = _round_price(order)
+    range_low = _round_price(order * 0.85)
+    range_high = _round_price(order * 1.15)
     return {
-        "amount": _round_price(order),         # headline: order value
+        "amount": amount,                      # headline: order value
+        "amount_display": inr_display(amount),
         "unit_price": unit,
+        "unit_price_display": inr_display(unit),
         "qty": req_qty,
         "currency": currency,
-        "range_low": _round_price(order * 0.85),
-        "range_high": _round_price(order * 1.15),
+        "range_low": range_low,
+        "range_low_display": inr_display(range_low),
+        "range_high": range_high,
+        "range_high_display": inr_display(range_high),
+        "range_display": f"{inr_display(range_low)} – {inr_display(range_high)}",
         "method": method,
         "driver": {"key": dkey, "value": req_d},
         "regression": regression,              # per-unit predicted, diagnostic

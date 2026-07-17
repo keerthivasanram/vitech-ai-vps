@@ -11,6 +11,7 @@ from collections import Counter
 
 from .catalog import get_profile, label_for
 from .classify import CONFIDENT, classify_equipment
+from .pricing import inr_display
 from .retriever import _names_stored_client, entity_hits
 from .store import get_collection
 
@@ -177,7 +178,11 @@ def record_detail(question: str) -> str | None:
             out.append("\n**Technical details (the engineered solution):**")
             out += _render_fields(cat, td)
         ps = r.get("price_schedule") or {}
-        items = [f"{k}: {ps.get('currency', 'INR')} {v:,}" if isinstance(v, (int, float))
+        cur = ps.get("currency", "INR")
+        # INR -> Indian grouping via inr_display (₹99,64,925); other currencies kept generic
+        def _money(v):
+            return inr_display(v) if cur in (None, "INR", "Rs", "Rs.") else f"{cur} {v:,}"
+        items = [f"{k}: {_money(v)}" if isinstance(v, (int, float))
                  else f"{k}: {v}" for k, v in ps.items() if k != "currency"]
         if items:
             out.append("\n**Price schedule:** " + "; ".join(items))
