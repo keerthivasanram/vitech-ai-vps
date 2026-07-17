@@ -1,16 +1,21 @@
 import { memo } from "react";
 import logoUrl from "../assets/logo.png";
+import logoDarkUrl from "../assets/logo-dark.png";
 
 /**
- * Official Vitech wordmark. The source art is 263x94 RGBA with a transparent
- * background, so it sits on the light and dark sidebar unchanged; height is
- * fixed and width follows the aspect ratio via CSS.
+ * Official Vitech wordmark, trimmed to its ink (245x79, transparent).
+ *
+ * Two assets rather than a CSS filter: the artwork's tagline is near-black
+ * green and dies on the dark sidebar, but inverting the image to fix that also
+ * shifts the brand green. The dark variant lifts only the near-black ink and
+ * leaves every green pixel byte-identical, so the brand colour is exact in
+ * both themes.
  */
-export const Logo = memo(function Logo({ height = 42 }) {
+export const Logo = memo(function Logo({ height = 44, isDark = false }) {
   return (
     <img
       className="logo"
-      src={logoUrl}
+      src={isDark ? logoDarkUrl : logoUrl}
       height={height}
       alt="Vitech — Vision with Technology"
       draggable="false"

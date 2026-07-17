@@ -117,15 +117,10 @@
   filter: drop-shadow(0 2px 5px rgba(17, 24, 39, 0.2));
 }
 
-/* The artwork's tagline is near-black green (#002000), which disappears on the
-   dark sidebar. invert+hue-rotate(180) flips lightness while keeping the hue,
-   so the tagline lifts to a readable tint and the wordmark stays green.
-   The shadow is re-declared here because filter replaces, not appends — and it
-   sits after the inversion so it stays a genuine dark shade. */
+/* Dark mode swaps the asset (see Logo.jsx) rather than filtering the light one,
+   so only the shadow needs restating here. */
 :root[data-theme="dark"] .logo {
-  filter:
-    invert(1) hue-rotate(180deg) saturate(1.1)
-    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
 .side-newchat {
@@ -729,15 +724,18 @@
    -------------------------------------------------------------------------- */
 .composer-wrap { padding: 8px 22px 16px; }
 
+/* Pill composer: fully rounded and compact. Contents are unchanged — only the
+   shell's shape and height. */
 .composer {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 80px;
-  padding: 0 12px 0 20px;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 7px 0 20px;
   border: 1.5px solid var(--border);
-  border-radius: var(--r-input);
+  border-radius: var(--r-pill);
   background: var(--card);
+  box-shadow: var(--shadow-xs);
   transition: border-color var(--t), box-shadow var(--t);
 }
 .composer:focus-within {
@@ -779,20 +777,25 @@
   gap: 4px;
   padding: 4px 9px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-pill);
   background: var(--card-sunken);
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--t);
 }
+/* Surface the hint only once the user is actually typing. */
+.composer:focus-within .enter-hint { opacity: 1; }
 
+/* Circular so it seats cleanly inside the pill. */
 .send-btn {
-  width: 44px; height: 44px;
+  width: 42px; height: 42px;
   display: grid;
   place-items: center;
   border: none;
-  border-radius: var(--r-btn);
+  border-radius: 50%;
   background: var(--grad-green);
   color: var(--text-on-green);
   box-shadow: var(--shadow-green);
@@ -1137,7 +1140,7 @@
 
   .chat-scroll { padding: 14px 14px 4px; gap: 14px; }
   .composer-wrap { padding: 6px 14px 12px; }
-  .composer { min-height: 68px; padding: 0 8px 0 14px; }
+  .composer { min-height: 52px; padding: 0 6px 0 16px; }
   .hero { padding: 20px; }
   .msg-user-col { max-width: 86%; }
   .enter-hint { display: none; }

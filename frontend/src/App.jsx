@@ -146,6 +146,7 @@ export default function App() {
         onNewChat={startNewChat}
         user={USER}
         open={navOpen}
+        isDark={isDark}
       />
 
       <ShellMain>

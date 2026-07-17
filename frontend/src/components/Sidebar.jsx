@@ -9,7 +9,9 @@ import { AGENT_VIEWS, NAV } from "../lib/constants";
  * Left rail: logo, New Chat, grouped nav, user card.
  * `open` only matters below 768px, where the rail is a drawer.
  */
-export const Sidebar = memo(function Sidebar({ view, onSelect, onNewChat, user, open }) {
+export const Sidebar = memo(function Sidebar({
+  view, onSelect, onNewChat, user, open, isDark,
+}) {
   // The agent dropdown starts open when one of its agents is the current view.
   const [agentsOpen, setAgentsOpen] = useState(() => AGENT_VIEWS.includes(view));
 
@@ -33,7 +35,7 @@ export const Sidebar = memo(function Sidebar({ view, onSelect, onNewChat, user, 
       <CircuitDeco />
 
       <div className="side-brand">
-        <Logo height={44} />
+        <Logo height={44} isDark={isDark} />
       </div>
 
       <button type="button" className="side-newchat" onClick={onNewChat}>
