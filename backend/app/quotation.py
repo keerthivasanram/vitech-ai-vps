@@ -45,7 +45,9 @@ def _headline(analysis: dict, price: dict) -> str:
 
 
 def _ref() -> str:
-    return f"Q-{date.today():%Y%m%d}-DRAFT"
+    # Structured house format; the running serial comes from the numbering
+    # system later — kept as DRAFT so no fake sequence is implied.
+    return f"VT/QTN/{date.today():%y%m%d}/DRAFT"
 
 
 def build_quotation(analysis: dict, params: dict,
@@ -98,25 +100,93 @@ def build_quotation(analysis: dict, params: dict,
     return quote
 
 
-def render_quotation_markdown(quote: dict[str, Any]) -> str:
-    """Render a quotation dict as a ready-to-print Markdown block.
+# --- engineering-grade quotation template pieces (boilerplate, no invented data) ---
+COMPANY_NAME = "VITECH ENVIRO SYSTEMS PVT. LTD."
+COMPANY_TAGLINE = "Industrial Air-Pollution-Control & Surface-Finishing Solutions"
 
-    Same principle as the price *_display strings: formatting lives in code, not
-    in the model. The Quotation Agent prints this string verbatim, so every
-    quotation has the same professional layout (ref, scope, pricing, terms).
+SCOPE_EXCLUSIONS = [
+    "Civil, structural & foundation work",
+    "Power cabling, earthing & electrical installation up to the control panel",
+    "Compressed-air and water supply piping up to the equipment",
+    "Effluent / drainage lines beyond the equipment battery limit",
+    "Unloading, storage & shifting at site",
+    "Any statutory approvals, consents or NOCs",
+]
+
+STANDARD_ASSUMPTIONS = [
+    "Ambient temperature up to 40 °C at site",
+    "Dust / gas concentration within normal design limits",
+    "Single-shift operation",
+    "Standard utilities (power, water, compressed air) available at the equipment",
+    "Indoor installation on a level, load-bearing floor",
+]
+
+COMMERCIAL_NOTES = [
+    "Prices are Ex-Works; GST extra as applicable.",
+    "Packing, forwarding, transportation, insurance and loading/unloading at actuals unless stated.",
+    "Offer validity: 30 days from the date of this quotation.",
+]
+
+# scope-of-supply component keywords -> a clean "includes" line
+_COMPONENT_KEYWORDS = [
+    ("scrubber", "Wet Scrubber unit"), ("booth", "Booth enclosure"), ("oven", "Oven / HAG"),
+    ("blower", "Blower"), (" fan", "Fan"), ("pump", "Circulation pump"),
+    ("demister", "Demister / eliminator"), ("eliminator", "Demister / eliminator"),
+    ("nozzle", "Spray system"), ("spray", "Spray system"), ("tank", "Recirculation tank"),
+    ("cartridge", "Filter cartridges"), ("bag", "Filter bags"), ("filter", "Filtration"),
+    ("panel", "Control panel"), ("plc", "Control panel (PLC / HMI)"),
+    ("conveyor", "Conveyor"), ("duct", "Ducting"), ("heater", "Heating system"),
+    ("burner", "Burner / hot-air generator"), ("motor", "Drive motor"),
+]
+
+
+def _scope_includes(scope: list) -> list[str]:
+    """Deterministic 'Scope includes' checklist derived from the engineered scope."""
+    text = " ".join(f"{s.get('item', '')} {s.get('spec', '')}".lower() for s in scope)
+    out: list[str] = []
+    for kw, label in _COMPONENT_KEYWORDS:
+        if kw.strip() in text and label not in out:
+            out.append(label)
+    if out:
+        out.append("Base frame, supports & standard finish")
+    return out
+
+
+def render_quotation_markdown(quote: dict[str, Any]) -> str:
+    """Render a quotation dict as a ready-to-print, engineering-grade Markdown
+    quotation. Formatting lives in code (never the model) — the Quotation Agent
+    prints this verbatim, so every quote has the same professional structure.
+
+    Customer-facing: no confidence score, budget framed as a ±15% band.
+    Company letterhead + serial number come from the PDF template later.
     """
     p = quote.get("price") or {}
+    equip = quote.get("headline") or quote.get("category_label") or "Equipment"
+    cat_label = quote.get("category_label") or "Equipment"
     L: list[str] = []
+
+    # ── company header ──
+    L.append(f"### {COMPANY_NAME}")
+    L.append(f"_{COMPANY_TAGLINE}_")
+    L.append("")
     L.append("**BUDGETARY QUOTATION — DRAFT**")
     L.append(f"Ref: {quote.get('ref', '-')}   |   Date: {quote.get('date', '-')}")
     L.append("")
-    L.append(f"**Equipment:** {quote.get('headline') or quote.get('category_label') or 'Equipment'}")
+
+    # ── customer block (fill-in for the reviewing engineer) ──
+    L.append(f"**Customer:** (to be completed)")
+    L.append(f"**Project:** {cat_label} System")
+    L.append(f"**Location:** (to be completed)")
+    L.append(f"**Attention:** (to be completed)")
+    L.append(f"**Prepared by:** Applications Engineering Department")
+    L.append("")
+    L.append(f"**Equipment:** {equip}")
     L.append("")
 
-    # scope of supply = the engineered items (skip the client's raw inputs)
+    # ── technical specification (the engineered items) ──
     scope = [s for s in (quote.get("scope") or []) if s.get("origin") != "given"]
     if scope:
-        L.append("**Scope of Supply**")
+        L.append("**Technical Specification**")
         L.append("| Item | Specification |")
         L.append("| --- | --- |")
         for s in scope:
@@ -125,25 +195,54 @@ def render_quotation_markdown(quote: dict[str, Any]) -> str:
             L.append(f"| {item} | {spec} |")
         L.append("")
 
-    L.append("**Pricing — budgetary, ex-works**")
+    # ── scope includes / excludes ──
+    inc = _scope_includes(scope)
+    if inc:
+        L.append("**Scope of Supply — Includes**")
+        for c in inc:
+            L.append(f"- ✔ {c}")
+        L.append("")
+    L.append("**Scope Exclusions**")
+    for e in SCOPE_EXCLUSIONS:
+        L.append(f"- {e}")
+    L.append("")
+
+    # ── pricing (no confidence; budget as a ±15% band) ──
+    L.append("**Pricing — budgetary, Ex-Works**")
     L.append("| Item | Amount |")
     L.append("| --- | --- |")
     if p.get("unit_price_display"):
         L.append(f"| Unit price | {p['unit_price_display']} |")
     L.append(f"| Quantity | {p.get('qty', 1)} nos |")
-    L.append(f"| **Total** | **{quote.get('price_display') or p.get('amount_display', '-')}** |")
-    if quote.get("price_range_display"):
-        L.append(f"| Budgetary range | {quote['price_range_display']} |")
-    L.append(f"| Confidence | {quote.get('confidence_label', '-')} ({quote.get('confidence_pct', '-')}%) |")
+    L.append(f"| **Total (Ex-Works)** | **{quote.get('price_display') or p.get('amount_display', '-')}** |")
+    L.append("")
+    L.append("_Budgetary estimate — expected variation ±15%. GST extra as applicable._")
     L.append("")
 
-    terms = quote.get("terms") or []
-    if terms:
-        L.append("**Commercial Terms**")
-        for t in terms:
-            if isinstance(t, (list, tuple)) and len(t) == 2:
-                L.append(f"- {t[0]}: {t[1]}")
-        L.append("")
+    # ── delivery / warranty / payment ──
+    L.append("**Delivery**")
+    L.append("- 6–8 weeks from receipt of a technically & commercially clear PO and the advance payment.")
+    L.append("")
+    L.append("**Warranty**")
+    L.append("- 12 months from commissioning or 18 months from dispatch, whichever is earlier, against manufacturing defects.")
+    L.append("")
+    L.append("**Payment**")
+    L.append("- 50% advance along with PO; balance against dispatch documents.")
+    L.append("")
 
-    L.append(f"_{quote.get('note') or 'Budgetary draft — for engineer review before issue.'}_")
+    # ── commercial notes & assumptions ──
+    L.append("**Commercial Notes**")
+    for n in COMMERCIAL_NOTES:
+        L.append(f"- {n}")
+    L.append("")
+    L.append("**Assumptions**")
+    for a in STANDARD_ASSUMPTIONS:
+        L.append(f"- {a}")
+    L.append("")
+
+    # ── signatory ──
+    L.append(f"**For {COMPANY_NAME}**")
+    L.append("Applications Engineering Department")
+    L.append("")
+    L.append("_Engineer-reviewed draft — not a released offer. Figures derived deterministically from historical offers._")
     return "\n".join(L)
