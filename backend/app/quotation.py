@@ -73,7 +73,7 @@ def build_quotation(analysis: dict, params: dict,
         (price.get("basis") or [])
         + [b for b in [analysis.get("nearest_match")] if b]))
 
-    return {
+    quote = {
         "ref": _ref(),
         "date": f"{date.today():%d %b %Y}",
         "headline": _headline(analysis, price),
@@ -92,3 +92,58 @@ def build_quotation(analysis: dict, params: dict,
         "draft": True,
         "note": "Budgetary draft generated from historical offers - for engineer review before issue.",
     }
+    # a complete, ready-to-print quotation the agent outputs VERBATIM — so the
+    # layout is deterministic and the LLM never re-assembles (or drops) it.
+    quote["quotation_markdown"] = render_quotation_markdown(quote)
+    return quote
+
+
+def render_quotation_markdown(quote: dict[str, Any]) -> str:
+    """Render a quotation dict as a ready-to-print Markdown block.
+
+    Same principle as the price *_display strings: formatting lives in code, not
+    in the model. The Quotation Agent prints this string verbatim, so every
+    quotation has the same professional layout (ref, scope, pricing, terms).
+    """
+    p = quote.get("price") or {}
+    L: list[str] = []
+    L.append("**BUDGETARY QUOTATION — DRAFT**")
+    L.append(f"Ref: {quote.get('ref', '-')}   |   Date: {quote.get('date', '-')}")
+    L.append("")
+    L.append(f"**Equipment:** {quote.get('headline') or quote.get('category_label') or 'Equipment'}")
+    L.append("")
+
+    # scope of supply = the engineered items (skip the client's raw inputs)
+    scope = [s for s in (quote.get("scope") or []) if s.get("origin") != "given"]
+    if scope:
+        L.append("**Scope of Supply**")
+        L.append("| Item | Specification |")
+        L.append("| --- | --- |")
+        for s in scope:
+            item = str(s.get("item", "")).replace("|", "/")
+            spec = str(s.get("spec", "")).replace("|", "/")
+            L.append(f"| {item} | {spec} |")
+        L.append("")
+
+    L.append("**Pricing — budgetary, ex-works**")
+    L.append("| Item | Amount |")
+    L.append("| --- | --- |")
+    if p.get("unit_price_display"):
+        L.append(f"| Unit price | {p['unit_price_display']} |")
+    L.append(f"| Quantity | {p.get('qty', 1)} nos |")
+    L.append(f"| **Total** | **{quote.get('price_display') or p.get('amount_display', '-')}** |")
+    if quote.get("price_range_display"):
+        L.append(f"| Budgetary range | {quote['price_range_display']} |")
+    L.append(f"| Confidence | {quote.get('confidence_label', '-')} ({quote.get('confidence_pct', '-')}%) |")
+    L.append("")
+
+    terms = quote.get("terms") or []
+    if terms:
+        L.append("**Commercial Terms**")
+        for t in terms:
+            if isinstance(t, (list, tuple)) and len(t) == 2:
+                L.append(f"- {t[0]}: {t[1]}")
+        L.append("")
+
+    L.append(f"_{quote.get('note') or 'Budgetary draft — for engineer review before issue.'}_")
+    return "\n".join(L)
