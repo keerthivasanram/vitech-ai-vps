@@ -296,12 +296,62 @@ def _spec_text(a: dict) -> str:
             f"Design from engineering knowledge; do not copy historical values.")
 
 
+def _spec_markdown(resp: dict) -> str | None:
+    """Ready-to-print specification (DATA mode only) — the agent outputs it
+    verbatim, same principle as the quotation template. Returns None in knowledge
+    mode (no deterministic table; the agent reasons from engineering knowledge).
+    """
+    tech = resp.get("technical_details") or []
+    if not tech:
+        return None
+
+    def esc(v):
+        return str(v if v is not None else "").replace("|", "/")
+
+    conf = ""
+    if resp.get("confidence_pct") is not None:
+        conf = f"   |   Confidence: {resp.get('confidence_label', '-')} ({resp['confidence_pct']}%)"
+    L: list[str] = []
+    L.append("**ENGINEERING SPECIFICATION — DRAFT**")
+    L.append(f"Equipment: {resp.get('category_label') or 'Equipment'}{conf}")
+    L.append("")
+
+    gd = resp.get("given_data") or []
+    if gd:
+        L.append("**Customer Requirement**")
+        L.append("| Parameter | Value |")
+        L.append("| --- | --- |")
+        for g in gd:
+            L.append(f"| {esc(g.get('label'))} | {esc(g.get('value'))} |")
+        L.append("")
+
+    # technical spec = the engineered rows (drop the requirement echoes)
+    spec_rows = [t for t in tech if t.get("source") != "requirement"]
+    if spec_rows:
+        L.append("**Technical Specification**")
+        L.append("| Parameter | Value | Basis |")
+        L.append("| --- | --- | --- |")
+        for t in spec_rows:
+            L.append(f"| {esc(t.get('label'))} | {esc(t.get('value'))} | {esc(t.get('origin'))} |")
+        L.append("")
+
+    miss = resp.get("missing_inputs") or []
+    if miss:
+        L.append(f"**To confirm before detailed design:** {', '.join(miss)}")
+        L.append("")
+
+    n_src = len(resp.get("sources") or [])
+    basis = f"Grounded in {n_src} historical project(s). " if n_src else ""
+    L.append(f"_{basis}Engineer-reviewed draft — not a released design._")
+    return "\n".join(L)
+
+
 @app.post("/api/tools/spec", operation_id="generate_specification")
 def tool_spec(payload: dict = Body(...)):
     """Requirement -> engineering specification (deterministic + structured)."""
     q = _tool_q(payload)
     _, a, _ = _prepare(q, top_k=8, history=[])
-    return {
+    resp = {
         "category": a.get("category"),
         "category_label": a.get("category_label"),
         "mode": a.get("spec_mode"),
@@ -318,6 +368,10 @@ def tool_spec(payload: dict = Body(...)):
         "sources": a.get("source_files") or [],
         "text": _spec_text(a),
     }
+    # a ready-to-print spec the agent outputs VERBATIM (data mode); None in
+    # knowledge mode, where the agent reasons from engineering knowledge instead.
+    resp["spec_markdown"] = _spec_markdown(resp)
+    return resp
 
 
 @app.post("/api/tools/quote", operation_id="generate_quotation")
