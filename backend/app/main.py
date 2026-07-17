@@ -4,6 +4,7 @@ Pipeline per query:  question -> understand -> retrieve -> analyze -> LLM -> ans
 """
 import html
 import json
+import re
 
 from fastapi import Body, FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,7 @@ from . import config, jobs, session
 from .analysis import essential_present, requirement_completeness
 from .analytics import record_detail
 from .analytics import _label as category_label
+from .classify import classify_equipment
 from .resolver import ATS, CONSULTING, resolve
 from .prompt import spec_summary, spec_writeup
 from .pricing import inr_display
@@ -286,6 +288,16 @@ def _tool_q(payload: dict) -> str:
     return ""
 
 
+def _named_requirement(q: str) -> bool:
+    """True only if `q` is a real equipment requirement: it must name a known
+    equipment type AND carry a size/quantity digit. Deterministic (keyword +
+    digit), so it can't be fooled by the agent (or understand()'s LLM) inventing
+    a bare 'wet scrubber' or a phantom '800 cfm' from a vague 'generate a quote'.
+    A genuine spec/quote request always states a number (CFM, mm, dims, temp, qty).
+    """
+    return bool(classify_equipment(q)[0]) and bool(re.search(r"\d", q or ""))
+
+
 def _spec_text(a: dict) -> str:
     """A deterministic text summary of a spec/analysis for the agent to narrate."""
     if a.get("spec_mode") == "data":
@@ -350,6 +362,13 @@ def _spec_markdown(resp: dict) -> str | None:
 def tool_spec(payload: dict = Body(...)):
     """Requirement -> engineering specification (deterministic + structured)."""
     q = _tool_q(payload)
+    # GUARD: no equipment named = not a real requirement. Never build a spec
+    # skeleton from noise (a bare "generate a spec" must make the agent ASK).
+    if not _named_requirement(q):
+        return {"ok": False, "need_requirement": True,
+                "message": ("No equipment requirement was given. Ask the user WHICH equipment and its "
+                            "size/capacity to specify. Do NOT generate a spec, and do NOT invent or pick "
+                            "any equipment or number the user did not state.")}
     _, a, _ = _prepare(q, top_k=8, history=[])
     resp = {
         "category": a.get("category"),
@@ -378,6 +397,14 @@ def tool_spec(payload: dict = Body(...)):
 def tool_quote(payload: dict = Body(...)):
     """Requirement -> budgetary quotation (deterministic pricing from history)."""
     q = _tool_q(payload)
+    # GUARD: no equipment named = not a real requirement. Never fabricate a quote
+    # from database noise (a bare "generate quotation" must make the agent ASK).
+    if not _named_requirement(q):
+        return {"ok": False, "need_requirement": True,
+                "message": ("No equipment requirement was given. Ask the user WHICH equipment and "
+                            "its size/capacity to quote (the airflow for a scrubber or dust collector, "
+                            "the dimensions for a booth, etc.). Do NOT quote, and do NOT invent or pick "
+                            "any equipment or number the user did not state.")}
     u = understand(q)
     u.intent = "quotation"
     where = {"category": u.category} if u.category else None

@@ -47,6 +47,9 @@ _SIGNALS: dict[str, list[tuple[str, int]]] = {
         (r"overhead\s*conveyor|i[\s-]*beam\s*conveyor|power(ed)?\s*conveyor", 3),
         (r"push[\s-]*pull\s*conveyor|monorail", 2), (r"\bconveyor\b", 1),
     ],
+    "ducting": [
+        (r"\bducting\b|\bduct\s*work\b|\bductwork\b", 2), (r"\bduct\b|\bplenum\b", 1),
+    ],
 }
 
 CONFIDENT = 2   # a score >= this is a confident, authoritative classification
