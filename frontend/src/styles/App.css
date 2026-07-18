@@ -27,7 +27,7 @@
   min-height: 0;
   display: flex;
   gap: var(--gap);
-  padding: 0 var(--pad) var(--pad);
+  padding: var(--pad);
 }
 
 .workspace-main {
@@ -568,7 +568,10 @@
   gap: 24px;
   min-height: 148px;
   padding: 24px 28px;
-  border: 1px solid rgba(var(--secondary-rgb), 0.12);
+  /* A clearly-defined edge (not just the green tint) so the hero reads as
+     its own elevated card against the chat surface, the way quick-action
+     and history cards do — rather than blending into the surrounding glass. */
+  border: 1px solid rgba(var(--secondary-rgb), 0.24);
   border-radius: var(--r-hero);
   /* White glass — translucent enough that the shared engineering-blueprint
      canvas behind #root reads faintly through it, per the "extend behind
@@ -578,13 +581,16 @@
     var(--glass-top);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  /* A soft inner top highlight reads as glass depth on top of the lift. */
-  box-shadow: var(--shadow-hover), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  /* Neutral lift plus a faint brand-tinted glow underneath — the same
+     elevation language as the New Chat button — so the hero clearly reads
+     as a raised card, with a soft inner top highlight for glass depth. */
+  box-shadow: var(--shadow-hover), 0 16px 36px rgba(var(--secondary-rgb), 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   transition: box-shadow var(--t-card);
   overflow: hidden;
 }
 :root[data-theme="dark"] .hero {
-  box-shadow: var(--shadow-hover), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-color: rgba(var(--secondary-rgb), 0.22);
+  box-shadow: var(--shadow-hover), 0 16px 36px rgba(var(--secondary-rgb), 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .hero-t { flex: 1; min-width: 0; }
