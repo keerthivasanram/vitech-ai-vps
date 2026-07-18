@@ -100,10 +100,15 @@ export default function App() {
   useEffect(() => { if (!isMobile) setNavOpen(false); }, [isMobile]);
   useEffect(() => { if (isCompact) setPanelOpen(false); }, [isCompact]);
 
+  /* `key={view}` forces a fresh mount per view (rather than React reconciling
+     same-tag roots across branches, e.g. two <div className="page-inner">),
+     so the page-fade-in animation on each page's root actually replays on
+     every navigation instead of only on first load. */
   const page = () => {
     if (chatView) {
       return (
         <ChatWindow
+          key={view}
           ui={ui}
           userName={USER.name.split(" ")[0]}
           messages={chat.messages}
@@ -114,12 +119,13 @@ export default function App() {
         />
       );
     }
-    if (view === "dashboard") return <Dashboard setView={go} />;
-    if (view === "knowledge") return <KnowledgeBase setView={go} />;
-    if (view === "upload") return <UploadPage />;
+    if (view === "dashboard") return <Dashboard key={view} setView={go} />;
+    if (view === "knowledge") return <KnowledgeBase key={view} setView={go} />;
+    if (view === "upload") return <UploadPage key={view} />;
     if (view === "profile") {
       return (
         <ProfilePage
+          key={view}
           user={USER}
           health={health}
           sessionId={chat.sessionId}
@@ -130,10 +136,10 @@ export default function App() {
       );
     }
     if (view === "live_help") {
-      return <LiveHelpPage health={health} onOpenAgent={() => go("engineering")} />;
+      return <LiveHelpPage key={view} health={health} onOpenAgent={() => go("engineering")} />;
     }
-    if (COLLECTION_KEYS.includes(view)) return <CollectionPage collection={view} setView={go} />;
-    return <RoadmapPage id={view} />;
+    if (COLLECTION_KEYS.includes(view)) return <CollectionPage key={view} collection={view} setView={go} />;
+    return <RoadmapPage key={view} id={view} />;
   };
 
   const drawerOpen = (isMobile && navOpen) || (isCompact && panelOpen);

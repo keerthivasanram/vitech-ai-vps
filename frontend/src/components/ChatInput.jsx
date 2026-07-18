@@ -3,6 +3,7 @@ import {
   CornerDownLeft, Globe, Paperclip, SendHorizontal, ShieldCheck,
   SlidersHorizontal, Sparkles,
 } from "lucide-react";
+import { useRipple } from "../hooks/useRipple";
 
 /**
  * Composer: tool icons on the left, the input, then the Enter hint and the
@@ -10,6 +11,7 @@ import {
  */
 export const ChatInput = memo(function ChatInput({ value, onChange, onSend, disabled }) {
   const canSend = !disabled && value.trim().length > 0;
+  const { ripples, onPointerDown } = useRipple();
 
   const keyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -53,10 +55,14 @@ export const ChatInput = memo(function ChatInput({ value, onChange, onSend, disa
             type="button"
             className="send-btn"
             onClick={onSend}
+            onPointerDown={onPointerDown}
             disabled={!canSend}
             aria-label="Send message"
           >
             <SendHorizontal size={19} strokeWidth={1.9} aria-hidden="true" />
+            {ripples.map((r) => (
+              <span key={r.id} className="ripple" style={{ left: r.x, top: r.y }} aria-hidden="true" />
+            ))}
           </button>
         </div>
       </div>

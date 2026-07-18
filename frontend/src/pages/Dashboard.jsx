@@ -16,6 +16,27 @@ const Kpi = memo(function Kpi({ n, label, icon: Icon, tone = "" }) {
   );
 });
 
+/* Shape-matched skeleton for the loading gap before /api/health + /api/offers
+   resolve, so the page doesn't jump from a blank state into its real layout. */
+const DashboardSkeleton = memo(function DashboardSkeleton() {
+  return (
+    <div className="page-inner">
+      <header className="page-head">
+        <h1>Dashboard</h1>
+        <p>Live overview of the Vitech engineering workspace.</p>
+      </header>
+      <div className="kpis">
+        {Array.from({ length: 4 }, (_, i) => <div key={i} className="skeleton skel-kpi" />)}
+      </div>
+      <div className="dash-grid">
+        <div className="skeleton skel-card" />
+        <div className="skeleton skel-card" />
+        <div className="skeleton skel-card dash-wide" />
+      </div>
+    </div>
+  );
+});
+
 /** Live overview of the workspace. Every number is computed from the store. */
 export function Dashboard({ setView }) {
   const [health, setHealth] = useState(null);
@@ -50,7 +71,7 @@ export function Dashboard({ setView }) {
   }, [offers]);
 
   if (!offers) {
-    return <div className="placeholder"><p>Loading workspace…</p></div>;
+    return <DashboardSkeleton />;
   }
 
   const backendOk = health?.status === "ok";

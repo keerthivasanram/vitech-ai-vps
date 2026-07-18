@@ -7,10 +7,10 @@ const ChartArt = memo(function ChartArt() {
   return (
     <svg className="upgrade-art" width="104" height="66" viewBox="0 0 104 66" aria-hidden="true">
       <g fill="currentColor" opacity="0.9">
-        <rect x="2"  y="44" width="12" height="20" rx="2.5" opacity="0.5" />
-        <rect x="20" y="34" width="12" height="30" rx="2.5" opacity="0.65" />
-        <rect x="38" y="24" width="12" height="40" rx="2.5" opacity="0.8" />
-        <rect x="56" y="12" width="12" height="52" rx="2.5" />
+        <rect className="chart-bar" x="2"  y="44" width="12" height="20" rx="2.5" opacity="0.5" style={{ animationDelay: "0ms" }} />
+        <rect className="chart-bar" x="20" y="34" width="12" height="30" rx="2.5" opacity="0.65" style={{ animationDelay: "120ms" }} />
+        <rect className="chart-bar" x="38" y="24" width="12" height="40" rx="2.5" opacity="0.8" style={{ animationDelay: "240ms" }} />
+        <rect className="chart-bar" x="56" y="12" width="12" height="52" rx="2.5" style={{ animationDelay: "360ms" }} />
       </g>
       <path
         d="M6 40 L26 30 L44 18 L62 8 L88 8"
@@ -32,12 +32,13 @@ export const UpgradeCard = memo(function UpgradeCard({ onExplore, index = 0 }) {
       className="upgrade"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
+      transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1], delay: index * 0.04 }}
     >
       <div className="upgrade-t">
         <h3 className="upgrade-title">Upgrade your workflow</h3>
         <p className="upgrade-sub">Unlock advanced AI capabilities</p>
         <button type="button" className="upgrade-btn" onClick={onExplore}>
+          <span className="upgrade-btn-shimmer" aria-hidden="true" />
           Explore Features
           <ArrowUpRight size={15} strokeWidth={2.2} aria-hidden="true" />
         </button>

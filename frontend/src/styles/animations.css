@@ -51,34 +51,208 @@
   to   { transform: rotate(0deg); }
 }
 
-@keyframes orb-breathe {
-  0%, 100% { transform: scale(1);    opacity: 0.55; }
-  50%      { transform: scale(1.06); opacity: 0.85; }
-}
-
 /* Orbiting nodes on the hero illustration */
 @keyframes orb-float {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-6px); }
 }
 
-/* Online status dot */
+/* Online status dot: a soft pulse plus an expanding ring. */
 @keyframes status-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(var(--secondary-rgb), 0.5); }
   50%      { box-shadow: 0 0 0 5px rgba(var(--secondary-rgb), 0); }
 }
 
+/* Offline status dot: a slow, smooth breathe — deliberately not a blink. */
+@keyframes badge-breathe {
+  0%, 100% { opacity: 0.45; transform: scale(0.88); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+
+/* ==========================================================================
+   Premium micro-interactions
+   ========================================================================== */
+
+/* Logo idle breathing — 10s, barely-there scale + brightness lift. */
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(1);      filter: brightness(1)     drop-shadow(0 2px 5px rgba(17, 24, 39, 0.18)); }
+  50%      { transform: scale(1.015);  filter: brightness(1.015) drop-shadow(0 5px 12px rgba(17, 24, 39, 0.13)); }
+}
+:root[data-theme="dark"] .logo-shell {
+  animation-name: logo-breathe-dark;
+}
+@keyframes logo-breathe-dark {
+  0%, 100% { transform: scale(1);      filter: brightness(1)    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
+  50%      { transform: scale(1.015);  filter: brightness(1.03) drop-shadow(0 5px 14px rgba(0, 0, 0, 0.42)); }
+}
+
+/* Click ripple — spawned at the pointer position, expands + fades once. */
+@keyframes ripple-out {
+  from { transform: scale(0);   opacity: 0.45; }
+  to   { transform: scale(2.6); opacity: 0; }
+}
+
+/* New Chat success flash — a quick green bloom confirming the click landed. */
+@keyframes success-flash {
+  0%   { opacity: 0;   transform: scale(0.7); }
+  35%  { opacity: 0.9; transform: scale(1.05); }
+  100% { opacity: 0;   transform: scale(1.4); }
+}
+
+/* Orbiting particle nodes riding the hero orb's rotating rings. */
+@keyframes particle-orbit {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Hero orb glow — the gradient orb behind the bot, drifting + breathing
+   slowly and almost invisibly (not a discrete pulse — see ai-pulse-wave
+   for that). A faint positional drift on top of the scale/opacity breathe
+   is what reads as "moving slowly" rather than a static blob. */
+@keyframes orb-pulse-6s {
+  0%   { transform: scale(1)     translate(0, 0);       opacity: 0.45; }
+  50%  { transform: scale(1.1)   translate(2%, -2%);     opacity: 0.7; }
+  100% { transform: scale(1)     translate(0, 0);        opacity: 0.45; }
+}
+
+/* Ring 3 — the innermost ring, a tiny 6s pulse (no rotation). */
+@keyframes orb-ring3-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.7; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+
+/* The center bot emitting a soft expanding energy wave every 5s: 2s of
+   travel, then holds invisible for the remaining 3s of the cycle. The
+   translate(-50%,-50%) is the wave's centering (it's absolutely positioned
+   at top/left:50%) — baked into every stop since an animated `transform`
+   replaces the property wholesale each frame, so it can't live in a
+   separate static rule. */
+@keyframes ai-pulse-wave {
+  0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  8%   { transform: translate(-50%, -50%) scale(0.9); opacity: 0.2; }
+  40%  { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
+}
+
+/* Orbiting particle: an independent, non-uniform opacity/scale flicker —
+   duration differs per particle (set inline) so none of them sync up. */
+@keyframes particle-flicker {
+  0%, 100% { opacity: 0.35; transform: scale(0.82); }
+  50%      { opacity: 1;    transform: scale(1.12); }
+}
+
+/* Active nav item — floating dot on the left indicator. */
+@keyframes nav-dot-pulse {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%      { transform: scale(1.4); opacity: 0.55; }
+}
+
+/* Active nav item — a tiny highlight drifting through the pill, parked
+   off-canvas most of the cycle so it reads as an occasional glint. */
+@keyframes nav-highlight-sweep {
+  0%, 70% { background-position: 160% 0; }
+  100%    { background-position: -60% 0; }
+}
+
+/* Active nav item — the left indicator bar's glow breathing. */
+@keyframes side-indicator-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(var(--secondary-rgb), 0.5); }
+  50%      { box-shadow: 0 0 12px rgba(var(--secondary-rgb), 0.9); }
+}
+
+/* Active chat-history card — a slow, very subtle border glow. */
+@keyframes history-border-pulse {
+  0%, 100%  { box-shadow: 0 0 0 1px rgba(var(--secondary-rgb), 0.3), var(--shadow-xs); }
+  50%       { box-shadow: 0 0 0 1.5px rgba(var(--secondary-rgb), 0.55), var(--shadow-xs); }
+}
+
+/* Notification badge — a slow "there's something new" pulse, every 8s. */
+@keyframes notif-pulse-8s {
+  0%, 92%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0); }
+  96%           { transform: scale(1.18); box-shadow: 0 0 0 5px rgba(var(--primary-rgb), 0.18); }
+}
+
+/* Animated gradient sweep for a focused glass border (search / composer). */
+@keyframes border-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Loading skeleton sweep. */
+@keyframes skeleton-sweep {
+  0%   { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+
+/* Upgrade-card CTA shimmer on hover. */
+@keyframes btn-shimmer {
+  0%   { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(220%)  skewX(-12deg); }
+}
+
+/* New Chat idle shimmer — parked off-canvas, sweeps through only near the
+   end of each 12s cycle so it reads as an occasional glint, not a loop. */
+@keyframes newchat-idle-shimmer {
+  0%, 84% { background-position: 150% 0; }
+  100%    { background-position: -50% 0; }
+}
+
+/* Dashboard bar-chart art in the upgrade card — a gentle rise/settle. */
+@keyframes bar-rise {
+  from { transform: scaleY(0.35); }
+  to   { transform: scaleY(1); }
+}
+
+/* Page-level fade used by routed views. */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* ---- Utilities ---- */
 .u-fade-in  { animation: fade-in var(--t-slow) both; }
 .u-rise-in  { animation: rise-in var(--t-slow) both; }
+.u-page-in  { animation: page-fade-in var(--t-page) both; }
 
 /* Every interactive card lifts by 3px on hover, per spec. */
 .u-lift {
-  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  transition: transform var(--t-card), box-shadow var(--t-card), border-color var(--t-card);
 }
 .u-lift:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Reusable click ripple spawned by useRipple() — a positioned span this
+   sizes and animates once, then the hook removes it from the DOM. */
+.ripple {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: currentColor;
+  pointer-events: none;
+  animation: ripple-out 550ms var(--ease-premium) forwards;
+}
+
+/* Loading skeleton block — shimmer sweeps left to right. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--card-sunken);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(var(--secondary-rgb), 0.14), transparent);
+  background-size: 60% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
 }
 
 /* Respect the OS "reduce motion" setting — kill loops, keep the UI usable. */

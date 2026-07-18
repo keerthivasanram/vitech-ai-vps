@@ -47,15 +47,37 @@
   /* ---- Elevation (minimal, modern SaaS) ---- */
   --shadow-xs:      0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-sm:      0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow:         0 8px 24px rgba(0, 0, 0, 0.05);
+  --shadow:         0 10px 30px rgba(0, 0, 0, 0.06);
+  --shadow-hover:   0 20px 50px rgba(0, 0, 0, 0.10);
   --shadow-lg:      0 16px 40px rgba(0, 0, 0, 0.08);
-  --shadow-green:   0 8px 24px rgba(var(--secondary-rgb), 0.24);
+  --shadow-green:   0 18px 40px rgba(var(--secondary-rgb), 0.28);
+  --shadow-green-lg: 0 24px 52px rgba(var(--secondary-rgb), 0.36);
+
+  /* ---- Glass surfaces (sidebar, floating panels, inputs) ---- */
+  --glass-top:          rgba(255, 255, 255, 0.92);
+  --glass-bottom:       rgba(244, 247, 245, 0.92);
+  --glass-border:       rgba(15, 23, 42, 0.07);
+  --glass-border-hi:    rgba(255, 255, 255, 0.8);
+  --glass-blur:         20px;
+  --blueprint-line:     rgba(var(--primary-rgb), 0.05);
+  --blueprint-tile:     url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27240%27%20height%3D%27240%27%20viewBox%3D%270%200%20240%20240%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23479B70%27%20stroke-width%3D%271.1%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M0%2060H240M0%20180H240M60%200V240M180%200V240%27%20stroke-width%3D%270.9%27%2F%3E%3Cpath%20d%3D%27M20%2044H66Q78%2044%2078%2056V96Q78%20108%2090%20108H140%27%2F%3E%3Cpath%20d%3D%27M186%2028V64Q186%2076%20174%2076H128Q116%2076%20116%2088V108%27%2F%3E%3Ccircle%20cx%3D%27140%27%20cy%3D%27108%27%20r%3D%274.5%27%2F%3E%3Ccircle%20cx%3D%2720%27%20cy%3D%2744%27%20r%3D%273%27%2F%3E%3Ccircle%20cx%3D%27186%27%20cy%3D%2728%27%20r%3D%273%27%2F%3E%3Ccircle%20cx%3D%27116%27%20cy%3D%27108%27%20r%3D%273%27%2F%3E%3Crect%20x%3D%27133%27%20y%3D%27101%27%20width%3D%2714%27%20height%3D%2714%27%20rx%3D%273.5%27%2F%3E%3Cpath%20d%3D%27M198%20162L208%20157L218%20162V174L208%20179L198%20174Z%27%2F%3E%3Ccircle%20cx%3D%27208%27%20cy%3D%27168%27%20r%3D%272.5%27%2F%3E%3Ccircle%20cx%3D%2750%27%20cy%3D%27192%27%20r%3D%2710%27%2F%3E%3Cpath%20d%3D%27M50%20180V204M38%20192H62%27%2F%3E%3Cpath%20d%3D%27M0%20120H36Q46%20120%2046%20130V150%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+
+  /* Sidebar reads as a true floating glass panel: flat translucent white
+     (not a top/bottom gradient), a near-white hairline border for the glass
+     "edge highlight", a big soft shadow for the lift. */
+  --sidebar-glass-bg:     rgba(255, 255, 255, 0.82);
+  --sidebar-glass-border: rgba(255, 255, 255, 0.7);
+  --shadow-sidebar:       0 25px 60px rgba(0, 0, 0, 0.08);
 
   /* ---- Radius ---- */
   --r-btn:          14px;
   --r-card:         20px;
+  --r-hero:         28px;
   --r-input:        20px;
+  --r-composer:     22px;
   --r-side-btn:     16px;
+  --r-newchat:      18px;
+  --r-history:      14px;
   --r-sm:           10px;
   --r-pill:         999px;
 
@@ -83,9 +105,14 @@
   --lsp-hero:  -0.03em;
 
   /* ---- Motion ---- */
-  --t-fast:    120ms cubic-bezier(0.4, 0, 0.2, 1);
-  --t:         150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --t-slow:    280ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-premium: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast:    150ms var(--ease-premium);  /* clicks / presses */
+  --t:         220ms var(--ease-premium);  /* hovers */
+  --t-card:    300ms var(--ease-premium);  /* card lift / expand */
+  --t-slow:    250ms var(--ease-premium);  /* sidebar / drawers */
+  --t-logo:    350ms var(--ease-premium);  /* logo hover transition */
+  --t-page:    400ms var(--ease-premium);  /* routed-page fade in */
+  --stagger:   40ms;                       /* per-item delay in a staggered group */
 
   color-scheme: light;
 }
@@ -111,8 +138,20 @@
 
   --shadow-xs:      0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm:      0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow:         0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow:         0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-hover:   0 20px 50px rgba(0, 0, 0, 0.55);
   --shadow-lg:      0 16px 40px rgba(0, 0, 0, 0.5);
+
+  --glass-top:       rgba(19, 26, 32, 0.86);
+  --glass-bottom:    rgba(11, 15, 20, 0.9);
+  --glass-border:    rgba(255, 255, 255, 0.07);
+  --glass-border-hi: rgba(255, 255, 255, 0.08);
+  --blueprint-line:  rgba(var(--accent-rgb), 0.07);
+  --blueprint-tile:  url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27240%27%20height%3D%27240%27%20viewBox%3D%270%200%20240%20240%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%234ADE80%27%20stroke-width%3D%271.1%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M0%2060H240M0%20180H240M60%200V240M180%200V240%27%20stroke-width%3D%270.9%27%2F%3E%3Cpath%20d%3D%27M20%2044H66Q78%2044%2078%2056V96Q78%20108%2090%20108H140%27%2F%3E%3Cpath%20d%3D%27M186%2028V64Q186%2076%20174%2076H128Q116%2076%20116%2088V108%27%2F%3E%3Ccircle%20cx%3D%27140%27%20cy%3D%27108%27%20r%3D%274.5%27%2F%3E%3Ccircle%20cx%3D%2720%27%20cy%3D%2744%27%20r%3D%273%27%2F%3E%3Ccircle%20cx%3D%27186%27%20cy%3D%2728%27%20r%3D%273%27%2F%3E%3Ccircle%20cx%3D%27116%27%20cy%3D%27108%27%20r%3D%273%27%2F%3E%3Crect%20x%3D%27133%27%20y%3D%27101%27%20width%3D%2714%27%20height%3D%2714%27%20rx%3D%273.5%27%2F%3E%3Cpath%20d%3D%27M198%20162L208%20157L218%20162V174L208%20179L198%20174Z%27%2F%3E%3Ccircle%20cx%3D%27208%27%20cy%3D%27168%27%20r%3D%272.5%27%2F%3E%3Ccircle%20cx%3D%2750%27%20cy%3D%27192%27%20r%3D%2710%27%2F%3E%3Cpath%20d%3D%27M50%20180V204M38%20192H62%27%2F%3E%3Cpath%20d%3D%27M0%20120H36Q46%20120%2046%20130V150%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+
+  --sidebar-glass-bg:     rgba(15, 20, 26, 0.82);
+  --sidebar-glass-border: rgba(255, 255, 255, 0.09);
+  --shadow-sidebar:       0 25px 60px rgba(0, 0, 0, 0.45);
 
   color-scheme: dark;
 }
@@ -125,6 +164,10 @@
 *::after { box-sizing: border-box; }
 
 html, body, #root { height: 100%; }
+
+/* #root sits above the fixed .bp-canvas engineering-pattern layer (below) —
+   explicit stacking so a plain painter's-order fallback can never flip it. */
+#root { position: relative; z-index: 1; }
 
 /* Ambient green wash so the light theme reads as Vitech's rather than plain
    white. Fixed + non-scrolling, and kept under ~7% so text contrast is
@@ -157,6 +200,33 @@ body {
   background-attachment: fixed;
 }
 
+/* --------------------------------------------------------------------------
+   Engineering-blueprint canvas — the ONE pattern for the whole app.
+   A fixed, full-viewport, pointer-events-none layer behind #root (not part
+   of body's own background, so it can carry its own mask independent of the
+   green wash above). Every glass surface (sidebar, header, hero, chat,
+   right rail) is translucent enough to let a whisper of it bleed through;
+   opaque surfaces (cards, tables) simply sit on top and hide it, which is
+   the point — it never competes with content, only the empty space around it.
+   -------------------------------------------------------------------------- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--blueprint-tile);
+  background-size: 240px 240px;
+  background-repeat: repeat;
+  opacity: 0.13;
+  /* Fades toward the middle so it never sits behind reading content, but the
+     transparent hole is kept small so the pattern is clearly legible across
+     the margins, header band and rails. */
+  -webkit-mask-image: radial-gradient(120% 108% at 50% 40%, transparent 0, transparent 150px, #000 540px);
+  mask-image: radial-gradient(120% 108% at 50% 40%, transparent 0, transparent 150px, #000 540px);
+}
+:root[data-theme="dark"] body::before { opacity: 0.32; }
+
 h1, h2, h3, h4, p, figure { margin: 0; }
 button, input, textarea, select { font: inherit; letter-spacing: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -188,6 +258,7 @@ a { color: var(--primary); }
   border-radius: var(--r-pill);
   border: 2px solid transparent;
   background-clip: content-box;
+  transition: background-color 200ms ease;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); background-clip: content-box; }
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }

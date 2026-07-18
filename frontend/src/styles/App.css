@@ -11,6 +11,7 @@
   height: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
+  padding: 12px 0 12px 12px;
   overflow: hidden;
 }
 
@@ -65,17 +66,25 @@
 .sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
-  /* A green breath at the foot of the rail, behind the circuit art. */
+  margin-right: 12px;
+  /* Floating glass panel: a flat translucent fill (not a gradient — the
+     shared engineering-blueprint canvas behind #root shows through it, so
+     the sidebar doesn't need its own copy of the pattern any more) plus a
+     green breath at the foot of the rail behind the circuit art. */
   background:
-    radial-gradient(26rem 20rem at -10% 108%, rgba(var(--accent-rgb), 0.13) 0%, transparent 68%),
-    var(--sidebar-bg);
-  border-right: 1px solid var(--border);
+    radial-gradient(26rem 20rem at -10% 108%, rgba(var(--accent-rgb), 0.14) 0%, transparent 68%),
+    var(--sidebar-glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
+  border: 1px solid var(--sidebar-glass-border);
+  border-radius: 22px;
+  box-shadow: var(--shadow-sidebar);
   display: flex;
   flex-direction: column;
   padding: 22px 16px 16px;
   position: relative;
   overflow: hidden;
-  transition: background var(--t), border-color var(--t);
+  transition: background var(--t-slow), border-color var(--t-slow), box-shadow var(--t-slow);
 }
 
 /* Lift the real content above the decoration. The :not() is load-bearing —
@@ -106,45 +115,103 @@
   margin-bottom: 22px;
 }
 
-/* drop-shadow (not box-shadow) so the shade follows the mark's silhouette
-   rather than boxing the transparent PNG. Kept light on purpose: the artwork
-   already carries its own baked-in 3D shade, and a heavy second shadow reads
-   as a muddy double edge. */
+/* The breathing/hover treatment (transform + filter, incl. the drop-shadow)
+   lives on .logo-shell, the one wrapper — stacking a second filter on the
+   img itself would double the shadow into a muddy edge. */
 .logo {
+  display: block;
   width: auto;
   max-width: 100%;
   user-select: none;
-  filter: drop-shadow(0 2px 5px rgba(17, 24, 39, 0.2));
 }
 
-/* Dark mode swaps the asset (see Logo.jsx) rather than filtering the light one,
-   so only the shadow needs restating here. */
-:root[data-theme="dark"] .logo {
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+/* Idle: a 10s breathing loop (scale + brightness + shadow). Hover: pause the
+   loop for a slight lift, a brighter green tint and a subtle glow — no
+   rotation, this one stays calm. */
+.logo-shell {
+  display: inline-flex;
+  border-radius: 12px;
+  animation: logo-breathe 10s ease-in-out infinite;
+  transition: transform var(--t-logo), filter var(--t-logo);
+  transform-origin: center left;
 }
+.logo-shell:hover {
+  animation-play-state: paused;
+  transform: translateY(-2px);
+  filter: brightness(1.05) saturate(1.12)
+          drop-shadow(0 8px 18px rgba(var(--secondary-rgb), 0.32));
+}
+.logo-shell:active { transform: translateY(-1px) scale(0.985); }
 
 .side-newchat {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
   width: 100%;
-  height: 52px;
+  height: 58px;
   border: none;
-  border-radius: var(--r-side-btn);
+  border-radius: var(--r-newchat);
   background: var(--grad-green);
   color: var(--text-on-green);
   font-size: 15px;
   font-weight: 600;
   box-shadow: var(--shadow-green);
-  transition: transform var(--t), box-shadow var(--t), filter var(--t);
+  transition: transform var(--t-card), box-shadow var(--t-card), filter var(--t-card);
+}
+.side-newchat-ic {
+  display: grid;
+  place-items: center;
+  transition: transform var(--t-slow) var(--ease-premium);
 }
 .side-newchat:hover {
-  transform: scale(1.02);
-  filter: brightness(1.04);
-  box-shadow: 0 10px 28px rgba(var(--secondary-rgb), 0.34);
+  transform: translateY(-4px);
+  filter: brightness(1.08);
+  box-shadow: var(--shadow-green-lg);
 }
-.side-newchat:active { transform: scale(0.99); }
+.side-newchat:hover .side-newchat-ic { transform: rotate(90deg); }
+.side-newchat:active {
+  transform: translateY(-1px) scale(0.96);
+  transition-duration: var(--t-fast);
+}
+
+/* Idle ambient shimmer: the hero CTA is never quite still — a very faint
+   sweep passes every 12s even without interaction. Parked off-canvas for
+   most of the cycle, so it's a glint, not a loop you consciously notice. */
+.side-newchat::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.32) 50%, transparent 58%);
+  background-size: 220% 100%;
+  background-position: 150% 0;
+  animation: newchat-idle-shimmer 12s ease-in-out infinite;
+  pointer-events: none;
+}
+/* Hover shimmer: a brighter, quicker sweep on top of the idle one. */
+.side-newchat-hover-shimmer {
+  position: absolute;
+  inset: 0;
+  width: 50%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: translateX(-160%) skewX(-15deg);
+  pointer-events: none;
+}
+.side-newchat:hover .side-newchat-hover-shimmer { animation: btn-shimmer 700ms ease-in-out; }
+
+/* Success bloom: a soft white flash confirming the click, timed from React
+   (see Sidebar.jsx) so it always completes even on a very quick click. */
+.side-newchat.is-success::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, transparent 68%);
+  animation: success-flash 500ms var(--ease-premium);
+  pointer-events: none;
+}
 
 .side-nav {
   flex: 1;
@@ -172,6 +239,7 @@
 /* ---- Sidebar item ---- */
 .side-item {
   position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 13px;
@@ -185,16 +253,27 @@
   font-size: 14.5px;
   font-weight: 500;
   text-align: left;
-  transition: background var(--t), color var(--t);
+  transition: background var(--t), color var(--t), box-shadow var(--t);
 }
-.side-item:hover { background: var(--hover-neutral); color: var(--text); }
+/* Soft green glass on hover — icon scales up and drifts 4px right with the
+   label beneath it. */
+.side-item:hover {
+  background: linear-gradient(135deg, rgba(var(--secondary-rgb), 0.1), rgba(var(--secondary-rgb), 0.03));
+  color: var(--text);
+  box-shadow: 0 4px 14px rgba(var(--secondary-rgb), 0.1);
+}
+.side-item:hover .side-item-ic { transform: translateX(4px) scale(1.08); }
+.side-item:hover .side-item-label { transform: translateX(4px); }
+
+/* Active: a light-green glass card with a glowing left bar + floating dot. */
 .side-item.is-active {
-  background: var(--hover-green);
+  background: linear-gradient(135deg, rgba(var(--secondary-rgb), 0.16) 0%, rgba(var(--secondary-rgb), 0.05) 100%);
   color: var(--primary);
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(var(--secondary-rgb), 0.22), 0 6px 18px rgba(var(--secondary-rgb), 0.16);
 }
 
-/* Green left indicator on the selected item. */
+/* Glowing left indicator, breathing gently. */
 .side-item.is-active::before {
   content: "";
   position: absolute;
@@ -204,7 +283,39 @@
   width: 3px;
   height: 26px;
   border-radius: 0 3px 3px 0;
-  background: var(--primary);
+  background: linear-gradient(180deg, var(--accent), var(--primary));
+  animation: side-indicator-glow 2.4s ease-in-out infinite;
+}
+/* Tiny floating presence dot, top-right of the active card. */
+.side-item.is-active::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--secondary);
+  box-shadow: 0 0 6px rgba(var(--secondary-rgb), 0.8);
+  animation: nav-dot-pulse 2.4s ease-in-out infinite;
+}
+/* Too cramped in the indented agent sub-list — the left bar alone reads fine. */
+.side-subitem.is-active::after { display: none; }
+
+/* Tiny moving highlight: a soft light streak drifting through the active
+   pill — a real element (not ::before/::after, both spoken for above) so it
+   layers under the label/icon rather than over them. */
+.side-item-highlight {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: nav-highlight-sweep 5s ease-in-out infinite;
+}
+:root[data-theme="dark"] .side-item-highlight {
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.12) 50%, transparent 70%);
+  background-size: 250% 100%;
 }
 
 .side-item-ic {
@@ -212,7 +323,7 @@
   display: grid;
   place-items: center;
   color: var(--text-muted);
-  transition: color var(--t);
+  transition: color var(--t-card), transform var(--t-card);
 }
 .side-item:hover .side-item-ic { color: var(--text-secondary); }
 .side-item.is-active .side-item-ic { color: var(--primary); }
@@ -223,6 +334,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: transform var(--t-card);
 }
 
 /* "soon" marker for roadmap pages */
@@ -313,6 +425,10 @@
   justify-content: space-between;
   gap: 16px;
   padding: 0 var(--pad);
+  background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .topheader-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -337,6 +453,8 @@
   text-overflow: ellipsis;
 }
 
+/* Glass pill: translucent tint + a hairline border for definition, since
+   the flat tint alone reads flat rather than "glass" at this small a size. */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -345,19 +463,28 @@
   padding: 5px 12px 5px 10px;
   border-radius: var(--r-pill);
   background: var(--hover-green);
+  border: 1px solid rgba(var(--secondary-rgb), 0.18);
   color: var(--primary);
   font-size: var(--fs-sm);
   font-weight: 600;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background var(--t), border-color var(--t), color var(--t);
 }
-.status-badge.is-off { background: rgba(239, 68, 68, 0.08); color: var(--bad); }
+.status-badge.is-off { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.2); color: var(--bad); }
 
+/* Online: a soft pulse plus an expanding ring, every 3s. */
 .status-dot {
   width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--secondary);
-  animation: status-pulse 2.4s ease-in-out infinite;
+  animation: status-pulse 3s ease-in-out infinite;
 }
-.status-badge.is-off .status-dot { background: var(--bad); animation: none; }
+/* Offline: a slow, smooth breathe — never a hard on/off blink. */
+.status-badge.is-off .status-dot {
+  background: var(--bad);
+  animation: badge-breathe 3s ease-in-out infinite;
+}
 
 .topheader-r { display: flex; align-items: center; gap: 6px; }
 
@@ -369,13 +496,19 @@
   display: grid;
   place-items: center;
   border: none;
-  border-radius: var(--r-btn);
+  border-radius: 50%;
   background: transparent;
   color: var(--text-secondary);
-  transition: background var(--t), color var(--t), transform var(--t);
+  transition: background var(--t), color var(--t), transform var(--t), box-shadow var(--t);
 }
-.icon-btn:hover { background: var(--hover-neutral); color: var(--text); transform: scale(1.02); }
+.icon-btn:hover {
+  background: var(--hover-neutral);
+  color: var(--text);
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+}
 .icon-btn.is-on { background: var(--hover-green); color: var(--primary); }
+.icon-btn.is-on:hover { box-shadow: 0 4px 14px rgba(var(--secondary-rgb), 0.24); }
 
 .icon-btn-badge {
   position: absolute;
@@ -392,6 +525,7 @@
   line-height: 16px;
   text-align: center;
   border: 2px solid var(--bg);
+  animation: notif-pulse-8s 8s ease-in-out infinite;
 }
 
 /* --------------------------------------------------------------------------
@@ -402,9 +536,14 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  animation: page-fade-in var(--t-page) both;
   border: 1px solid var(--border);
   border-radius: var(--r-card);
-  background: var(--card);
+  /* Barely translucent — the blueprint canvas behind #root should only ever
+     be a whisper here, never compete with the transcript's readability. */
+  background: color-mix(in srgb, var(--card) 97%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
@@ -413,10 +552,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 22px 22px 8px;
+  padding: 24px 24px 8px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 
 /* --------------------------------------------------------------------------
@@ -426,16 +565,26 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 18px;
-  min-height: 132px;
-  padding: 20px 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-card);
+  gap: 24px;
+  min-height: 148px;
+  padding: 24px 28px;
+  border: 1px solid rgba(var(--secondary-rgb), 0.12);
+  border-radius: var(--r-hero);
+  /* White glass — translucent enough that the shared engineering-blueprint
+     canvas behind #root reads faintly through it, per the "extend behind
+     the hero card" brief. Still ~96% opaque so body text stays crisp. */
   background:
-    radial-gradient(120% 140% at 88% 50%, rgba(var(--accent-rgb), 0.14) 0%, transparent 58%),
-    var(--card);
-  box-shadow: var(--shadow-sm);
+    radial-gradient(120% 140% at 88% 50%, rgba(var(--accent-rgb), 0.16) 0%, transparent 58%),
+    var(--glass-top);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  /* A soft inner top highlight reads as glass depth on top of the lift. */
+  box-shadow: var(--shadow-hover), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: box-shadow var(--t-card);
   overflow: hidden;
+}
+:root[data-theme="dark"] .hero {
+  box-shadow: var(--shadow-hover), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .hero-t { flex: 1; min-width: 0; }
@@ -467,66 +616,122 @@
   max-width: 52ch;
 }
 
-/* ---- Glowing AI orb ---- */
+/* ---- Premium AI core: radar sweep, guide rings, 4 orbiting dots ---- */
 .orb {
   position: relative;
   flex: 0 0 auto;
-  width: 118px;
-  height: 118px;
+  width: 120px;
+  height: 120px;
   display: grid;
   place-items: center;
+  transition: filter var(--t-card);
 }
+/* Hover: the whole assembly reads "more active" via a gentle filter boost —
+   one compositing pass, so it never fights any descendant's own keyframes. */
+.orb:hover { filter: saturate(1.2) brightness(1.05); }
 
+/* Soft breathing gradient orb, drifting almost imperceptibly. */
 .orb-glow {
   position: absolute;
-  inset: 8%;
+  inset: 10%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.5) 0%, rgba(var(--accent-rgb), 0) 68%);
-  filter: blur(6px);
-  animation: orb-breathe 4.5s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.42) 0%, rgba(var(--accent-rgb), 0) 70%);
+  filter: blur(7px);
+  animation: orb-pulse-6s 6s ease-in-out infinite;
 }
 
+/* Radar sweep — one bright arc rotating around a faint ring band. The
+   conic gradient is the arc; the radial mask punches the disc into a ring. */
+.orb-sweep {
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    rgba(var(--secondary-rgb), 0) 0deg,
+    rgba(var(--secondary-rgb), 0) 240deg,
+    rgba(var(--secondary-rgb), 0.28) 330deg,
+    rgba(var(--secondary-rgb), 0.55) 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 60%, #000 61%);
+  mask: radial-gradient(circle, transparent 60%, #000 61%);
+  animation: orb-spin 7s linear infinite;
+}
+.orb:hover .orb-sweep { animation-duration: 4s; }
+
+/* Two clean, thin concentric guide rings (no dashes — reads more refined). */
 .orb-ring {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(var(--secondary-rgb), 0.34);
+  border: 1px solid rgba(var(--secondary-rgb), 0.2);
 }
-.orb-ring-1 { inset: 0;   border-style: dashed; animation: orb-spin 26s linear infinite; }
-.orb-ring-2 { inset: 13%; border-color: rgba(var(--secondary-rgb), 0.22); animation: orb-spin-rev 20s linear infinite; }
-.orb-ring-3 { inset: 26%; border-color: rgba(var(--secondary-rgb), 0.16); }
+.orb-ring-1 { inset: 4%;  }
+.orb-ring-2 { inset: 22%; border-color: rgba(var(--secondary-rgb), 0.14); animation: orb-ring3-pulse 6s ease-in-out infinite; transform-origin: center; }
 
-/* Nodes riding the outer ring */
+/* Orbit wrappers: each sized to its own radius (inline `inset`) and rotating
+   at its own duration/direction/delay (inline), so the dot it carries sweeps
+   that radius independently of the others. */
+.orb-orbit {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation-name: particle-orbit;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Clean glowing dot — a soft point of light, no comet trail. */
 .orb-node {
   position: absolute;
-  width: 8px; height: 8px;
+  top: -2px;
+  left: 50%;
   border-radius: 50%;
   background: var(--secondary);
-  box-shadow: 0 0 10px rgba(var(--secondary-rgb), 0.8);
+  box-shadow: 0 0 7px rgba(var(--secondary-rgb), 0.7);
+  animation-name: particle-flicker;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
-.orb-node-1 { top: 6%;  left: 50%; margin-left: -4px; }
-.orb-node-2 { top: 50%; right: 5%; margin-top: -4px; width: 6px; height: 6px; }
-.orb-node-3 { bottom: 12%; left: 16%; width: 5px; height: 5px; }
+
+/* The energy wave — centered on the core (top/left:50%, then the keyframe's
+   own translate(-50%,-50%) does the rest), expanding + fading every 5s. */
+.orb-wave {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(var(--secondary-rgb), 0.6);
+  animation: ai-pulse-wave 5s ease-out infinite;
+  pointer-events: none;
+}
 
 /* Glass core holding the bot mark */
 .orb-core {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: var(--primary);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.7));
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.72));
   border: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow:
-    0 10px 30px rgba(var(--primary-rgb), 0.22),
+    0 10px 28px rgba(var(--primary-rgb), 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(8px);
+  transition: transform var(--t-card), box-shadow var(--t-card);
 }
 :root[data-theme="dark"] .orb-core {
-  background: linear-gradient(160deg, rgba(30, 41, 52, 0.96), rgba(19, 25, 32, 0.72));
+  background: linear-gradient(160deg, rgba(30, 41, 52, 0.96), rgba(19, 25, 32, 0.74));
   border-color: rgba(255, 255, 255, 0.09);
   color: var(--accent);
+}
+.orb:hover .orb-core {
+  transform: scale(1.05);
+  box-shadow:
+    0 12px 32px rgba(var(--primary-rgb), 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 /* --------------------------------------------------------------------------
@@ -542,6 +747,8 @@
    nowrap subtitle sets a min-content floor and the track refuses to shrink —
    which pushed a horizontal scrollbar into the chat surface. */
 .quick-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -553,15 +760,32 @@
   background: var(--card);
   box-shadow: var(--shadow-xs);
   text-align: left;
-  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  color: var(--secondary);
+  transition: transform var(--t-card), box-shadow var(--t-card), border-color var(--t-card);
 }
 .quick-card:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-hover);
   border-color: rgba(var(--secondary-rgb), 0.4);
 }
+.quick-card:active { transform: translateY(-1px) scale(0.98); transition-duration: var(--t-fast); }
+
+/* Soft radial bloom behind the icon, revealed on hover. */
+.quick-glow {
+  position: absolute;
+  top: -30%;
+  left: -10%;
+  width: 55%;
+  height: 160%;
+  background: radial-gradient(circle, rgba(var(--secondary-rgb), 0.16) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity var(--t-card);
+  pointer-events: none;
+}
+.quick-card:hover .quick-glow { opacity: 1; }
 
 .quick-ic {
+  position: relative;
   flex: 0 0 auto;
   width: 34px; height: 34px;
   display: grid;
@@ -569,7 +793,9 @@
   border-radius: 10px;
   background: var(--hover-green);
   color: var(--primary);
+  transition: transform var(--t-card);
 }
+.quick-card:hover .quick-ic { transform: scale(1.14); }
 
 .quick-t { flex: 1; min-width: 0; }
 .quick-title {
@@ -722,10 +948,10 @@
 /* --------------------------------------------------------------------------
    Composer
    -------------------------------------------------------------------------- */
-.composer-wrap { padding: 8px 22px 16px; }
+.composer-wrap { padding: 8px 24px 20px; }
 
-/* Pill composer: fully rounded and compact. Contents are unchanged — only the
-   shell's shape and height. */
+/* Premium AI input: rounded rect (not a full pill — 22px per spec), glass,
+   with the send button seated circular inside it. */
 .composer {
   display: flex;
   align-items: center;
@@ -733,14 +959,18 @@
   min-height: 56px;
   padding: 0 7px 0 20px;
   border: 1.5px solid var(--border);
-  border-radius: var(--r-pill);
-  background: var(--card);
+  border-radius: var(--r-composer);
+  background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--shadow-xs);
-  transition: border-color var(--t), box-shadow var(--t);
+  transition: border-color var(--t-card), box-shadow var(--t-card), transform var(--t-card);
 }
+.composer:hover { border-color: var(--border-strong); }
 .composer:focus-within {
   border-color: var(--secondary);
-  box-shadow: 0 0 0 4px rgba(var(--secondary-rgb), 0.1);
+  box-shadow: 0 0 0 4px rgba(var(--secondary-rgb), 0.12), var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 .composer-input {
@@ -752,8 +982,10 @@
   outline: none;
   font-size: var(--fs-body);
   color: var(--text);
+  caret-color: var(--secondary);
 }
-.composer-input::placeholder { color: var(--text-muted); }
+.composer-input::placeholder { color: var(--text-muted); transition: opacity var(--t); }
+.composer:focus-within .composer-input::placeholder { opacity: 0.55; }
 
 .composer-tools { display: flex; align-items: center; gap: 2px; }
 .composer-tool {
@@ -764,10 +996,14 @@
   border-radius: 10px;
   background: transparent;
   color: var(--text-muted);
-  transition: background var(--t), color var(--t);
+  transition: background var(--t), color var(--t), transform var(--t);
 }
-.composer-tool:hover { background: var(--hover-neutral); color: var(--text-secondary); }
+.composer-tool:hover { background: var(--hover-neutral); color: var(--text-secondary); transform: scale(1.06); }
 .composer-tool.is-accent { color: var(--secondary); }
+/* The sparkle "improve prompt" icon glows once the composer has focus. */
+.composer:focus-within .composer-tool.is-accent {
+  filter: drop-shadow(0 0 6px rgba(var(--secondary-rgb), 0.65));
+}
 
 .composer-r { display: flex; align-items: center; gap: 10px; }
 
@@ -789,8 +1025,10 @@
 /* Surface the hint only once the user is actually typing. */
 .composer:focus-within .enter-hint { opacity: 1; }
 
-/* Circular so it seats cleanly inside the pill. */
+/* Circular so it seats cleanly inside the rounded composer. */
 .send-btn {
+  position: relative;
+  overflow: hidden;
   width: 42px; height: 42px;
   display: grid;
   place-items: center;
@@ -799,9 +1037,14 @@
   background: var(--grad-green);
   color: var(--text-on-green);
   box-shadow: var(--shadow-green);
-  transition: transform var(--t), filter var(--t), opacity var(--t);
+  transition: transform var(--t), filter var(--t), opacity var(--t), box-shadow var(--t);
 }
-.send-btn:hover:not(:disabled) { transform: scale(1.02); filter: brightness(1.05); }
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.06) rotate(10deg);
+  filter: brightness(1.06);
+  box-shadow: var(--shadow-green-lg);
+}
+.send-btn:active:not(:disabled) { transform: scale(0.94) rotate(10deg); transition-duration: var(--t-fast); }
 .send-btn:disabled { opacity: 0.4; box-shadow: none; cursor: default; }
 
 .composer-foot {
@@ -831,13 +1074,17 @@
 /* Minimized at any width — the chat column takes the space back. */
 .rightbar:not(.is-open) { display: none; }
 
-/* Chat history owns the rail; the upgrade banner keeps its natural height. */
+/* Chat history owns the rail; the upgrade banner keeps its natural height.
+   Slightly translucent so the blueprint canvas reaches the right rail too. */
 .history {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 18px;
+  background: color-mix(in srgb, var(--card) 96%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .history-list {
   flex: 1;
@@ -922,82 +1169,153 @@
   list-style: none;
 }
 
-.rowitem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 12px;
-  background: transparent;
-  text-align: left;
-  transition: background var(--t), transform var(--t);
-}
-.rowitem:hover { background: var(--hover-green); transform: translateX(2px); }
-/* The conversation currently loaded in the chat column. */
-.rowitem.is-active { background: var(--hover-green); }
-.rowitem.is-active .rowitem-title { color: var(--primary); font-weight: 600; }
-.rowitem.is-active .conv-ic { color: var(--primary); }
-
-.rowitem-ic {
-  flex: 0 0 auto;
-  width: 36px; height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--card-sunken);
-  color: var(--primary);
-  transition: background var(--t);
-}
-.rowitem:hover .rowitem-ic { background: var(--card); }
-
-.rowitem-t { flex: 1; min-width: 0; }
-.rowitem-title {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rowitem-sub {
-  display: block;
-  font-size: 12.5px;
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rowitem-chev { flex: 0 0 auto; color: var(--text-muted); transition: transform var(--t), color var(--t); }
-.rowitem:hover .rowitem-chev { color: var(--primary); transform: translateX(2px); }
-
-/* Conversation row: message icon + title + time + kebab */
-.conv-ic { flex: 0 0 auto; color: var(--text-muted); display: grid; place-items: center; }
-.rowitem:hover .conv-ic { color: var(--primary); }
-.conv-time { flex: 0 0 auto; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-.conv-kebab {
-  flex: 0 0 auto;
-  width: 24px; height: 24px;
-  display: grid;
-  place-items: center;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  opacity: 0;
-  transition: opacity var(--t), background var(--t);
-}
-.rowitem:hover .conv-kebab, .conv-kebab:focus-visible { opacity: 1; }
-.conv-kebab:hover { background: var(--card); color: var(--text); }
-
 .rowlist-empty {
   padding: 14px 10px;
   font-size: var(--fs-sm);
   color: var(--text-muted);
   line-height: 1.5;
 }
+
+/* ---- Chat history: collapsible recency groups of floating cards ---- */
+.hist-group + .hist-group { margin-top: 4px; }
+
+.hist-group-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color var(--t);
+}
+.hist-group-head:hover { color: var(--text-secondary); }
+.hist-group-count {
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--card-sunken);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.hist-group-caret { margin-left: auto; transition: transform var(--t); }
+.hist-group-caret.is-open { transform: rotate(180deg); }
+
+.hist-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+/* Floating card: white surface, soft shadow, lifts + tints green on hover. */
+.hist-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-history);
+  background: var(--card);
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+  transition: transform var(--t-card), box-shadow var(--t-card), background var(--t-card), border-color var(--t-card);
+}
+.hist-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+  background: var(--hover-green);
+  border-color: rgba(var(--secondary-rgb), 0.3);
+}
+
+.hist-card-ic {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--card-sunken);
+  color: var(--primary);
+  transition: background var(--t-card), transform var(--t-card);
+}
+.hist-card:hover .hist-card-ic { background: var(--card); transform: scale(1.06); }
+
+.hist-card-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hist-card-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Timestamp fades in on hover rather than sitting there permanently. */
+.hist-card-time {
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--t-card), transform var(--t-card), max-height var(--t-card);
+}
+.hist-card:hover .hist-card-time { opacity: 1; max-height: 16px; transform: none; }
+
+.hist-card-arrow {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity var(--t-card), transform var(--t-card), color var(--t-card);
+}
+.hist-card:hover .hist-card-arrow { opacity: 1; transform: none; color: var(--primary); }
+
+.hist-card-del {
+  flex: 0 0 auto;
+  width: 24px; height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--t), background var(--t), color var(--t);
+}
+.hist-card:hover .hist-card-del, .hist-card-del:focus-visible { opacity: 1; }
+.hist-card-del:hover { background: var(--card-sunken); color: var(--bad); }
+
+/* The conversation currently loaded in the chat column: a very subtle,
+   slowly-breathing green ring + a quiet left indicator. */
+.hist-card.is-active {
+  background: var(--hover-green);
+  border-color: transparent;
+  animation: history-border-pulse 3.2s ease-in-out infinite;
+}
+.hist-card.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+  opacity: 0.7;
+}
+.hist-card.is-active .hist-card-title { color: var(--primary); font-weight: 600; }
+.hist-card.is-active .hist-card-ic { color: var(--primary); }
 
 /* ---- Upgrade card ---- */
 .upgrade {
@@ -1030,6 +1348,8 @@
 .upgrade-sub { font-size: 12.5px; color: rgba(255, 255, 255, 0.66); line-height: 1.5; margin-bottom: 16px; }
 
 .upgrade-btn {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1043,6 +1363,15 @@
   transition: transform var(--t), box-shadow var(--t);
 }
 .upgrade-btn:hover { transform: scale(1.02); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
+.upgrade-btn-shimmer {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(11, 63, 34, 0.16), transparent);
+  transform: translateX(-120%) skewX(-12deg);
+  pointer-events: none;
+}
+.upgrade-btn:hover .upgrade-btn-shimmer { animation: btn-shimmer 900ms ease-in-out; }
 
 .upgrade-art {
   position: absolute;
@@ -1053,6 +1382,12 @@
   opacity: 0.95;
   filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.6));
   pointer-events: none;
+}
+/* Bars settle into place once, on mount, staggered left to right. */
+.chart-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: bar-rise 600ms var(--ease-premium) both;
 }
 
 /* --------------------------------------------------------------------------
@@ -1079,12 +1414,11 @@
 
 @media (max-width: 1440px) {
   :root { --sidebar-w: 260px; --rightbar-w: 320px; --gap: 20px; --pad: 20px; }
-  .hero { padding: 26px; gap: 16px; }
-  .orb { width: 160px; height: 160px; }
-  .orb-core { width: 84px; height: 84px; }
+  .hero { padding: 22px 24px; gap: 20px; }
 }
 
-/* 1366/1280: the orb is the first thing to go — text needs the room. */
+/* 1366/1280: quick actions reflow to two columns; the orb keeps its fixed
+   proportions (it's self-contained) right up until it's dropped at 1024. */
 @media (max-width: 1366px) {
   :root { --rightbar-w: 300px; }
   .quick { grid-template-columns: repeat(2, 1fr); }
@@ -1092,9 +1426,6 @@
 }
 
 @media (max-width: 1280px) {
-  .orb { width: 132px; height: 132px; }
-  .orb-core { width: 70px; height: 70px; }
-  .hero { min-height: 180px; }
   .hero-sub { font-size: 14px; }
 }
 
@@ -1121,12 +1452,17 @@
 @media (max-width: 768px) {
   :root { --gap: 14px; --pad: 14px; --header-h: 64px; }
 
+  .shell { padding: 0; }
+
   .sidebar {
     position: fixed;
     top: 0; left: 0; bottom: 0;
     z-index: 46;
     width: min(290px, 84vw);
     flex: none;
+    margin-right: 0;
+    border-radius: 0 22px 22px 0;
+    border-width: 0 1px 0 0;
     box-shadow: var(--shadow-lg);
     animation: fade-in var(--t) both;
   }

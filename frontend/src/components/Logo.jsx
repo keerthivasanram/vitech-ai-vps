@@ -13,13 +13,15 @@ import logoDarkUrl from "../assets/logo-dark.png";
  */
 export const Logo = memo(function Logo({ height = 44, isDark = false }) {
   return (
-    <img
-      className="logo"
-      src={isDark ? logoDarkUrl : logoUrl}
-      height={height}
-      alt="Vitech — Vision with Technology"
-      draggable="false"
-    />
+    <span className="logo-shell">
+      <img
+        className="logo"
+        src={isDark ? logoDarkUrl : logoUrl}
+        height={height}
+        alt="Vitech — Vision with Technology"
+        draggable="false"
+      />
+    </span>
   );
 });
 

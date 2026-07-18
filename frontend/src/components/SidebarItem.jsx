@@ -23,6 +23,7 @@ export const SidebarItem = memo(function SidebarItem({ item, active, onSelect })
         {item.status === "soon" && (
           <span className="side-item-dot" title="Coming soon" aria-label="Coming soon" />
         )}
+        {active && <span className="side-item-highlight" aria-hidden="true" />}
       </button>
     </li>
   );
@@ -56,6 +57,7 @@ export const SidebarGroup = memo(function SidebarGroup({
           className={`side-caret${open ? " is-open" : ""}`}
           aria-hidden="true"
         />
+        {childActive && !open && <span className="side-item-highlight" aria-hidden="true" />}
       </button>
 
       {open && (
@@ -75,6 +77,7 @@ export const SidebarGroup = memo(function SidebarGroup({
                 {c.status === "soon" && (
                   <span className="side-item-dot" title="Coming soon" aria-label="Coming soon" />
                 )}
+                {view === c.id && <span className="side-item-highlight" aria-hidden="true" />}
               </button>
             </li>
           ))}

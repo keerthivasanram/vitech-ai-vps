@@ -14,7 +14,7 @@
   overflow-y: auto;
   padding: 2px 4px 8px;
 }
-.page-inner { max-width: 1180px; }
+.page-inner { max-width: 1180px; animation: page-fade-in var(--t-page) both; }
 
 .page-head { margin-bottom: 22px; }
 .page-head h1 {
@@ -45,6 +45,7 @@
   text-align: center;
   padding: 60px 24px;
   color: var(--text-secondary);
+  animation: page-fade-in var(--t-page) both;
 }
 .placeholder-ic {
   display: grid;
@@ -127,6 +128,9 @@
 /* --------------------------------------------------------------------------
    Dashboard
    -------------------------------------------------------------------------- */
+.skel-kpi { height: 92px; border-radius: var(--r-card); }
+.skel-card { height: 220px; border-radius: var(--r-card); }
+
 .dash-grid {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
@@ -243,17 +247,26 @@
 
 .input {
   width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
+  padding: 11px 16px;
+  border: 1.5px solid var(--border);
   border-radius: 12px;
-  background: var(--card);
+  background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text);
   font-size: 14px;
   outline: none;
-  transition: border-color var(--t), box-shadow var(--t);
+  caret-color: var(--secondary);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--t), box-shadow var(--t-card), background var(--t-slow);
 }
-.input::placeholder { color: var(--text-muted); }
-.input:focus { border-color: var(--secondary); box-shadow: var(--focus-ring); }
+.input::placeholder { color: var(--text-muted); transition: opacity var(--t); }
+.input:hover { border-color: var(--border-strong); }
+.input:focus {
+  border-color: var(--secondary);
+  box-shadow: var(--focus-ring), var(--shadow-sm);
+}
+.input:focus::placeholder { opacity: 0.5; }
 
 .tablewrap {
   overflow-x: auto;

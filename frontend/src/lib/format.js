@@ -46,3 +46,32 @@ export const titleFrom = (text, max = 42) => {
   const one = String(text || "").replace(/\s+/g, " ").trim();
   return one.length > max ? one.slice(0, max - 1).trimEnd() + "…" : one || "New conversation";
 };
+
+/**
+ * Buckets a list into Today / Yesterday / Last 7 Days / Earlier by `dateKey`,
+ * newest-first within each bucket (the list is expected to arrive sorted).
+ * Empty buckets are dropped so the panel never shows an empty section.
+ */
+export function groupByRecency(list, dateKey = "updatedAt") {
+  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const today = startOf(new Date());
+  const buckets = new Map([["Today", []], ["Yesterday", []], ["Last 7 Days", []], ["Older", []]]);
+
+  for (const item of list) {
+    const d = new Date(item[dateKey]);
+    const bucket = Number.isNaN(d.getTime())
+      ? "Older"
+      : (() => {
+          const days = Math.round((today - startOf(d)) / 86400000);
+          if (days <= 0) return "Today";
+          if (days === 1) return "Yesterday";
+          if (days < 7) return "Last 7 Days";
+          return "Older";
+        })();
+    buckets.get(bucket).push(item);
+  }
+
+  return [...buckets.entries()]
+    .filter(([, items]) => items.length > 0)
+    .map(([label, items]) => ({ label, items }));
+}
