@@ -17,7 +17,7 @@ from pathlib import Path
 
 from . import config, jobs, session
 from .analysis import essential_present, requirement_completeness
-from .analytics import record_detail
+from .analytics import record_detail, wants_price
 from .analytics import _label as category_label
 from .classify import CONFIDENT, classify_equipment
 from .resolver import ATS, CONSULTING, resolve
@@ -420,9 +420,19 @@ def tool_quote(payload: dict = Body(...)):
 
 @app.post("/api/tools/lookup", operation_id="lookup_project")
 def tool_lookup(payload: dict = Body(...)):
-    """Named client / offer -> exactly the data extracted from that file(s)."""
+    """Named client / offer -> exactly the data extracted from that file(s).
+
+    Price is included ONLY when the user asks about money ("price / cost / quote
+    of X"). A plain "details about X" returns the engineering (given data +
+    technical details) with no price, so the agent cannot lead with rupees when
+    that is not what was asked. The price is still one follow-up away.
+    """
     q = _tool_q(payload)
-    text = record_detail(q)
+    price_asked = wants_price(q)
+    # force_tech: even when the agent shortened the input to a bare client name,
+    # the narrative still leads with the engineering (given data + technical
+    # details); price is folded in only when the input actually asked about it.
+    text = record_detail(q, force_tech=True)
     recs, seen = [], set()
     for h in entity_hits(q):
         if h["id"] in seen:
@@ -431,7 +441,10 @@ def tool_lookup(payload: dict = Body(...)):
         r = h["record"]
         ps = r.get("price_schedule") or {}
         cur = ps.get("currency", "INR")
-        # preformatted rupee strings so the agent never regroups a historical price
+        # preformatted rupee strings so the agent never regroups a historical price.
+        # ALWAYS carried (even when price wasn't asked) so the model has the real
+        # figure to hand and can never invent one -- presentation (show/hide) is
+        # steered by `price_asked` + the prompt, but the number is always exact.
         ps_display = {k: (inr_display(v) if cur in (None, "INR", "Rs", "Rs.") else f"{cur} {v:,}")
                       for k, v in ps.items()
                       if k != "currency" and isinstance(v, (int, float))}
@@ -443,7 +456,7 @@ def tool_lookup(payload: dict = Body(...)):
                      "price_schedule_display": ps_display})
     if not recs:
         return {"ok": False, "message": "No matching client or offer found."}
-    return {"ok": True, "text": text, "records": recs[:4]}
+    return {"ok": True, "text": text, "price_asked": price_asked, "records": recs[:4]}
 
 
 # filter keys the agent may pass either nested under "filters" or at top level

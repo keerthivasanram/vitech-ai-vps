@@ -121,6 +121,21 @@ _DETAIL = re.compile(
     r"spec\w*|what\s+did|what\s+was|order(ed)?|scope|supplied|"
     r"the\s+data|extract\w*|stored|fields?|record)\b", re.I)
 
+# The user is explicitly asking about money — only then do we surface the price
+# schedule in a record view. "give details about X" must show the engineering,
+# not lead with rupees; price is shown when asked ("price/cost/quote of X").
+_PRICE_ASK = re.compile(
+    r"\b(price|prices|priced|pricing|cost|costs|costing|amount|value|worth|"
+    r"quote|quotation|commercial|rate|rates|budget|rupee|rupees|inr|"
+    r"how\s+much)\b|₹|\brs\.?\b", re.I)
+
+
+def wants_price(question: str) -> bool:
+    """True when the user explicitly asks about money, so a record view should
+    surface the price schedule. 'give details about X' is False (show the
+    engineering, not the rupees); 'price of X' / 'how much for X' is True."""
+    return bool(_PRICE_ASK.search(question or ""))
+
 
 def _fmt_val(v) -> str:
     if isinstance(v, float):
@@ -136,14 +151,22 @@ def _render_fields(category, d: dict) -> list[str]:
     return [f"- **{label_for(category, k)}:** {_fmt_val(v)}" for k, v in d.items()]
 
 
-def record_detail(question: str) -> str | None:
+def record_detail(question: str, *, force_tech: bool = False) -> str | None:
     """Deterministic view of the data extracted from a NAMED client's offer(s):
     given data + technical details + price schedule, verbatim from the record.
     This both fixes the 'given data of <client>' lookup and shows exactly what we
-    store per file. Returns None when no specific record is being asked about."""
+    store per file. Returns None when no specific record is being asked about.
+
+    Section-aware so it answers what was asked (and always deterministically, so
+    the model never invents a price): a plain "details about X" shows the
+    engineering and NO price; "price of X" shows the price schedule only; asking
+    for both shows both."""
     q = (question or "").strip()
-    if not _DETAIL.search(q):
+    want_price = wants_price(q)
+    want_detail = bool(_DETAIL.search(q)) or force_tech
+    if not (want_detail or want_price):
         return None
+    show_tech = want_detail or not want_price   # a price-only ask hides the engineering
     hits = entity_hits(q)
     if not hits:
         return None
@@ -169,22 +192,24 @@ def record_detail(question: str) -> str | None:
                 meta.append(f"{lbl}: {r[k]}")
         if meta:
             out.append("_" + "  |  ".join(meta) + "_")
-        gd = r.get("given_data") or {}
-        if gd:
-            out.append("\n**Given data (the requirement):**")
-            out += _render_fields(cat, gd)
-        td = r.get("technical_details") or {}
-        if td:
-            out.append("\n**Technical details (the engineered solution):**")
-            out += _render_fields(cat, td)
-        ps = r.get("price_schedule") or {}
-        cur = ps.get("currency", "INR")
-        # INR -> Indian grouping via inr_display (₹99,64,925); other currencies kept generic
-        def _money(v):
-            return inr_display(v) if cur in (None, "INR", "Rs", "Rs.") else f"{cur} {v:,}"
-        items = [f"{k}: {_money(v)}" if isinstance(v, (int, float))
-                 else f"{k}: {v}" for k, v in ps.items() if k != "currency"]
-        if items:
-            out.append("\n**Price schedule:** " + "; ".join(items))
+        if show_tech:
+            gd = r.get("given_data") or {}
+            if gd:
+                out.append("\n**Given data (the requirement):**")
+                out += _render_fields(cat, gd)
+            td = r.get("technical_details") or {}
+            if td:
+                out.append("\n**Technical details (the engineered solution):**")
+                out += _render_fields(cat, td)
+        if want_price:
+            ps = r.get("price_schedule") or {}
+            cur = ps.get("currency", "INR")
+            # INR -> Indian grouping via inr_display (₹99,64,925); other currencies kept generic
+            def _money(v):
+                return inr_display(v) if cur in (None, "INR", "Rs", "Rs.") else f"{cur} {v:,}"
+            items = [f"{k}: {_money(v)}" if isinstance(v, (int, float))
+                     else f"{k}: {v}" for k, v in ps.items() if k != "currency"]
+            if items:
+                out.append("\n**Price schedule:** " + "; ".join(items))
         out.append("")
     return "\n".join(out).strip()
