@@ -19,7 +19,7 @@ from . import config, jobs, session
 from .analysis import essential_present, requirement_completeness
 from .analytics import record_detail
 from .analytics import _label as category_label
-from .classify import classify_equipment
+from .classify import CONFIDENT, classify_equipment
 from .resolver import ATS, CONSULTING, resolve
 from .prompt import spec_summary, spec_writeup
 from .pricing import inr_display
@@ -497,27 +497,46 @@ def tool_filters():
 
 @app.post("/api/tools/list", operation_id="list_projects")
 def tool_list_projects(payload: dict = Body(...)):
-    """Enumerate ALL stored Vitech offers — answers 'how many / list all /
-    which clients / what categories / what have we quoted' deterministically.
+    """Enumerate stored Vitech offers — answers 'how many / list all / which
+    clients / what categories / what have we quoted' deterministically.
 
     The 4 other tools are point lookups; this one returns the whole set so the
     agent never has to guess a count or invent a client. Numbers are exact.
+
+    An EQUIPMENT FILTER is applied in Python when the question (or an explicit
+    `category`/`equipment_type` field) names an equipment type — e.g. "how many
+    clients in paint booth". golden rule #2: Python decides the scope and counts
+    it; the model NEVER filters a corpus in its head (that is the bug where
+    "clients in paint booth" dumped all 33 offers and invented "30 clients").
     """
     offers = _offers_overview()
-    clients = sorted({o["client"] for o in offers if o.get("client")})
-    cats: dict[str, int] = {}
+    # full-corpus category breakdown is always returned, so "what categories /
+    # equipment types do we have" (an unfiltered question) still works.
+    all_cats: dict[str, int] = {}
     for o in offers:
         c = o.get("category")
         if c:
-            cats[c] = cats.get(c, 0) + 1
+            all_cats[c] = all_cats.get(c, 0) + 1
     categories = [{"category": c, "count": n}
-                  for c, n in sorted(cats.items(), key=lambda kv: (-kv[1], kv[0]))]
+                  for c, n in sorted(all_cats.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+    # deterministic scope: explicit field wins, else classify from the question.
+    q = _tool_q(payload)
+    scope = payload.get("category") or payload.get("equipment_type")
+    if not scope:
+        guess, score = classify_equipment(q)
+        scope = guess if score >= CONFIDENT else None
+    scope = scope if scope in all_cats else None   # only filter on a real category
+    scoped = [o for o in offers if o.get("category") == scope] if scope else offers
+    scope_label = category_label(scope) if scope else None
+
+    clients = sorted({o["client"] for o in scoped if o.get("client")})
     projects = [{
         "id": o.get("id"), "client": o.get("client"), "category": o.get("category"),
         "ref": o.get("ref"), "date": o.get("date"),
         "price_total": o.get("price_total"),
         "price_total_display": inr_display(o["price_total"]) if o.get("price_total") else None,
-    } for o in offers]
+    } for o in scoped]
 
     # DETERMINISTIC RANKING (golden rule #2: Python ranks, the LLM only reads).
     # The model must never sort/compare prices itself — llama3.1:8b gets it wrong
@@ -535,16 +554,29 @@ def tool_list_projects(payload: dict = Body(...)):
     highest_project = ranked[0] if ranked else None
     lowest_project = ranked[-1] if ranked else None
     # A ready-to-print sentence so the model has nothing to compute or reword.
+    where = f" for {scope_label}" if scope_label else ""
     highest_answer = (
-        f"{highest_project['client']} has the highest quotation cost: "
+        f"{highest_project['client']} has the highest quotation cost{where}: "
         f"{highest_project['price_total_display']} "
         f"({highest_project['category']}, ref {highest_project['ref']})."
-        if highest_project else "No priced offers on record."
+        if highest_project else f"No priced offers on record{where}."
     )
+    # Ready-to-print count/client sentence so the model reports the exact scope.
+    if scope_label:
+        answer = (f"We have {len(scoped)} {scope_label} offer(s) on record, "
+                  f"for {len(clients)} client(s).")
+    else:
+        answer = (f"There are {len(offers)} offers on record across "
+                  f"{len(categories)} equipment categories, for "
+                  f"{len(clients)} clients.")
 
     return {
         "ok": True,
-        "count": len(offers),
+        "scope": scope,
+        "scope_label": scope_label,
+        "answer": answer,
+        "count": len(scoped),
+        "total_offers": len(offers),
         "n_clients": len(clients),
         "clients": clients,
         "categories": categories,
