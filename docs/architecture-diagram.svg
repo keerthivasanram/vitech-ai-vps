@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1080" viewBox="0 0 1440 1080" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="brandBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#16a34a"/>
+    </marker>
+    <style>
+      .band     { fill:#f7f9fa; stroke:#dbe1e6; stroke-width:1.5; rx:14; }
+      .bandlbl  { fill:#15803d; font-size:15px; font-weight:700; letter-spacing:.4px; }
+      .bandsub  { fill:#9ca3af; font-size:12px; }
+      .card     { fill:#ffffff; stroke:#e8ecef; stroke-width:1.4; rx:10; }
+      .cardg    { fill:#ffffff; stroke:#bbf7d0; stroke-width:1.6; rx:10; }
+      .accent   { fill:#16a34a; rx:3; }
+      .h        { fill:#111827; font-size:14px; font-weight:700; }
+      .h2       { fill:#111827; font-size:13px; font-weight:700; }
+      .s        { fill:#6b7280; font-size:11.5px; }
+      .s2       { fill:#6b7280; font-size:11px; }
+      .pill     { fill:#ecfdf5; stroke:#86efac; stroke-width:1.3; rx:14; }
+      .pilltxt  { fill:#15803d; font-size:12px; font-weight:600; }
+      .flow     { stroke:#16a34a; stroke-width:2; fill:none; marker-end:url(#arrow); }
+      .flowlbl  { fill:#16a34a; font-size:11px; font-weight:600; }
+      .title    { fill:#0f172a; font-size:26px; font-weight:800; }
+      .subtitle { fill:#6b7280; font-size:13.5px; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="1080" fill="#fafbfc"/>
+  <rect x="0" y="0" width="1440" height="6" fill="url(#brandBar)"/>
+
+  <!-- Title -->
+  <text x="40" y="52" class="title">Vitech AI Engineering Platform</text>
+  <text x="40" y="76" class="subtitle">System architecture — Flowise orchestrates; Python owns every number (deterministic). Human-reviewed drafts, never auto-sent.</text>
+
+  <!-- ============ BAND A: FRONTEND ============ -->
+  <rect x="40" y="98" width="1360" height="132" class="band"/>
+  <rect x="40" y="98" width="6" height="132" fill="url(#brandBar)" rx="3"/>
+  <text x="64" y="122" class="bandlbl">CLIENT · FRONTEND</text>
+  <text x="256" y="122" class="bandsub">React + Vite SPA (frontend/) · Vite/nginx proxy /flowise→:3000, /api→:8000 · allowedHosts:true</text>
+
+  <g>
+    <rect x="64"  y="138" width="252" height="78" class="card"/><rect x="64" y="138" width="5" height="78" class="accent"/>
+    <text x="82" y="162" class="h2">Chat rail</text>
+    <text x="82" y="182" class="s">Agent-aware: Engineering /</text>
+    <text x="82" y="198" class="s">Quotation · streaming SSE</text>
+
+    <rect x="332" y="138" width="252" height="78" class="card"/><rect x="332" y="138" width="5" height="78" class="accent"/>
+    <text x="350" y="162" class="h2">Knowledge Base</text>
+    <text x="350" y="182" class="s">Collections taxonomy +</text>
+    <text x="350" y="198" class="s">facets · CollectionPage</text>
+
+    <rect x="600" y="138" width="252" height="78" class="card"/><rect x="600" y="138" width="5" height="78" class="accent"/>
+    <text x="618" y="162" class="h2">Dashboard</text>
+    <text x="618" y="182" class="s">Historical Projects ·</text>
+    <text x="618" y="198" class="s">OfferTable / OfferDrawer</text>
+
+    <rect x="868" y="138" width="252" height="78" class="card"/><rect x="868" y="138" width="5" height="78" class="accent"/>
+    <text x="886" y="162" class="h2">Upload · Profile</text>
+    <text x="886" y="182" class="s">UploadPage · LiveHelp ·</text>
+    <text x="886" y="198" class="s">Roadmap · Profile</text>
+
+    <rect x="1136" y="138" width="248" height="78" class="card"/><rect x="1136" y="138" width="5" height="78" class="accent"/>
+    <text x="1154" y="162" class="h2">Shared UI</text>
+    <text x="1154" y="182" class="s">Sidebar · HeroCard ·</text>
+    <text x="1154" y="198" class="s">ChatInput · QuickActions</text>
+  </g>
+
+  <!-- flow A -> B -->
+  <path class="flow" d="M720,230 L720,268"/>
+  <text x="732" y="254" class="flowlbl">POST /api/v1/prediction/&lt;agentId&gt; (SSE)</text>
+
+  <!-- ============ BAND B: ORCHESTRATION ============ -->
+  <rect x="40" y="270" width="1360" height="150" class="band"/>
+  <rect x="40" y="270" width="6" height="150" fill="url(#brandBar)" rx="3"/>
+  <text x="64" y="294" class="bandlbl">ORCHESTRATION · FLOWISE 3.0.13 (Postgres-backed, pinned + patched)</text>
+  <text x="64" y="313" class="bandsub">Tool Agent needs a tool-capable model — llama3.1:8b advertises `tools`; base llama3 does not.</text>
+
+  <g>
+    <rect x="64" y="326" width="648" height="82" class="cardg"/>
+    <rect x="64" y="326" width="5" height="82" class="accent"/>
+    <text x="84" y="350" class="h">Engineering Agent  ·  c4bfba16…</text>
+    <text x="84" y="372" class="s">Tool Agent + ChatOllama llama3.1:8b @ temp 0 + BufferMemory</text>
+    <text x="84" y="392" class="s">5 tools · two-mode prompt (Consulting knowledge / ATS project work)</text>
+  </g>
+  <g>
+    <rect x="736" y="326" width="648" height="82" class="cardg"/>
+    <rect x="736" y="326" width="5" height="82" class="accent"/>
+    <text x="756" y="350" class="h">Quotation Agent  ·  6fa5a302…</text>
+    <text x="756" y="372" class="s">Same graph, specialised for budgetary quotations</text>
+    <text x="756" y="392" class="s">4 tools (drops generate_specification) · reuses shared tool rows</text>
+  </g>
+
+  <!-- flow B -> Ollama (side) and B -> C -->
+  <path class="flow" d="M720,420 L720,452"/>
+  <text x="732" y="440" class="flowlbl">node-fetch POST http://localhost:8000/api/tools/*</text>
+
+  <!-- ============ BAND C: TOOL BRIDGE ============ -->
+  <rect x="40" y="454" width="1360" height="118" class="band"/>
+  <rect x="40" y="454" width="6" height="118" fill="url(#brandBar)" rx="3"/>
+  <text x="64" y="478" class="bandlbl">TOOL &amp; API BRIDGE · FastAPI (backend/app/main.py)</text>
+  <text x="64" y="497" class="bandsub">Clean JSON tools — Python does the reasoning, Flowise only orchestrates + narrates. Explicit operation_id per tool.</text>
+
+  <g>
+    <rect x="64"  y="512" width="238" height="30" class="pill"/><text x="183" y="532" text-anchor="middle" class="pilltxt">generate_specification</text>
+    <rect x="316" y="512" width="220" height="30" class="pill"/><text x="426" y="532" text-anchor="middle" class="pilltxt">generate_quotation</text>
+    <rect x="550" y="512" width="188" height="30" class="pill"/><text x="644" y="532" text-anchor="middle" class="pilltxt">lookup_project</text>
+    <rect x="752" y="512" width="208" height="30" class="pill"/><text x="856" y="532" text-anchor="middle" class="pilltxt">retrieve_knowledge</text>
+    <rect x="974" y="512" width="176" height="30" class="pill"/><text x="1062" y="532" text-anchor="middle" class="pilltxt">list_projects</text>
+    <rect x="1164" y="512" width="220" height="30" class="card"/><text x="1274" y="532" text-anchor="middle" class="s2">UI: /api/offers · /knowledge/overview · /uploads</text>
+  </g>
+
+  <!-- flow C -> D -->
+  <path class="flow" d="M720,572 L720,600"/>
+
+  <!-- ============ BAND D: ENGINE ============ -->
+  <rect x="40" y="602" width="1360" height="236" class="band"/>
+  <rect x="40" y="602" width="6" height="236" fill="url(#brandBar)" rx="3"/>
+  <text x="64" y="626" class="bandlbl">DETERMINISTIC ENGINE · backend/app/  (the reusable core — engineering rules + historical data + code produce every number)</text>
+
+  <g>
+    <!-- row 1 -->
+    <rect x="64" y="640" width="316" height="88" class="card"/><rect x="64" y="640" width="5" height="88" class="accent"/>
+    <text x="82" y="664" class="h2">Understanding &amp; routing</text>
+    <text x="82" y="686" class="s">understand.py · classify.py</text>
+    <text x="82" y="704" class="s">catalog.py · validate.py</text>
+    <text x="82" y="722" class="s2">intent + params, equipment classifier</text>
+
+    <rect x="396" y="640" width="316" height="88" class="card"/><rect x="396" y="640" width="5" height="88" class="accent"/>
+    <text x="414" y="664" class="h2">Resolver core</text>
+    <text x="414" y="686" class="s">spec_schema.py (Policy: Consulting/ATS)</text>
+    <text x="414" y="704" class="s">resolver.py · analysis.py · rules.py</text>
+    <text x="414" y="722" class="s2">one resolver, two policies</text>
+
+    <rect x="728" y="640" width="316" height="88" class="card"/><rect x="728" y="640" width="5" height="88" class="accent"/>
+    <text x="746" y="664" class="h2">Pricing &amp; quotation</text>
+    <text x="746" y="686" class="s">pricing.py (per-unit scaling, ±range)</text>
+    <text x="746" y="704" class="s">quotation.py · quotation_pdf.py</text>
+    <text x="746" y="722" class="s2">inr_display() Indian grouping</text>
+
+    <rect x="1060" y="640" width="324" height="88" class="card"/><rect x="1060" y="640" width="5" height="88" class="accent"/>
+    <text x="1078" y="664" class="h2">Analytics &amp; lookup</text>
+    <text x="1078" y="686" class="s">analytics.py (counts / lists /</text>
+    <text x="1078" y="704" class="s">record_detail) · ledger.py</text>
+    <text x="1078" y="722" class="s2">exact counts, never LLM-counted</text>
+
+    <!-- row 2 -->
+    <rect x="64" y="740" width="480" height="84" class="card"/><rect x="64" y="740" width="5" height="84" class="accent"/>
+    <text x="82" y="764" class="h2">RAG / retrieval  (rag/ + store)</text>
+    <text x="82" y="786" class="s">rag/: loader · chunker · embedding · sections · retrieve · metadata</text>
+    <text x="82" y="806" class="s">retriever.py · store.py · ingest.py · knowledge.py</text>
+
+    <rect x="560" y="740" width="360" height="84" class="card"/><rect x="560" y="740" width="5" height="84" class="accent"/>
+    <text x="578" y="764" class="h2">Prose &amp; prompts  (LLM writes narrative only)</text>
+    <text x="578" y="786" class="s">prompt.py (system prompts) · llm.py (plan_answer)</text>
+    <text x="578" y="806" class="s2">the model never invents a dimension / price / count</text>
+
+    <rect x="936" y="740" width="448" height="84" class="card"/><rect x="936" y="740" width="5" height="84" class="accent"/>
+    <text x="954" y="764" class="h2">Support &amp; session</text>
+    <text x="954" y="786" class="s">schema.py · config.py · session.py · jobs.py</text>
+    <text x="954" y="806" class="s2">Golden tests: tests_golden.py — 10 cases, byte-identical, must stay ALL PASS</text>
+  </g>
+
+  <!-- flow D -> E -->
+  <path class="flow" d="M720,838 L720,866"/>
+
+  <!-- ============ BAND E: DATA & MODELS ============ -->
+  <rect x="40" y="868" width="1360" height="140" class="band"/>
+  <rect x="40" y="868" width="6" height="140" fill="url(#brandBar)" rx="3"/>
+  <text x="64" y="892" class="bandlbl">DATA &amp; MODELS</text>
+  <text x="64" y="911" class="bandsub">Native wiring — services talk over localhost (Ollama :11434 · backend :8000 · Postgres :5432)</text>
+
+  <g>
+    <rect x="64"  y="924" width="252" height="70" class="card"/><rect x="64" y="924" width="5" height="70" class="accent"/>
+    <text x="82" y="948" class="h2">Ollama (LLM)</text>
+    <text x="82" y="968" class="s">llama3.1:8b (GPU VPS)</text>
+    <text x="82" y="986" class="s">qwen2.5:3b (local dev)</text>
+
+    <rect x="332" y="924" width="252" height="70" class="card"/><rect x="332" y="924" width="5" height="70" class="accent"/>
+    <text x="350" y="948" class="h2">ChromaDB (embedded)</text>
+    <text x="350" y="968" class="s">all-MiniLM-L6-v2 embeddings</text>
+    <text x="350" y="986" class="s">offers + documents corpus</text>
+
+    <rect x="600" y="924" width="252" height="70" class="card"/><rect x="600" y="924" width="5" height="70" class="accent"/>
+    <text x="618" y="948" class="h2">PostgreSQL</text>
+    <text x="618" y="968" class="s">Flowise chatflows + tools</text>
+    <text x="618" y="986" class="s">backed up to vitech.sql</text>
+
+    <rect x="868" y="924" width="252" height="70" class="card"/><rect x="868" y="924" width="5" height="70" class="accent"/>
+    <text x="886" y="948" class="h2">Redis</text>
+    <text x="886" y="968" class="s">cache · optional Redis-</text>
+    <text x="886" y="986" class="s">backed chat memory</text>
+
+    <rect x="1136" y="924" width="248" height="70" class="card"/><rect x="1136" y="924" width="5" height="70" class="accent"/>
+    <text x="1154" y="948" class="h2">data/offers/*.json</text>
+    <text x="1154" y="968" class="s">33 real Vitech offers</text>
+    <text x="1154" y="986" class="s">hand-extracted schema</text>
+  </g>
+
+  <!-- ============ FOOTER: INFRA ============ -->
+  <rect x="40" y="1022" width="1360" height="36" rx="10" fill="#ecfdf5" stroke="#86efac" stroke-width="1.3"/>
+  <text x="60" y="1045" class="pilltxt">INFRA · RunPod GPU VPS — runs NATIVE (no Docker) · everything durable on the /workspace volume · start-all.sh (up) / bootstrap-pod.sh (rebuild) · restore agents from vitech.sql</text>
+</svg>
