@@ -188,9 +188,15 @@ def _fallback(question: str) -> QueryUnderstanding:
         params["tower_diameter_mm"] = float(c.group(1))
     if (c := _HP.search(q)):
         params["pump_capacity_hp"] = float(c.group(1))
-    qmatch = re.search(r"(\d+)\s*(?:nos|no\.?|units?)\b", q)
+    # Quantity may be written number-first ("4 nos / 4 units / 4 pcs / 4 sets")
+    # or keyword-first ("quantity 4 / qty: 4 / qty of 4"). Recognise both - a
+    # quote passed as "quantity 4" must not silently fall back to qty 1, which
+    # printed a 1-unit total for a 4-unit order.
+    qmatch = re.search(
+        r"(\d+)\s*(?:nos?\.?|units?|pcs?\.?|sets?|numbers?|off)\b"
+        r"|(?:qty|quantity)\s*(?:of\s+|[:\-]\s*)?(\d+)", q)
     if qmatch:
-        params["qty"] = int(qmatch.group(1))
+        params["qty"] = int(qmatch.group(1) or qmatch.group(2))
     for p in _PAINTS:
         if p in q:
             params["paint_type"] = p.replace(" ", "-")
