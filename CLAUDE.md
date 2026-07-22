@@ -57,9 +57,12 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
 - [ ] B1. Add a **BGE cross-encoder reranker** to `rag/retrieve.py` (top-20 → top-5),
       new `rag/reranker.py` — biggest quality win, no migration. (needs models; do after A2 ingest)
 - [ ] B2. Add a **Redis cache** for embeddings/retrieval (Redis already runs, unused today).
-- [ ] C1–C3 (LOCAL ok, golden-gated pure moves): extract `_prepare`→`agent_router.py`;
-      `resolver`+`analysis`→`engineering_planner.py`; split `llm.py`. Keep number-generation
-      out of the LLM layer (golden rule #2).
+- [x] C1 DONE (2a60dd3): `_prepare`+`_meta` → `app/agent_router.py`, golden ALL PASS.
+- [ ] C2–C3 (LOCAL ok, golden-gated): decompose `analysis.py` orchestration →
+      `engineering_planner.py` (real value = formula/calc/material sub-services, not a thin
+      wrapper — see local memory `backend-next-phase-plan`); split `llm.py`. Keep
+      number-generation out of the LLM layer (golden rule #2). NB: local golden runs need
+      `python -m app.ingest` first (see that memory for the exact recipe).
 - [ ] D1. **Qdrant** replaces embedded Chroma + re-ingest with **BGE-M3** = full re-embed
       (invalidates existing vectors — embedding-model-match gotcha).
 - [ ] D2. Model swap to **DeepSeek R1** — FIRST confirm it advertises `tools` in Ollama;
