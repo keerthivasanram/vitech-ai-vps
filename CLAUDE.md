@@ -50,8 +50,22 @@ The VPS/RunPod pod is **currently stopped**. Development happens in two places:
 - [ ] **Phase 3 ingestion** (highest value): populate the `type=document` corpus so
       `retrieve_knowledge` stops returning `count:0` — see Immediate next steps.
 - [ ] After ANY agent/prompt change: `bash /workspace/persistent/pg-backup.sh` before stopping.
-- (Next-phase architecture work — Qdrant/BGE-M3 re-ingest, reranker, permission model,
-  extra channels — is pod-side; queue concrete tasks here as they're scoped.)
+
+Backend next-phase (sequenced; full detail + rationale in local memory
+`backend-next-phase-plan`). **Every engine change: run `tests_golden.py` before AND after —
+must stay ALL PASS.** Pod-side unless marked LOCAL:
+- [ ] B1. Add a **BGE cross-encoder reranker** to `rag/retrieve.py` (top-20 → top-5),
+      new `rag/reranker.py` — biggest quality win, no migration. (needs models; do after A2 ingest)
+- [ ] B2. Add a **Redis cache** for embeddings/retrieval (Redis already runs, unused today).
+- [ ] C1–C3 (LOCAL ok, golden-gated pure moves): extract `_prepare`→`agent_router.py`;
+      `resolver`+`analysis`→`engineering_planner.py`; split `llm.py`. Keep number-generation
+      out of the LLM layer (golden rule #2).
+- [ ] D1. **Qdrant** replaces embedded Chroma + re-ingest with **BGE-M3** = full re-embed
+      (invalidates existing vectors — embedding-model-match gotcha).
+- [ ] D2. Model swap to **DeepSeek R1** — FIRST confirm it advertises `tools` in Ollama;
+      llama3.1:8b stays the fallback.
+- [ ] E1. `permission_filter` (needs a user/role/ACL model — none today). E2. Teams/Slack/
+      mobile/REST channels (each its own auth + delivery surface).
 
 ## Current state (Engineering Agent LIVE on the RunPod pod)
 - **Backend**: FastAPI in `backend/app/`, embedded **ChromaDB**, **Ollama** (`qwen2.5:3b`
