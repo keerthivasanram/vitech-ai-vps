@@ -25,6 +25,7 @@ from .prompt import spec_summary, spec_writeup
 from .pricing import inr_display
 from .quotation import build_quotation
 from .quotation_pdf import render_quotation_pdf
+from .specification_pdf import render_specification_pdf
 from .catalog import get_profile
 from .ingest import ingest_source
 from .llm import generate_answer, stream_answer
@@ -274,6 +275,37 @@ def quotation_pdf(quote: dict = Body(...)):
     ref = str(quote.get("ref") or "quotation").replace(" ", "_")
     return Response(content=data, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{ref}.pdf"'})
+
+
+@app.post("/api/specification/pdf")
+def specification_pdf(spec: dict = Body(...)):
+    """Render a specification object (from a generate_specification response, as
+    surfaced by the chat) to a downloadable Vitech-format PDF. Deterministic —
+    it prints the engineered rows, adding no numbers of its own. Accepts either
+    the structured payload or a {text: "..."} fallback."""
+    data = render_specification_pdf(spec)
+    name = str(spec.get("category_label") or "specification").replace(" ", "_")
+    return Response(content=data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{name}_specification.pdf"'})
+
+
+@app.get("/api/offers/by-source/{source_file:path}")
+def offer_by_source(source_file: str):
+    """Full extracted record whose `source_file` matches — lets the chat open the
+    content behind a specification's cited source file in the record inspector.
+    Matches on the exact stored name, else on basename (case-insensitive)."""
+    target = Path(source_file).name.strip().lower()
+    col = get_collection()
+    if col.count():
+        for m in col.get(include=["metadatas"])["metadatas"]:
+            raw = m.get("_raw")
+            if not raw:
+                continue
+            r = json.loads(raw)
+            sf = r.get("source_file")
+            if sf and Path(str(sf)).name.strip().lower() == target:
+                return r
+    return {"error": "not found", "source_file": source_file}
 
 
 # --- Tool endpoints for the Flowise Engineering Agent -----------------------

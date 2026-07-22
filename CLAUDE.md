@@ -18,6 +18,41 @@ grounded in historical offers + engineering knowledge. **Not** a general chatbot
    dimension, price, capacity, count, or material.
 3. **Human-in-the-loop** — every output is an engineer-reviewed *draft*, not auto-sent.
 
+## Working mode — WHO does what (local dev vs VPS)
+The VPS/RunPod pod is **currently stopped**. Development happens in two places:
+- **Local sessions (Windows, this machine)**: work on **frontend + backend code only**
+  — anything that is just source edits and can be validated without a running pod
+  (React/CSS/JS, FastAPI Python logic, golden tests where the venv is present).
+  **Push to git at the end of each session** so the pod can `git pull` the changes.
+  Do NOT try to start Flowise / Ollama / Postgres / ingestion here.
+- **VPS session ("VPS Claude", runs on the pod when it's back up)**: does everything
+  that needs the live stack — Flowise agent rebuilds/prompt tuning, Ollama model
+  changes, ChromaDB/Qdrant ingestion, service restarts, end-to-end agent verification.
+- **Handoff channel = this file (committed, auto-loaded on the pod).** When a local
+  session produces work that still needs something done *on the pod*, append it to the
+  **VPS Action Queue** below. That is how VPS Claude finds out what to run. Keep the
+  queue current: add when you defer pod-side work, tick/remove when it's confirmed done.
+
+## VPS Action Queue (VPS Claude: run these when the pod is back up)
+> Local sessions append here; the VPS session executes + then checks items off.
+> Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
+- [ ] `git pull` first — pick up all frontend/backend changes pushed from local sessions.
+- [ ] Restart the stack: `bash /workspace/persistent/start-all.sh`; forward 5173/3000/8000.
+- [ ] Verify the frontend redesign renders on the pod (glass shell, blueprint bg, hero
+      card, header→workspace spacing) in both light+dark once it's serving.
+- [ ] Verify **spec → Download PDF** end-to-end: generate a spec in the Engineering
+      Agent, click "Download PDF" under the reply → `POST /api/specification/pdf`
+      returns a valid PDF (fpdf2 isn't installed in the local Windows env, so this
+      renderer — `backend/app/specification_pdf.py` — was only byte-compiled locally).
+- [ ] Verify **source-file open**: a reply's "Source files" chips open the record
+      inspector — lookup_project records open directly; a spec's cited filename resolves
+      via `GET /api/offers/by-source/{file}` (returns the extracted record).
+- [ ] **Phase 3 ingestion** (highest value): populate the `type=document` corpus so
+      `retrieve_knowledge` stops returning `count:0` — see Immediate next steps.
+- [ ] After ANY agent/prompt change: `bash /workspace/persistent/pg-backup.sh` before stopping.
+- (Next-phase architecture work — Qdrant/BGE-M3 re-ingest, reranker, permission model,
+  extra channels — is pod-side; queue concrete tasks here as they're scoped.)
+
 ## Current state (Engineering Agent LIVE on the RunPod pod)
 - **Backend**: FastAPI in `backend/app/`, embedded **ChromaDB**, **Ollama** (`qwen2.5:3b`
   locally; `llama3.1:8b` on the GPU VPS — must be a **tool-capable** model, base

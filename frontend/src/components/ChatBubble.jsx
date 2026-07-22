@@ -1,11 +1,39 @@
 import { memo, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Bot, Check, CheckCheck, Copy, MoreHorizontal, Sparkles, ThumbsDown, ThumbsUp,
+  Bot, Check, CheckCheck, Copy, FileDown, FileText, MoreHorizontal, Sparkles,
+  ThumbsDown, ThumbsUp,
 } from "lucide-react";
 import { Answer } from "../lib/markdown";
 import { QuotationCard } from "./QuotationCard";
 import { THINK_LABELS } from "../lib/constants";
+
+/* POST a specification payload to the backend and download the returned PDF.
+   Mirrors QuotationCard's downloadQuotePdf — the backend renders it, nothing is
+   computed in the UI. Falls back to the raw answer text if there's no payload. */
+async function downloadSpecPdf(spec, fallbackText) {
+  const body = spec || { text: fallbackText };
+  try {
+    const resp = await fetch("/api/specification/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const name = (spec?.category_label || "specification").replace(/\s+/g, "_");
+    a.href = url;
+    a.download = `${name}_specification.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    /* offline / backend down — no-op */
+  }
+}
 
 /* Staged "thinking" label — advances while the first token is pending. */
 const Thinking = memo(function Thinking() {
@@ -70,8 +98,48 @@ const Reactions = memo(function Reactions({ text }) {
   );
 });
 
+/* Download-as-PDF control shown below a generated specification. */
+const SpecActions = memo(function SpecActions({ spec, text }) {
+  return (
+    <div className="spec-actions">
+      <button
+        type="button"
+        className="spec-pdf-btn"
+        onClick={() => downloadSpecPdf(spec, text)}
+        aria-label="Download specification as PDF"
+        title="Download specification as PDF"
+      >
+        <FileDown size={15} strokeWidth={1.8} aria-hidden="true" />
+        Download PDF
+      </button>
+    </div>
+  );
+});
+
+/* Citeable source files. Each opens its extracted content in the record
+   inspector — clicking hands the source up to the chat window's onOpenSource. */
+const Sources = memo(function Sources({ sources, onOpenSource }) {
+  return (
+    <div className="sources">
+      <span className="sources-title">Source files</span>
+      {sources.map((s, i) => (
+        <button
+          key={s.label || i}
+          type="button"
+          className="source is-open"
+          onClick={() => onOpenSource?.(s)}
+          title={`Open ${s.label}`}
+        >
+          <FileText size={12} strokeWidth={1.9} aria-hidden="true" />
+          <span className="source-name">{s.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+});
+
 /* Badges derived from which tools ran, then the answer itself. */
-const AssistantBody = memo(function AssistantBody({ data }) {
+const AssistantBody = memo(function AssistantBody({ data, onOpenSource }) {
   if (data.small_talk) return <Answer text={data.answer} />;
   return (
     <>
@@ -90,21 +158,17 @@ const AssistantBody = memo(function AssistantBody({ data }) {
 
       <Answer text={data.answer} />
       {data.quotation && <QuotationCard q={data.quotation} />}
+      {data.spec && <SpecActions spec={data.spec} text={data.answer} />}
 
-      {data.grounded && data.sources?.length > 0 && (
-        <div className="sources">
-          <span className="sources-title">Sources</span>
-          {data.sources.map((s) => (
-            <span key={s.id} className={`source ${s.type}`}>{s.source_file || s.id}</span>
-          ))}
-        </div>
+      {data.sources?.length > 0 && (
+        <Sources sources={data.sources} onOpenSource={onOpenSource} />
       )}
     </>
   );
 });
 
 /** One transcript row — user bubble on the right, assistant card on the left. */
-export const ChatBubble = memo(function ChatBubble({ msg, agentName }) {
+export const ChatBubble = memo(function ChatBubble({ msg, agentName, onOpenSource }) {
   const isUser = msg.role === "user";
 
   const row = (children) => (
@@ -151,7 +215,7 @@ export const ChatBubble = memo(function ChatBubble({ msg, agentName }) {
         </div>
 
         {msg.data
-          ? <AssistantBody data={msg.data} />
+          ? <AssistantBody data={msg.data} onOpenSource={onOpenSource} />
           : pending
             ? <Thinking />
             : <Answer text={msg.text} streaming={msg.streaming} />}

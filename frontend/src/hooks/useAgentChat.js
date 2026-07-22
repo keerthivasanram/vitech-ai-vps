@@ -6,12 +6,71 @@ const SESSION_KEY = "ats_session";
 const CONVO_KEY = "vitech_convos";
 const CONVO_LIMIT = 20;
 
+/* Flowise reports each tool call as {tool, toolInput, toolOutput}; toolOutput is
+   a JSON string of our backend's response. Parse it defensively. */
+function parseOutput(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "object") return raw;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+/* Pull the citeable source files out of the tool outputs, as things the UI can
+   open. lookup_project carries the full record (opens directly in the inspector);
+   generate_specification / retrieve_knowledge carry only a filename, opened by
+   resolving it to its record on click. Deduped, most useful first. */
+function collectSources(calls) {
+  const out = [];
+  const seen = new Set();
+  const push = (key, item) => {
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(item);
+  };
+  for (const c of calls) {
+    const o = parseOutput(c.toolOutput);
+    if (!o) continue;
+    if (c.tool === "lookup_project" && Array.isArray(o.records)) {
+      for (const r of o.records) {
+        push(r.id || r.source_file, {
+          label: r.source_file || r.id,
+          record: r,               // full record — open in the drawer with no fetch
+        });
+      }
+    } else if (c.tool === "generate_specification" && Array.isArray(o.sources)) {
+      for (const sf of o.sources) push(sf, { label: sf, sourceFile: sf });
+    } else if (c.tool === "retrieve_knowledge" && Array.isArray(o.results)) {
+      for (const h of o.results) {
+        if (h.source_file) push(h.source_file, { label: h.source_file, sourceFile: h.source_file });
+      }
+    }
+  }
+  return out;
+}
+
+/* True once generate_specification actually produced a structured spec (not a
+   guard "need_requirement" bounce), plus the payload we hand to the PDF route. */
+function findSpec(calls) {
+  for (const c of calls) {
+    if (c.tool !== "generate_specification") continue;
+    const o = parseOutput(c.toolOutput);
+    if (o && (o.spec_markdown || (o.technical_details && o.technical_details.length))) {
+      return o;
+    }
+  }
+  return null;
+}
+
 /* Shape the agent's reply the way <AssistantBody> expects: it renders
    data.answer, so `answer` is required — without it the reply renders blank.
    The badges then fall out of which tools ran: no tools = Mode A consulting,
-   a spec/quote tool = Mode B deterministic project work. */
-function agentData(answer, tools, llm) {
+   a spec/quote tool = Mode B deterministic project work.
+
+   `calls` is the raw Flowise usedTools array ({tool, toolInput, toolOutput}). */
+function agentData(answer, calls, llm) {
+  const tools = calls.map((c) => c.tool).filter(Boolean);
   const deterministic = tools.some((t) => DETERMINISTIC_TOOLS.includes(t));
+  const spec = findSpec(calls);
+  const sources = collectSources(calls);
   return {
     answer,
     llm,
@@ -19,6 +78,8 @@ function agentData(answer, tools, llm) {
     grounded: tools.length > 0,
     spec_mode: deterministic ? "data" : tools.length === 0 ? "knowledge" : undefined,
     intent: tools.length ? tools.join(" · ") : undefined,
+    spec,                                  // structured spec payload → PDF (null if none)
+    sources: sources.length ? sources : undefined,
   };
 }
 
@@ -116,7 +177,7 @@ export function useAgentChat(view, health) {
 
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
-        let buf = "", acc = "", tools = [];
+        let buf = "", acc = "", calls = [];
         // coalesce tokens: render at most once per animation frame, not per token
         let raf = 0;
         const flush = () => { raf = 0; patch({ text: acc }); };
@@ -142,12 +203,12 @@ export function useAgentChat(view, health) {
               acc += evt.data;
               schedule();
             } else if (evt.event === "usedTools" && Array.isArray(evt.data)) {
-              tools = evt.data.map((t) => t.tool).filter(Boolean);
+              calls = evt.data.filter((t) => t && t.tool);
             } else if (evt.event === "end") {
               if (raf) { cancelAnimationFrame(raf); raf = 0; }
               patch({
                 text: acc,
-                data: agentData(acc, tools, health?.llm_model),
+                data: agentData(acc, calls, health?.llm_model),
                 streaming: false,
                 time: fmtTime(),
               });
@@ -158,7 +219,7 @@ export function useAgentChat(view, health) {
         if (!acc) throw new Error("empty stream");
         patch({
           text: acc,
-          data: agentData(acc, tools, health?.llm_model),
+          data: agentData(acc, calls, health?.llm_model),
           streaming: false,
           time: fmtTime(),
         });
@@ -173,7 +234,7 @@ export function useAgentChat(view, health) {
           if (!resp.ok) throw new Error("bad status");
           const data = await resp.json();
           const answer = data.text ?? data.answer ?? "(no response)";
-          const used = (data.usedTools || []).map((t) => t.tool).filter(Boolean);
+          const used = (data.usedTools || []).filter((t) => t && t.tool);
           patch({
             text: answer,
             data: agentData(answer, used, health?.llm_model),
