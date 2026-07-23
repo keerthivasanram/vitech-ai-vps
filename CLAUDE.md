@@ -148,8 +148,11 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   only (word-boundary) — NOT title words, so "water wall **paint booth**" no longer matches
   every paint/booth/conveyor offer. `structured_project_hits` handles no-client queries by
   equipment type + dimensions (deterministic, exact match returned alone), e.g.
-  "0.9 x 0.92 x 2 water wall paint booth" → the one Yonex booth. `project_hits` = named
-  first, else structured. Guarded by `tests_lookup.py`.
+  "0.9 x 0.92 x 2 water wall paint booth" → the one Yonex booth. When equipment is
+  classified confidently but there is NO parseable dimension ("hot air oven U-type 6.5L",
+  "which clients for hot air oven"), it returns the category's projects rather than claim we
+  have none — fixed the "hot air oven → no clients" bug when 2 oven offers existed.
+  `project_hits` = named first, else structured. Guarded by `tests_lookup.py`.
 - **Support**: `app/validate.py`, `app/ledger.py`, `app/catalog.py` (category
   profiles + `required_inputs`), `app/understand.py` (intent + param extraction),
   `app/llm.py` (plan_answer, answer layer), `app/ollama_client.py` (Ollama transport,

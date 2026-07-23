@@ -51,6 +51,15 @@ check("entity_hits ignores bare equipment words", entity_hits("water wall paint 
 # 6) structured lookup needs a confident equipment type + a numeric attribute
 check("structured lookup empty without equipment+attrs", structured_project_hits("hello there") == [])
 
+# 7) equipment named but no parseable dimensions -> LIST the category's clients,
+#    never claim we have none (the "hot air oven U-type 6.5L -> no clients" bug)
+oven = project_hits("hot air oven conveyorised U-type 6.5L for this specification are we worked for any clients")
+check("hot air oven query returns the category's real clients", len(oven) >= 2, ids(oven))
+check("hot air oven query includes both known oven offers",
+      {"OFF-ZFWABCO-OVEN-424R4", "OFF-SURFACE-OVEN-356R3"}.issubset(set(ids(oven))), ids(oven))
+listq = project_hits("list clients we worked on hot air oven")
+check("'list clients ... hot air oven' lists oven clients", len(listq) >= 2, ids(listq))
+
 print()
 if _fail:
     print(f"{_fail} LOOKUP TEST(S) FAILED")

@@ -196,21 +196,31 @@ def structured_project_hits(question: str) -> list[dict[str, Any]]:
         return []
     params = {k: v for k, v in _fallback(question).parameters.items()
               if isinstance(v, (int, float))}
-    if not params:
-        return []
 
     col = get_collection()
     if col.count() == 0:
         return []
     res = col.get(include=["documents", "metadatas"])
-    scored = []
+    cat_offers = []                                   # (doc, rec) for this category
     for doc, meta in zip(res["documents"], res["metadatas"]):
         raw = meta.get("_raw")
         if not raw:
             continue
         rec = json.loads(raw)
-        if rec.get("type", "offer") != "offer" or rec.get("category") != cat:
-            continue
+        if rec.get("type", "offer") == "offer" and rec.get("category") == cat:
+            cat_offers.append((doc, rec))
+    if not cat_offers:
+        return []
+
+    # Equipment named but no dimensions to match on (e.g. "hot air oven" or a spec
+    # like "U-type 6.5L" that isn't a parseable size): return the category's
+    # projects so "have we done a hot air oven / which clients" lists the real
+    # clients — never claim we have none when we plainly have offers in this type.
+    if not params:
+        return [_make_hit(rec, doc, score=0.6) for doc, rec in cat_offers]
+
+    scored = []
+    for doc, rec in cat_offers:
         gd = rec.get("given_data", {}) or {}
         keys = [k for k in params if isinstance(gd.get(k), (int, float))]
         if not keys:
@@ -221,8 +231,10 @@ def structured_project_hits(question: str) -> list[dict[str, Any]]:
         exact = len(keys) == len(params) and all(d < 0.02 for d in diffs)
         scored.append((exact, max(0.0, 1 - avg), len(keys), rec, doc))
 
+    # params given but none comparable to this category's data -> still show the
+    # category's projects rather than claim we have none.
     if not scored:
-        return []
+        return [_make_hit(rec, doc, score=0.6) for doc, rec in cat_offers]
     # exact matches first, then by closeness, then by how many attributes matched
     scored.sort(key=lambda p: (not p[0], -p[1], -p[2]))
     exacts = [t for t in scored if t[0]]
