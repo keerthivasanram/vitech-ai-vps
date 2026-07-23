@@ -36,6 +36,28 @@ The VPS/RunPod pod is **currently stopped**. Development happens in two places:
 ## VPS Action Queue (VPS Claude: run these when the pod is back up)
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
+
+### ▶ TOMORROW — start here (as of 2026-07-23, end of session)
+State: Engineering Agent is **architecture-complete** (engineering/ calc package + full
+retrieval pipeline built; lookup now content-relevance + scales). Golden 10 / retrieval 16 /
+lookup 12 ALL PASS. Everything committed+pushed to `fix/list-projects-category-filter`. The
+ONLY thing blocking grounded knowledge answers is client documents.
+1. **First**: `bash /workspace/persistent/start-all.sh`; forward 5173/3000/8000. If psql/node
+   /ollama are missing (container wiped), run `bootstrap-pod.sh` FIRST.
+2. **If the client provided documents** → drop them in `backend/data/bulk/`, run
+   `cd backend && .venv/bin/python -m rag.ingest data/bulk --equipment-type X --customer Y`,
+   then `curl -X POST localhost:8000/api/admin/reload-index` (no restart needed), and verify
+   `retrieve_knowledge` returns hits + the agent grounds + cites. This is the #1 value item.
+3. **If no documents yet** → either (a) START THE NEXT AGENT (Quotation is live; build Drawing
+   or a Supervisor by cloning the Engineering Agent pattern — prompt + which tools attached),
+   or (b) platform upgrades that the next agents inherit: cross-encoder reranker into
+   `rag/reranker.py`'s existing interface (B1), then Qdrant + BGE-M3 (D1), DeepSeek R1 (D2).
+4. **Optional polish** (user asked): tighten lookup relevance gap (`_REL_GAP` in
+   `app/retriever.py`) if stricter single-answer precision is wanted; reformat lookup output
+   to the "Historical Project Found / Commercial / Source" template the user sketched.
+5. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
+   the container disk — the dump on the volume is its only lifeline).
+
 - [x] `git pull` DONE (2026-07-23): merged origin/main into fix/list-projects-category-filter
       (conflict in main.py resolved for the agent_router extraction), golden ALL PASS.
 - [x] Stack restarted DONE (2026-07-23): container disk was WIPED, so ran `bootstrap-pod.sh`
