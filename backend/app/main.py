@@ -16,23 +16,24 @@ import uuid
 from pathlib import Path
 
 from . import config, jobs, session
-from .analysis import essential_present, requirement_completeness
+# Routing brain (policy selection, retrieval scoping, analysis + metadata assembly)
+# — shared by the /api/query* endpoints and the generate_specification tool.
+# Kept under the original private names so the call sites are unchanged.
+from .agent_router import prepare as _prepare, build_meta as _meta
 from .analytics import record_detail, wants_price
 from .analytics import _label as category_label
 from .classify import CONFIDENT, classify_equipment
-from .resolver import ATS, CONSULTING, resolve
+from .resolver import ATS, resolve
 from .prompt import spec_summary, spec_writeup
 from .pricing import inr_display
 from .quotation import build_quotation
 from .quotation_pdf import render_quotation_pdf
-from .catalog import get_profile
+from .specification_pdf import render_specification_pdf
 from .ingest import ingest_source
 from .llm import generate_answer, stream_answer
-from .retriever import (all_hits, entity_hits, has_offers, is_analytical,
-                        is_comparison, is_data_lookup, is_overview,
-                        references_existing_data, retrieve, summarize_retrieval)
+from .retriever import entity_hits, retrieve
 from .store import get_collection
-from .understand import contextualize, understand
+from .understand import understand
 
 # Knowledge-base document retrieval (rich metadata filtering) lives in the
 # sibling `rag` package — the read side of the document ingestion pipeline.
@@ -114,146 +115,6 @@ def ingest_status(job_id: str):
     return job
 
 
-def _prepare(question: str, top_k: int | None, history=None):
-    """Shared pipeline: UNDERSTAND -> retrieve -> ANALYZE. Returns (hits, analysis,
-    grounded). Used by both the streaming and non-streaming endpoints."""
-    u = understand(question)
-    structured = u.intent in ("specification", "quotation")
-
-    # HYBRID ROUTING (the flagship): for a spec, decide by REQUIREMENT
-    # COMPLETENESS, not by a manual mode switch —
-    #   * essential sizing input present AND >= HYBRID_THRESHOLD of inputs given
-    #     (or the user explicitly said "refer db")  -> Quotation Engineer
-    #     (history + engineering rules + validation), and
-    #   * otherwise -> Consulting Engineer (ask for the missing inputs, no guess).
-    completeness, missing_inputs = 1.0, []
-    use_data = False
-    if structured:
-        profile = get_profile(u.category)
-        completeness, missing_inputs = requirement_completeness(profile, u.parameters)
-        essential = essential_present(profile, u.parameters)
-        refer_db = references_existing_data(question)
-        # Quotation is only possible if the category is BUILDABLE — it has
-        # engineering rules or at least one stored offer. Otherwise (e.g. an oven
-        # with no rules and no history yet) we consult conceptually instead of
-        # hitting a dead end.
-        # ADAPTABLE = we can actually ENGINEER/scale this category (it has rules,
-        # field rules, or a sizing driver with scalable fields). A category with
-        # only historical offers but no adaptation logic would merely COPY the
-        # nearest project — so we do NOT auto-build it from data. Instead we reason
-        # from engineering knowledge (Consulting), treating stored offers as
-        # reference evidence, and only build from data when the user explicitly
-        # asks ("refer db").
-        adaptable = bool(profile and (
-            profile.get("rules") or profile.get("field_rules")
-            or (profile.get("scale_driver") and profile.get("scalable"))))
-        buildable = adaptable or has_offers(u.category)
-        wants_quote = u.intent == "quotation"
-        use_data = buildable and (
-            refer_db
-            or (adaptable and essential and completeness >= config.HYBRID_THRESHOLD)
-            or (wants_quote and essential))
-
-    # Multi-turn memory: resolve a short/pronoun follow-up ("compare it with the
-    # other") against the previous question so retrieval finds the right records.
-    search_q = question if structured else contextualize(question, history)
-
-    where = {"category": u.category} if (u.category and use_data) else None
-    hits = retrieve(search_q, top_k, where=where)
-
-    mode = None
-    data_lookup = False
-    if not structured:
-        analytical = is_analytical(search_q)
-        comparison = (u.intent == "comparison") or is_comparison(search_q)
-        named = entity_hits(search_q)
-        # Grounding set:
-        #  - comparison of NAMED clients -> just those records; else the whole KB;
-        #  - a SPECIFIC named client/offer (even if worded like an overview, e.g.
-        #    "what did C2C order") -> ONLY that client's records, so the model
-        #    isn't handed the whole corpus and can't blend unrelated clients;
-        #  - analytics / overview enumeration -> the WHOLE KB;
-        #  - otherwise the semantic hits already suffice.
-        scoped = False
-        if comparison:
-            extra = named if len(named) >= 2 else all_hits()
-        elif named and not analytical:
-            extra, scoped = named, True
-        elif analytical or is_overview(search_q):
-            extra = all_hits()
-        else:
-            extra = named
-        if extra:
-            if scoped:                          # replace: don't dilute with neighbours
-                hits = extra
-            else:
-                seen = {h["id"] for h in extra}
-                hits = extra + [h for h in hits if h["id"] not in seen]
-        mode = "analytical" if analytical else "comparison" if comparison else None
-        # Verify only plain direct lookups — NOT computed analytics/comparisons
-        # (their result isn't a literal stored fact, and verify could mangle the
-        # table). Those rely on full-data grounding + low temperature instead.
-        data_lookup = is_data_lookup(search_q) and mode is None
-
-    # One resolver, two policies (the ONLY place the product split lives):
-    #   Consulting Engineer  -> knowledge policy (ask for missing inputs, no guess)
-    #   ATS Engineering Expert -> data policy (history + rules + validation)
-    if structured and not use_data:
-        analysis = resolve(question, hits, u, CONSULTING)
-        analysis["completeness"] = round(completeness * 100)
-        analysis["completeness_missing"] = missing_inputs
-    else:
-        analysis = resolve(question, hits, u, ATS)
-        if structured:
-            analysis["spec_mode"] = "data"
-            # Quotation Agent: layer a budgetary quote on top of the data-mode spec
-            # (deterministic price + scope + terms). Additive — the spec is unchanged.
-            if u.intent == "quotation":
-                quote = build_quotation(analysis, dict(u.parameters))
-                if quote:
-                    analysis["quotation"] = quote
-
-    relevant = [h for h in hits if h["score"] >= config.RELEVANCE_THRESHOLD]
-    grounded = use_data if structured else bool(relevant or mode or data_lookup)
-    analysis["grounded"] = grounded
-    analysis["data_lookup"] = data_lookup           # gates the self-verify pass
-    analysis["mode"] = mode                         # analytical / comparison / None
-    if mode:
-        analysis["intent"] = mode                   # nicer badge + tailored prompt
-    return hits, analysis, grounded
-
-
-def _meta(question, sid, hits, analysis, grounded):
-    sources = [
-        {"id": h["id"], "title": h["title"], "type": h["type"],
-         "score": h["score"], "source_file": h["record"].get("source_file")}
-        for h in hits
-    ]
-    # Only cite documents that actually influenced the result:
-    #  - data-mode spec -> just the offer it was built from;
-    #  - knowledge-mode spec -> none (designed from general knowledge).
-    sm = analysis.get("spec_mode")
-    if sm == "knowledge":
-        sources = []
-    elif sm == "data":
-        chosen = analysis.get("exact_match") or analysis.get("nearest_match")
-        sources = [s for s in sources if s["id"] == chosen] or sources[:1]
-
-    return {
-        "session_id": sid,
-        "question": question,
-        "intent": analysis["intent"],
-        "category": analysis["category"],
-        "category_label": analysis["category_label"],
-        "confidence": analysis.get("confidence_label"),
-        "grounded": grounded,
-        "retrieval_steps": summarize_retrieval(hits),
-        "analysis": analysis,
-        "quotation": analysis.get("quotation"),   # budgetary quote (quotation intent)
-        "sources": sources,
-    }
-
-
 @app.post("/api/query")
 def query(req: QueryRequest):
     sid = req.session_id or uuid.uuid4().hex[:12]
@@ -274,6 +135,37 @@ def quotation_pdf(quote: dict = Body(...)):
     ref = str(quote.get("ref") or "quotation").replace(" ", "_")
     return Response(content=data, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{ref}.pdf"'})
+
+
+@app.post("/api/specification/pdf")
+def specification_pdf(spec: dict = Body(...)):
+    """Render a specification object (from a generate_specification response, as
+    surfaced by the chat) to a downloadable Vitech-format PDF. Deterministic —
+    it prints the engineered rows, adding no numbers of its own. Accepts either
+    the structured payload or a {text: "..."} fallback."""
+    data = render_specification_pdf(spec)
+    name = str(spec.get("category_label") or "specification").replace(" ", "_")
+    return Response(content=data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{name}_specification.pdf"'})
+
+
+@app.get("/api/offers/by-source/{source_file:path}")
+def offer_by_source(source_file: str):
+    """Full extracted record whose `source_file` matches — lets the chat open the
+    content behind a specification's cited source file in the record inspector.
+    Matches on the exact stored name, else on basename (case-insensitive)."""
+    target = Path(source_file).name.strip().lower()
+    col = get_collection()
+    if col.count():
+        for m in col.get(include=["metadatas"])["metadatas"]:
+            raw = m.get("_raw")
+            if not raw:
+                continue
+            r = json.loads(raw)
+            sf = r.get("source_file")
+            if sf and Path(str(sf)).name.strip().lower() == target:
+                return r
+    return {"error": "not found", "source_file": source_file}
 
 
 # --- Tool endpoints for the Flowise Engineering Agent -----------------------

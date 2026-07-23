@@ -839,6 +839,49 @@
   color: var(--text-muted);
 }
 
+/* Clickable source file: opens its extracted content in the record inspector. */
+.source.is-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--t), color var(--t), background var(--t), transform var(--t);
+}
+.source.is-open:hover {
+  border-color: rgba(var(--secondary-rgb), 0.4);
+  background: var(--hover-green);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+.source.is-open svg { flex: 0 0 auto; color: var(--primary); }
+.source-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Download-as-PDF control under a generated specification. */
+.spec-actions { margin-top: 14px; display: flex; }
+.spec-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid rgba(var(--secondary-rgb), 0.32);
+  border-radius: var(--r-pill);
+  background: var(--hover-green);
+  color: var(--primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t), transform var(--t), box-shadow var(--t);
+}
+.spec-pdf-btn:hover {
+  background: color-mix(in srgb, var(--hover-green) 70%, var(--secondary) 30%);
+  border-color: rgba(var(--secondary-rgb), 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(var(--secondary-rgb), 0.2);
+}
+.spec-pdf-btn:active { transform: translateY(0); }
+
 /* --------------------------------------------------------------------------
    Responsive
    -------------------------------------------------------------------------- */
