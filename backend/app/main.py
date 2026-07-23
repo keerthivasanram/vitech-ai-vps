@@ -31,7 +31,7 @@ from .quotation_pdf import render_quotation_pdf
 from .specification_pdf import render_specification_pdf
 from .ingest import ingest_source
 from .llm import generate_answer, stream_answer
-from .retriever import entity_hits, retrieve
+from .retriever import project_hits, retrieve
 from .store import get_collection
 from .understand import understand
 
@@ -359,7 +359,7 @@ def tool_lookup(payload: dict = Body(...)):
     # details); price is folded in only when the input actually asked about it.
     text = record_detail(q, force_tech=True)
     recs, seen = [], set()
-    for h in entity_hits(q):
+    for h in project_hits(q):
         if h["id"] in seen:
             continue
         seen.add(h["id"])

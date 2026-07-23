@@ -1,0 +1,58 @@
+"""Regression tests for project lookup (client identity vs. structured attrs).
+
+Guards the fix for the "0.9 x 0.92 x 2 water wall paint booth returned 4
+unrelated offers" bug: entity_hits must key on client identity (not equipment
+words in titles), and a dimension query must resolve to the one matching project
+via structured_project_hits. Runs against the real offers collection.
+    .venv/bin/python tests_lookup.py
+"""
+import sys
+
+from app.retriever import entity_hits, project_hits, structured_project_hits
+
+_fail = 0
+
+
+def check(name, cond, got=None):
+    global _fail
+    print(f"{'OK ' if cond else 'FAIL'}  {name}" + ("" if cond else f"   got={got}"))
+    if not cond:
+        _fail += 1
+
+
+def ids(hits):
+    return [h["id"] for h in hits]
+
+
+# 1) dimension query -> exactly the Yonex water-wall booth, nothing else
+dim = project_hits("For which client we worked for 0.9 x 0.92 x 2 m water wall paint booth?")
+check("dimension query resolves to a single project", len(dim) == 1, ids(dim))
+check("dimension query resolves to the Yonex paint booth", ids(dim) == ["OFF-YONEX-PB-367"], ids(dim))
+
+# 2) equipment words in the query must NOT pull unrelated offers by title
+#    (Armstrong is a CONVEYOR, Eco Chimneys is BLASTING — both had 'paint' in title)
+bad = {"OFF-ARMSTRONG-CONV-395", "OFF-ECOCHIMNEYS-BLAST-072409R4", "OFF-BAKERHUGHES-PB-275R3A"}
+check("no unrelated equipment-word matches leak in", not (set(ids(dim)) & bad), ids(dim))
+
+# 3) named client lookup still works, and keys on identity
+arm = project_hits("Tell me about Armstrong")
+check("named client 'Armstrong' returns Armstrong record(s)",
+      bool(arm) and all("ARMSTRONG" in h["id"] for h in arm), ids(arm))
+
+# 4) 'Who is Yonex?' returns Yonex's records (both offers)
+yon = project_hits("Who is Yonex?")
+check("named client 'Yonex' returns Yonex records", bool(yon) and all("YONEX" in h["id"] for h in yon), ids(yon))
+
+# 5) entity_hits must not match on title equipment words alone
+#    'paint booth' names no client -> entity_hits should be empty (structured handles it)
+check("entity_hits ignores bare equipment words", entity_hits("water wall paint booth") == [],
+      ids(entity_hits("water wall paint booth")))
+
+# 6) structured lookup needs a confident equipment type + a numeric attribute
+check("structured lookup empty without equipment+attrs", structured_project_hits("hello there") == [])
+
+print()
+if _fail:
+    print(f"{_fail} LOOKUP TEST(S) FAILED")
+    sys.exit(1)
+print("ALL LOOKUP TESTS PASS")

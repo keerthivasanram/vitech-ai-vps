@@ -143,7 +143,13 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   confidence.
 - **Quotation**: `app/quotation.py` (assembly) + `app/quotation_pdf.py` (fpdf2 PDF).
 - **Deterministic analytics + record lookup**: `app/analytics.py` (exact counts /
-  lists / clients; `record_detail` renders one file's extracted fields).
+  lists / clients; `record_detail` renders one file's extracted fields). **Project lookup**
+  (`app/retriever.py`, fixed 2026-07-23): `entity_hits` keys on CLIENT IDENTITY + offer-id
+  only (word-boundary) — NOT title words, so "water wall **paint booth**" no longer matches
+  every paint/booth/conveyor offer. `structured_project_hits` handles no-client queries by
+  equipment type + dimensions (deterministic, exact match returned alone), e.g.
+  "0.9 x 0.92 x 2 water wall paint booth" → the one Yonex booth. `project_hits` = named
+  first, else structured. Guarded by `tests_lookup.py`.
 - **Support**: `app/validate.py`, `app/ledger.py`, `app/catalog.py` (category
   profiles + `required_inputs`), `app/understand.py` (intent + param extraction),
   `app/llm.py` (plan_answer, answer layer), `app/ollama_client.py` (Ollama transport,

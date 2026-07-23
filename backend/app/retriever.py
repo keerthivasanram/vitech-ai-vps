@@ -141,10 +141,22 @@ def all_hits() -> list[dict[str, Any]]:
     return out
 
 
+def _make_hit(rec: dict, doc: str, score: float = 0.95) -> dict[str, Any]:
+    return {"id": rec.get("id"), "title": rec.get("title", rec.get("id")),
+            "type": rec.get("type", "offer"), "text": doc, "record": rec,
+            "score": score}
+
+
 def entity_hits(question: str) -> list[dict[str, Any]]:
-    """Direct lookup: if the question names a client / vendor / offer id that
-    exists in the knowledge base, return those records (semantic search alone
-    misses name-based lookups like 'what did C2C order')."""
+    """Direct lookup by CLIENT IDENTITY or an explicit offer id — NOT the title.
+
+    Matches on the client name and offer id only, with word-boundary matching.
+    Equipment words ('paint', 'booth', 'scrubber') appear in many offer TITLES,
+    so title-token matching used to make '0.9 x 0.92 x 2 water wall paint booth'
+    return every paint/booth/conveyor offer (Armstrong, Eco Chimneys, ...). A
+    client lookup must key on WHO, not the equipment; dimension/equipment queries
+    are handled deterministically by `structured_project_hits`.
+    """
     q = question.lower()
     col = get_collection()
     if col.count() == 0:
@@ -156,13 +168,76 @@ def entity_hits(question: str) -> list[dict[str, Any]]:
         if not raw:
             continue
         rec = json.loads(raw)
-        names = " ".join(str(rec.get(k, "")) for k in ("client", "vendor", "id", "title")).lower()
+        oid = str(rec.get("id", "")).lower()
+        if oid and oid in q:                          # explicit offer id = exact hit
+            hits.append(_make_hit(rec, doc))
+            continue
+        names = str(rec.get("client", "")).lower()    # client identity ONLY
         tokens = {t for t in re.split(r"[\s,./_-]+", names) if len(t) >= 3 and t not in _STOP}
-        if any(t in q for t in tokens):
-            hits.append({"id": rec.get("id"), "title": rec.get("title", rec.get("id")),
-                         "type": rec.get("type", "offer"), "text": doc, "record": rec,
-                         "score": 0.95})
+        if any(re.search(rf"\b{re.escape(t)}\b", q) for t in tokens):
+            hits.append(_make_hit(rec, doc))
     return hits
+
+
+def structured_project_hits(question: str) -> list[dict[str, Any]]:
+    """Deterministic lookup by equipment type + structured attributes (dimensions,
+    airflow) for questions that name NO client — e.g. '0.9 x 0.92 x 2 water wall
+    paint booth'. Filters offers to the confidently-classified equipment category
+    and ranks by how closely the given numeric attributes match each offer's
+    given_data. An EXACT attribute match is returned alone (one confident result);
+    otherwise the nearest few. This is the metadata-first ranking that keeps a
+    dimension query from doing a broad keyword sweep.
+    """
+    from .classify import CONFIDENT, classify_equipment
+    from .understand import _fallback                 # deterministic parse (no LLM)
+
+    cat, score = classify_equipment(question)
+    if not cat or score < CONFIDENT:
+        return []
+    params = {k: v for k, v in _fallback(question).parameters.items()
+              if isinstance(v, (int, float))}
+    if not params:
+        return []
+
+    col = get_collection()
+    if col.count() == 0:
+        return []
+    res = col.get(include=["documents", "metadatas"])
+    scored = []
+    for doc, meta in zip(res["documents"], res["metadatas"]):
+        raw = meta.get("_raw")
+        if not raw:
+            continue
+        rec = json.loads(raw)
+        if rec.get("type", "offer") != "offer" or rec.get("category") != cat:
+            continue
+        gd = rec.get("given_data", {}) or {}
+        keys = [k for k in params if isinstance(gd.get(k), (int, float))]
+        if not keys:
+            continue
+        diffs = [abs(params[k] - gd[k]) / max(abs(gd[k]), 1e-9) for k in keys]
+        avg = sum(diffs) / len(diffs)
+        # exact only when EVERY numeric attribute the user gave was compared and matched
+        exact = len(keys) == len(params) and all(d < 0.02 for d in diffs)
+        scored.append((exact, max(0.0, 1 - avg), len(keys), rec, doc))
+
+    if not scored:
+        return []
+    # exact matches first, then by closeness, then by how many attributes matched
+    scored.sort(key=lambda p: (not p[0], -p[1], -p[2]))
+    exacts = [t for t in scored if t[0]]
+    chosen = exacts[:1] if exacts else scored[:5]     # one confident hit, else nearest few
+    return [_make_hit(rec, doc, score=round(sv, 3)) for _ex, sv, _n, rec, doc in chosen]
+
+
+def project_hits(question: str) -> list[dict[str, Any]]:
+    """The lookup a client/project question should use: a named client/offer-id
+    match first (WHO), else a deterministic equipment+attribute match (WHAT).
+    This ordering is what makes the FIRST answer the right one."""
+    named = entity_hits(question)
+    if named:
+        return named
+    return structured_project_hits(question)
 
 
 def retrieve(question: str, top_k: int | None = None,

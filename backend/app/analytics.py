@@ -12,7 +12,7 @@ from collections import Counter
 from .catalog import get_profile, label_for
 from .classify import CONFIDENT, classify_equipment
 from .pricing import inr_display
-from .retriever import _names_stored_client, entity_hits
+from .retriever import _names_stored_client, project_hits
 from .store import get_collection
 
 _CAT_LABEL = {
@@ -187,7 +187,7 @@ def record_detail(question: str, *, force_tech: bool = False) -> str | None:
     if not (want_detail or want_price):
         return None
     show_tech = want_detail or not want_price   # a price-only ask hides the engineering
-    hits = entity_hits(q)
+    hits = project_hits(q)                       # named client/id, else structured attrs
     if not hits:
         return None
     seen, recs = set(), []
