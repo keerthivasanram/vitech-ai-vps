@@ -38,22 +38,46 @@ from .understand import understand
 # Knowledge-base document retrieval (rich metadata filtering) lives in the
 # sibling `rag` package — the read side of the document ingestion pipeline.
 from rag.retrieve import available_filters, retrieve_documents
+from rag.response_formatter import format_context
+from rag.permissions import Principal
 
 app = FastAPI(title="ATS Engineering Assistant")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --- Optional API-key auth --------------------------------------------------
+# Off by default (config.API_KEY == "") so a trusted LAN/pod is unaffected. When
+# set, every /api request must carry the key (X-API-Key or Bearer); health and
+# CORS preflight stay open. This is the wired seam for exposure beyond the LAN.
+_AUTH_OPEN = {"/api/health"}
+
+
+@app.middleware("http")
+async def _api_key_guard(request, call_next):
+    if config.API_KEY and request.method != "OPTIONS":
+        path = request.url.path
+        if path.startswith("/api/") and path not in _AUTH_OPEN:
+            provided = request.headers.get("x-api-key") or ""
+            auth = request.headers.get("authorization") or ""
+            if auth.lower().startswith("bearer "):
+                provided = provided or auth[7:].strip()
+            if provided != config.API_KEY:
+                from fastapi.responses import JSONResponse
+                return JSONResponse({"error": "unauthorized"}, status_code=401)
+    return await call_next(request)
 
 
 @app.on_event("startup")
 def _warm_llm():
     """Pre-load the model in the background so the first query isn't slow."""
     import threading
-    from .llm import warmup
+    from .ollama_client import warmup
     threading.Thread(target=warmup, daemon=True).start()
 
 
@@ -233,10 +257,15 @@ def _spec_markdown(resp: dict) -> str | None:
     spec_rows = [t for t in tech if t.get("source") != "requirement"]
     if spec_rows:
         L.append("**Technical Specification**")
-        L.append("| Parameter | Value | Basis |")
+        L.append("| Parameter | Value | Basis / Calculation |")
         L.append("| --- | --- | --- |")
         for t in spec_rows:
-            L.append(f"| {esc(t.get('label'))} | {esc(t.get('value'))} | {esc(t.get('origin'))} |")
+            # Show the derivation (the formula for a calculated value, or the
+            # offer it was reused/scaled from) — falling back to the short origin
+            # label only if no reason is present. This is what tells the engineer
+            # HOW the number was arrived at, e.g. "face area 4x4 x velocity 0.45 ...".
+            basis = t.get("reason") or t.get("origin")
+            L.append(f"| {esc(t.get('label'))} | {esc(t.get('value'))} | {esc(basis)} |")
         L.append("")
 
     miss = resp.get("missing_inputs") or []
@@ -273,7 +302,11 @@ def tool_spec(payload: dict = Body(...)):
         "given_data": a.get("given_data") or [],
         "technical_details": [
             {"label": t.get("label"), "value": t.get("value"),
-             "origin": t.get("origin_label") or t.get("origin"), "source": t.get("source")}
+             "origin": t.get("origin_label") or t.get("origin"), "source": t.get("source"),
+             # the derivation: the actual formula for a calculated value, or which
+             # historical offer a value was reused/scaled from. Surfaced so the
+             # spec shows HOW each number was arrived at, not just a generic label.
+             "reason": t.get("reason")}
             for t in (a.get("technical_details") or [])
         ],
         "sources": a.get("source_files") or [],
@@ -378,7 +411,10 @@ def tool_retrieve(payload: dict = Body(...)):
     except (TypeError, ValueError):
         top_k = 6
 
-    hits = retrieve_documents(q, top_k=top_k, filters=filters)
+    role = payload.get("role") or "engineer"
+    hits = retrieve_documents(q, top_k=top_k, filters=filters,
+                              principal=Principal(role=role))
+    ctx = format_context(hits)
     return {
         "ok": True,
         "query": q,
@@ -387,9 +423,14 @@ def tool_retrieve(payload: dict = Body(...)):
         "results": [
             {"source_file": h.get("source_file"), "section": h.get("section"),
              "page": h.get("page"), "equipment_type": h.get("equipment_type"),
-             "kind": h.get("kind"), "score": h.get("score"), "text": h.get("text")}
+             "kind": h.get("kind"), "score": h.get("score"),
+             "rerank_score": h.get("rerank_score"), "text": h.get("text")}
             for h in hits
         ],
+        # structured, de-duplicated sources + a numbered context block the agent
+        # can quote from and cite by [n].
+        "citations": ctx["citations"],
+        "context": ctx["context"],
     }
 
 
@@ -398,6 +439,28 @@ def tool_filters():
     """Distinct metadata values present across the knowledge base, so the agent
     (or UI) can pick a filter that actually matches something."""
     return {"ok": True, "filters": available_filters()}
+
+
+@app.post("/api/admin/reload-index")
+def admin_reload_index():
+    """Refresh retrieval after an out-of-process ingest WITHOUT a full restart.
+
+    ChromaDB embedded caches its query index per process, so documents added by
+    the `rag.ingest` CLI aren't searchable by the running server until this is
+    called (or the backend restarts). Clears the Chroma cache + the retrieval
+    cache and reports the live document count. Guard with API_KEY in production.
+    """
+    from .store import reload_collection
+    from rag.cache import bump_version
+    col = reload_collection()
+    bump_version()
+    total = col.count()
+    docs = 0
+    try:
+        docs = len(col.get(where={"type": "document"}, include=[])["ids"])
+    except Exception:
+        pass
+    return {"ok": True, "reloaded": True, "total_items": total, "documents": docs}
 
 
 @app.post("/api/tools/list", operation_id="list_projects")
@@ -443,6 +506,29 @@ def tool_list_projects(payload: dict = Body(...)):
         "price_total_display": inr_display(o["price_total"]) if o.get("price_total") else None,
     } for o in scoped]
 
+    # DETERMINISTIC per-client project counts (golden rule #2: Python counts the
+    # corpus, the LLM only reads). Without this the agent tried to tally repeat
+    # clients in its head and answered "no client has more than one" — WRONG,
+    # e.g. C2C/Meccanotecnica/Yonex each have 2 offers on file. `repeat_clients`
+    # (>=2 projects) plus a ready-to-print sentence means the model never counts.
+    where = f" for {scope_label}" if scope_label else ""
+    from collections import Counter as _Counter
+    _client_counts = _Counter(o["client"] for o in scoped if o.get("client"))
+    client_project_counts = [{"client": c, "projects": n}
+                             for c, n in _client_counts.most_common()]
+    repeat_clients = [r for r in client_project_counts if r["projects"] >= 2]
+    max_projects = client_project_counts[0]["projects"] if client_project_counts else 0
+    if repeat_clients:
+        _parts = ", ".join(f"{r['client']} ({r['projects']} projects)" for r in repeat_clients)
+        repeat_clients_answer = (
+            f"{len(repeat_clients)} client(s) have more than one project on record{where}: "
+            f"{_parts}. The most for any single client is {max_projects}."
+        )
+    else:
+        repeat_clients_answer = (
+            f"No client has more than one project on record{where} — every client "
+            f"appears once.")
+
     # DETERMINISTIC RANKING (golden rule #2: Python ranks, the LLM only reads).
     # The model must never sort/compare prices itself — llama3.1:8b gets it wrong
     # and invents figures. We hand it the answer pre-computed and pre-formatted.
@@ -459,7 +545,6 @@ def tool_list_projects(payload: dict = Body(...)):
     highest_project = ranked[0] if ranked else None
     lowest_project = ranked[-1] if ranked else None
     # A ready-to-print sentence so the model has nothing to compute or reword.
-    where = f" for {scope_label}" if scope_label else ""
     highest_answer = (
         f"{highest_project['client']} has the highest quotation cost{where}: "
         f"{highest_project['price_total_display']} "
@@ -484,6 +569,9 @@ def tool_list_projects(payload: dict = Body(...)):
         "total_offers": len(offers),
         "n_clients": len(clients),
         "clients": clients,
+        "client_project_counts": client_project_counts,
+        "repeat_clients": repeat_clients,
+        "repeat_clients_answer": repeat_clients_answer,
         "categories": categories,
         "projects": projects,
         "top_by_price": top_by_price,

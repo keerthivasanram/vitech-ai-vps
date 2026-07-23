@@ -56,6 +56,11 @@ def _driver(rec: dict):
 
 
 _ASKS_CLIENTS = re.compile(r"\b(client|clients|customer|customers)\b", re.I)
+# "which clients have more than one/two projects", "repeat/multiple-project
+# clients", "clients we worked with more than once". Answered by counting in code.
+_REPEAT_CLIENTS = re.compile(
+    r"\b(repeat|multiple|more than (?:one|two|1|2|once)|several|"
+    r"than\s+\w+\s+projects?|worked\s+with\s+.*\bmore\b)\b", re.I)
 _BREAKDOWN = re.compile(
     r"\b(each|every|per)\s+(type|categor\w+|equipment)|by\s+(type|categor\w+)|"
     r"breakdown|all\s+(types?|categor\w+|equipment)|equipment\s+types?\b", re.I)
@@ -79,6 +84,21 @@ def deterministic_analytics(question: str) -> str | None:
         return None
     by_cat = Counter(r.get("category", "other") for r in recs)
     total = sum(by_cat.values())
+
+    # 1a) repeat clients — clients that appear on >=2 offers. MUST come before
+    # the plain client list. Counted in code (rule #2): the LLM tallying repeats
+    # in its head answered "no client has more than one", which is wrong.
+    if _ASKS_CLIENTS.search(q) and _REPEAT_CLIENTS.search(q):
+        counts = Counter(r.get("client") for r in recs if r.get("client"))
+        repeat = [(c, n) for c, n in counts.most_common() if n >= 2]
+        if not repeat:
+            return ("No client has more than one project on record — every client "
+                    "in the knowledge base appears once.")
+        top = counts.most_common(1)[0][1]
+        L = [f"**{len(repeat)} client(s) have more than one project** on record "
+             f"(the most for any single client is {top}):", ""]
+        L += [f"- **{c}** - {n} projects" for c, n in repeat]
+        return "\n".join(L)
 
     # 1) clients / customers
     if _ASKS_CLIENTS.search(q):

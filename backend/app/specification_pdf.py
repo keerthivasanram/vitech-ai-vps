@@ -141,10 +141,14 @@ def render_specification_pdf(spec: dict) -> bytes:
     # ---- technical specification ----
     if tech:
         _heading(pdf, "Technical specification")
-        _row(pdf, ["Parameter", "Value", "Basis"], [70, usable - 130, 60])
+        # Basis / Calculation shows the derivation (formula for a calculated value,
+        # or the offer a value was reused/scaled from) — wider column since it now
+        # carries the full working, wrapping over multiple lines as needed.
+        cols_w = [45, usable - 120, 75]
+        _row(pdf, ["Parameter", "Value", "Basis / Calculation"], cols_w)
         for t in tech:
-            _row(pdf, [t.get("label", ""), t.get("value", ""), t.get("origin", "")],
-                 [70, usable - 130, 60])
+            basis = t.get("reason") or t.get("origin", "")
+            _row(pdf, [t.get("label", ""), t.get("value", ""), basis], cols_w)
 
     # ---- to confirm ----
     miss = s.get("missing_inputs") or []

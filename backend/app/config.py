@@ -77,3 +77,44 @@ UNDERSTAND_NUM_PREDICT = int(os.getenv("UNDERSTAND_NUM_PREDICT", "200"))
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 SESSION_TTL = int(os.getenv("SESSION_TTL", "86400"))        # keep a session 1 day
 SESSION_HISTORY = int(os.getenv("SESSION_HISTORY", "12"))   # messages kept for context
+
+# --- Retrieval engine (multi-stage: cache -> vector -> permission -> rerank -> select) ---
+# Over-fetch this many candidates from the vector store before reranking, so the
+# reranker has a real pool to reorder (top-k after reranking is the caller's k).
+RETRIEVE_CANDIDATES = int(os.getenv("RETRIEVE_CANDIDATES", "24"))
+# Hybrid reranker: fuse dense (vector) rank with sparse (lexical) rank via
+# Reciprocal Rank Fusion, plus a metadata-match boost. Weights are relative.
+RERANK_ENABLED = os.getenv("RERANK_ENABLED", "1").lower() not in ("0", "false", "no")
+RERANK_RRF_K = int(os.getenv("RERANK_RRF_K", "60"))          # RRF damping constant
+RERANK_DENSE_W = float(os.getenv("RERANK_DENSE_W", "1.0"))   # weight on vector rank
+RERANK_LEXICAL_W = float(os.getenv("RERANK_LEXICAL_W", "1.0"))  # weight on lexical rank
+# Magnitude term: RRF is rank-only and ties symmetric cases; adding the
+# normalised lexical score lets a strong keyword match win outright.
+RERANK_LEXICAL_MAG_W = float(os.getenv("RERANK_LEXICAL_MAG_W", "0.03"))
+RERANK_META_BOOST = float(os.getenv("RERANK_META_BOOST", "0.15"))  # exact equipment/customer match
+# Chunk selection: cap chunks kept from any single source document so one long
+# file can't crowd out the rest of the evidence.
+SELECT_MAX_PER_DOC = int(os.getenv("SELECT_MAX_PER_DOC", "3"))
+# Retrieval cache (Redis, same instance as sessions). Falls back to a small
+# in-process LRU if Redis is down. Keyed by query + filters + top_k.
+RETRIEVE_CACHE_ENABLED = os.getenv("RETRIEVE_CACHE_ENABLED", "1").lower() not in ("0", "false", "no")
+RETRIEVE_CACHE_TTL = int(os.getenv("RETRIEVE_CACHE_TTL", "900"))    # 15 min
+
+# --- Access control ---------------------------------------------------------
+# If set, every /api request must carry `X-API-Key: <this>` (or Authorization:
+# Bearer <this>). Left empty by default so nothing breaks on a trusted LAN/pod;
+# set it before any non-LAN exposure. Health check stays open for probes.
+API_KEY = os.getenv("VITECH_API_KEY", "").strip()
+# Comma-separated allowed CORS origins, or "*" (default) for any. Lock this to
+# the real frontend origin(s) alongside setting API_KEY.
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+# Restricted document categories -> the roles allowed to see them. A principal's
+# role is read from the `X-Role` header (default "engineer"). Empty map = the
+# current behaviour (everyone sees everything); this is the wired hook for a
+# real ACL/user model later, with a safe allow-by-default.
+RESTRICTED_DOC_CATEGORIES = {
+    c.strip() for c in os.getenv("RESTRICTED_DOC_CATEGORIES", "").split(",") if c.strip()
+}
+PRIVILEGED_ROLES = {
+    r.strip() for r in os.getenv("PRIVILEGED_ROLES", "engineer,admin").split(",") if r.strip()
+}

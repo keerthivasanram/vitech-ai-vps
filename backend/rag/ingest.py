@@ -166,6 +166,15 @@ def ingest_documents(source: Path, *, explicit: dict[str, Any] | None = None,
         n, report = ingest_file(path, explicit=overrides, collection=collection)
         total += n
         reports.append(report)
+    # Invalidate the (Redis-shared, cross-process) retrieval cache so a running
+    # server won't serve pre-ingest results. Note: the server's in-memory query
+    # index must still be refreshed via POST /api/admin/reload-index (or a
+    # restart) — see store.reload_collection().
+    try:
+        from .cache import bump_version
+        bump_version()
+    except Exception:
+        pass
     return total, reports
 
 

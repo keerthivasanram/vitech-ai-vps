@@ -26,3 +26,23 @@ def get_collection(reset: bool = False):
         embedding_function=_embedding_fn,
         metadata={"hnsw:space": "cosine"},
     )
+
+
+def reload_collection():
+    """Drop ChromaDB's in-process system cache so a long-running server picks up
+    documents ingested by a SEPARATE process (the stale-query-index gotcha:
+    count() reads fresh from disk, but the in-memory HNSW segment does not
+    refresh until the cache is cleared). Call this after an ingest instead of
+    restarting the backend. Returns a freshly-opened collection."""
+    for path in (
+        "chromadb.api.shared_system_client:SharedSystemClient",
+        "chromadb.api.client:SharedSystemClient",
+    ):
+        mod, _, cls = path.partition(":")
+        try:
+            import importlib
+            getattr(importlib.import_module(mod), cls).clear_system_cache()
+            break
+        except Exception:
+            continue
+    return get_collection()

@@ -36,19 +36,28 @@ The VPS/RunPod pod is **currently stopped**. Development happens in two places:
 ## VPS Action Queue (VPS Claude: run these when the pod is back up)
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
-- [ ] `git pull` first — pick up all frontend/backend changes pushed from local sessions.
-- [ ] Restart the stack: `bash /workspace/persistent/start-all.sh`; forward 5173/3000/8000.
+- [x] `git pull` DONE (2026-07-23): merged origin/main into fix/list-projects-category-filter
+      (conflict in main.py resolved for the agent_router extraction), golden ALL PASS.
+- [x] Stack restarted DONE (2026-07-23): container disk was WIPED, so ran `bootstrap-pod.sh`
+      first (uncovered + FIXED the flowise-components version-drift + `lunary` bugs — see the
+      Flowise section) then `start-all.sh`. All 4 services 200; agent verified (Mode A + tools).
 - [ ] Verify the frontend redesign renders on the pod (glass shell, blueprint bg, hero
-      card, header→workspace spacing) in both light+dark once it's serving.
-- [ ] Verify **spec → Download PDF** end-to-end: generate a spec in the Engineering
-      Agent, click "Download PDF" under the reply → `POST /api/specification/pdf`
-      returns a valid PDF (fpdf2 isn't installed in the local Windows env, so this
-      renderer — `backend/app/specification_pdf.py` — was only byte-compiled locally).
-- [ ] Verify **source-file open**: a reply's "Source files" chips open the record
-      inspector — lookup_project records open directly; a spec's cited filename resolves
-      via `GET /api/offers/by-source/{file}` (returns the extracted record).
-- [ ] **Phase 3 ingestion** (highest value): populate the `type=document` corpus so
-      `retrieve_knowledge` stops returning `count:0` — see Immediate next steps.
+      card, header→workspace spacing) in both light+dark once it's serving. **Code + build
+      verified** (no vite errors; HeroCard/glass/blueprint present) — only the visual
+      light/dark eyeball remains, do it in the forwarded browser.
+- [x] **spec → Download PDF** VERIFIED on the pod (2026-07-23): `POST /api/specification/pdf`
+      returns a valid 1-page PDF (fpdf2 2.8.7 installed here, unlike local Windows), correct
+      content-type/filename, deterministic content (800 CFM → 1359 CMH), latin-1 clean.
+- [x] **source-file open** VERIFIED on the pod (2026-07-23): `GET /api/offers/by-source/{file}`
+      resolves the extracted record on exact, basename, and case-insensitive matches.
+- [~] **Phase 3 ingestion** (highest value): pipeline VERIFIED READY on the pod (2026-07-23)
+      — ran an isolated end-to-end self-test (ingest .txt → metadata resolve → embed →
+      filtered retrieve score 0.789 → facets → cleanup back to 33), so `rag.ingest` works the
+      moment real files land. **BLOCKED on input files**: `data/bulk/` is empty and there are
+      no documents to ingest (won't fabricate engineering standards — that would inject fake
+      authoritative content). Drop real docs (.pdf/.docx/.xlsx/.json/.txt/.md) in
+      `backend/data/bulk/` then `cd backend && .venv/bin/python -m rag.ingest data/bulk
+      --equipment-type X --customer Y`. Until then `retrieve_knowledge` stays `count:0`.
 - [ ] After ANY agent/prompt change: `bash /workspace/persistent/pg-backup.sh` before stopping.
 
 Backend next-phase (sequenced; full detail + rationale in local memory
@@ -58,11 +67,26 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
       new `rag/reranker.py` — biggest quality win, no migration. (needs models; do after A2 ingest)
 - [ ] B2. Add a **Redis cache** for embeddings/retrieval (Redis already runs, unused today).
 - [x] C1 DONE (2a60dd3): `_prepare`+`_meta` → `app/agent_router.py`, golden ALL PASS.
-- [ ] C2–C3 (LOCAL ok, golden-gated): decompose `analysis.py` orchestration →
-      `engineering_planner.py` (real value = formula/calc/material sub-services, not a thin
-      wrapper — see local memory `backend-next-phase-plan`); split `llm.py`. Keep
-      number-generation out of the LLM layer (golden rule #2). NB: local golden runs need
-      `python -m app.ingest` first (see that memory for the exact recipe).
+- [x] C2 DONE (2026-07-23): the spec-generation calc/formula/material engine
+      (`generate_spec` + `_interpolate`/`_scale`/`_snap`/`_ratio`/`_support_count`/
+      `_match_rule` + the `_num`/`_fmt`/`_given`/`_tech` primitives) → `app/engineering_planner.py`.
+      `analysis.py` now orchestrates matching/confidence/presentation and imports the engine;
+      dependency runs one way (analysis → engineering_planner, no cycle). Golden ALL PASS,
+      verified byte-identical live via `/api/tools/spec` (conf 88%, 16 rows).
+- [x] C3 DONE (2026-07-23): Ollama HTTP transport (`_opts`/`_ollama_chat`/`_ollama_stream`/
+      `warmup`) → `app/ollama_client.py`; `llm.py` is now purely the plan+run answer layer.
+      `main.py` warmup import repointed to `ollama_client`. Golden ALL PASS.
+- [x] (C-followup) DONE (2026-07-23): the calculation kernel in `rules.py` was decomposed
+      into the target `app/engineering/` package per the client architecture diagram:
+      `unit_converter.py` (CFM->CMH factor table), `calculation_engine.py` (round/count/snap
+      primitives), `standards_service.py` (governing-standard strings), `material_service.py`
+      (process->material matrix), `formula_service.py` (design constants + `compute_spec`/
+      `compute_wet_scrubber`, composing the four). `engineering_planner.py` moved INTO the
+      package. `rules.py` is now a compat shim re-exporting the two formula fns. Golden ALL
+      PASS, verified live (wet scrubber conf 88, paint booth conf 84). **Client-extension
+      points** are the design constants in `formula_service.py`, the factor table in
+      `unit_converter.py`, the standards in `standards_service.py`, and the matrix in
+      `material_service.py` — "the client will provide details" slots into exactly these.
 - [ ] D1. **Qdrant** replaces embedded Chroma + re-ingest with **BGE-M3** = full re-embed
       (invalidates existing vectors — embedding-model-match gotcha).
 - [ ] D2. Model swap to **DeepSeek R1** — FIRST confirm it advertises `tools` in Ollama;
@@ -102,9 +126,18 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   (knowledge mode — reason from engineering knowledge, defer unknowns to "To Be
   Determined") and **ATS** (data mode — build from historical offers). Impl:
   `app/resolver.py` + `app/analysis.py`.
-- **Routing** (`app/main.py::_prepare`): default is Consulting (reason, don't copy).
-  Data mode only when the user says "refer db" OR the category is **adaptable**
-  (has engineering rules / scaling). Non-adaptable categories reason from knowledge.
+- **Routing** (`app/agent_router.py::prepare`, re-exported as `_prepare` in `main.py`;
+  extracted in C1): default is Consulting (reason, don't copy). Data mode only when the
+  user says "refer db" OR the category is **adaptable** (has engineering rules / scaling).
+  Non-adaptable categories reason from knowledge.
+- **Engineering Intelligence** (`app/engineering/` package): the deterministic calc core,
+  decomposed per the client architecture. `engineering_planner.py` (orchestrator: builds
+  each traceable spec value — origin/reason) sits atop the calc sub-services:
+  `formula_service.py` (design constants + `compute_spec`/`compute_wet_scrubber`),
+  `unit_converter.py` (CFM→CMH etc.), `calculation_engine.py` (round/count/snap),
+  `standards_service.py` (governing standards), `material_service.py` (process→material).
+  `app/rules.py` is a back-compat shim → `formula_service`. `analysis.py` orchestrates
+  matching/confidence/presentation around the planner.
 - **Pricing**: `app/pricing.py` — nearest priced offer normalised **per-unit**,
   scaled by the sizing driver, cross-checked against a size→price trend, ±range +
   confidence.
@@ -113,9 +146,20 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   lists / clients; `record_detail` renders one file's extracted fields).
 - **Support**: `app/validate.py`, `app/ledger.py`, `app/catalog.py` (category
   profiles + `required_inputs`), `app/understand.py` (intent + param extraction),
-  `app/llm.py` (plan_answer), `app/prompt.py` (system prompts).
-- **Golden tests**: `backend/tests_golden.py` (10 cases, byte-identical). **Run
-  before and after any engine change** — must stay ALL PASS.
+  `app/llm.py` (plan_answer, answer layer), `app/ollama_client.py` (Ollama transport,
+  extracted in C3), `app/prompt.py` (system prompts).
+- **Retrieval Engine** (`rag/` package, multi-stage as of 2026-07-23): `retrieve_documents`
+  runs **cache → vector over-fetch (+ broaden) → permission filter → hybrid rerank → chunk
+  select → cache**. Sub-services: `cache.py` (Redis + in-proc LRU, version-invalidated on
+  ingest), `reranker.py` (RRF fusion of dense + BM25-lite lexical + metadata boost + lexical
+  magnitude — model-free, cross-encoder-ready interface), `chunk_selector.py` (dedup +
+  per-doc cap), `permissions.py` (`Principal`/role filter, allow-all default + restricted-
+  category hook), `citations.py` (one per source, numbered), `response_formatter.py`
+  (budgeted numbered context). `/api/tools/retrieve` now returns `citations` + `context`.
+- **Golden tests**: `backend/tests_golden.py` (10 cases, byte-identical) — **run before and
+  after any engine change**, must stay ALL PASS. **Retrieval tests**: `backend/tests_retrieval.py`
+  (reranker/selector/permissions/citations/formatter/cache; model-free) — run after any
+  `rag/` change.
 
 ## Tool endpoints for Flowise (the migration bridge)
 `app/main.py` exposes clean JSON tools so Flowise Custom Tools call Python (Python
@@ -164,6 +208,25 @@ above; the chat-orchestration layer (`/api/query`, `llm.py`) is what Flowise rep
   If Flowise queries it with a different embedding model, retrieval breaks — use the
   same model or re-ingest. (This is why the agent searches via the backend's
   `retrieve_knowledge` tool and NOT a Flowise Chroma retriever node.)
+- **Stale query index after ingest (found 2026-07-23) — call `POST /api/admin/reload-index`
+  after ingesting documents** (no full restart needed). ChromaDB embedded: a running
+  server's in-memory query index is NOT refreshed by writes from a separate process (the
+  `rag.ingest` CLI). Symptom: after ingest, `/api/health` shows the new `documents_indexed`
+  count (count() reads from disk) but `retrieve_knowledge` returns `count:0` (the query
+  index still lacks the new vectors). Fix: `store.reload_collection()` clears Chroma's
+  in-process system cache; the `/api/admin/reload-index` endpoint calls it + invalidates the
+  retrieval cache. `rag.ingest` also bumps the (Redis-shared) cache version on completion.
+  A backend restart still works as the blunt fallback.
+- **Grounding vs. general knowledge (prompt, 2026-07-23).** The agent's prompt now routes
+  knowledge questions (face velocity, filter media, standards, "what should X be") to
+  `retrieve_knowledge` FIRST and never asks for dimensions for them. If records return, it
+  answers from them and cites the source; if NOTHING returns (today's empty corpus), it
+  must open "General engineering guidance (not from Vitech records):" and flag that
+  company-specific values need confirming. NB: llama3.1:8b imperfectly BLENDS the two
+  branches (leads with the general label even when it used a retrieved value) — an inherent
+  8B limitation the branch wording can't fully fix; a stronger model (roadmap D2) would.
+  The hallucinated-generic-answer complaint is fundamentally the empty corpus (Phase 3),
+  proven live: ingest one doc → restart → the agent surfaces the doc's exact figure.
 - **Agent says "I don't have the ability to call external tools" / "I'll simulate a
   response" → THE BACKEND IS DOWN.** The tool's fetch to `localhost:8000` failed and
   llama3.1 improvised. It is not model flakiness: with all services up, tool-calling
@@ -242,11 +305,29 @@ Same architecture as the Engineering Agent (ChatOllama llama3.1:8b @ temp 0 +
 ## Flowise (ACTUAL install — pinned + patched, not vanilla)
 Isolated install at **`/opt/flowise-app`** (container disk, NOT global npm, NOT Docker).
 Started by `/workspace/persistent/flowise-start.sh`; rebuild with `flowise-reinstall.sh`.
+- **Snapshot fast-path (added 2026-07-23).** `/opt` is wiped on a pod delete/migrate, and
+  rebuilding from npm is ~20 min (3300 pkgs + native C++ compiles) AND drifts versions.
+  So a **1.0G tarball of the known-good patched tree** lives at
+  `/workspace/persistent/flowise-app.tar.gz`. `flowise-reinstall.sh` **extracts it (~1-2 min)
+  when present** and only falls back to npm if it's missing or you pass `--from-npm`.
+  Refresh it after a verified rebuild with `flowise-snapshot.sh` (atomic write). This is the
+  Flowise analogue of the `vitech.sql` PG restore — bootstrap a migrated pod in minutes.
 - **Pinned `flowise@3.0.13`**. Do NOT "upgrade" to 3.1.x: all 3.1.x pin
   `@langchain/core@1.1.20`, whose missing `./utils/uuid` subpath makes node loading
   throw. 3.0.x uses the `@langchain/core 0.3.x` tree.
-- 3.0.13 forgets to declare two deps its code eager-requires — we add them back
-  (upstream added them in 3.1.0): `multer-azure-blob-storage@^1.2.0`, `winston-azure-blob@^1.5.0`.
+- **Version-drift trap (bit us 2026-07-23, now fixed):** `flowise@3.0.13`'s OWN
+  package.json references `flowise-components`/`flowise-ui` with a **caret** (`^3.0.13`),
+  so a plain `npm install` re-resolves them to the newest 3.x on the registry — today
+  that's `3.1.3`, which nests the broken `@langchain/core@1.1.20` (missing `./utils/uuid`)
+  and Flowise crashes at startup. Fix: an **`overrides`** block in `package.json` hard-pins
+  `flowise-components` + `flowise-ui` to `3.0.13`. Verify after any reinstall:
+  `@langchain/core` top-level must be `0.3.61` and there must be NO
+  `flowise-components/node_modules/@langchain/core`.
+- 3.0.13 forgets to declare **three** deps its code eager-requires — we add them back at
+  top level (`dependencies`): `multer-azure-blob-storage@^1.2.0`, `winston-azure-blob@^1.5.0`,
+  and **`lunary@0.7.15`** (required by `flowise/dist/utils/updateChatMessageFeedback.js`;
+  only `flowise-components` declares it, so the 3.0.13 pin leaves it nested where `flowise`
+  can't resolve it → `Cannot find module 'lunary'`). Declaring it hoists it to top level.
 - Two deprecated nodes are **deleted** post-install (`ReActAgentChat`, `ReActAgentLLM`)
   — their transitive langgraph import references the missing `./utils/uuid` and logs
   startup errors. We don't use them (we use Tool Agent).
@@ -324,7 +405,8 @@ so the stack runs **natively** on the pod, not via `docker compose`:
   delete): the repo, `backend/.venv`, `frontend/node_modules`, and
   **`/workspace/persistent/`** → `ollama/` (models, symlinked from `/root/.ollama`),
   `chroma/` (Chroma dir, via `CHROMA_DIR` in `backend/.env`), `flowise/` (keys/logs/
-  uploads), `postgres-backups/vitech.sql`.
+  uploads), `postgres-backups/vitech.sql`, and **`flowise-app.tar.gz`** (1.0G snapshot of
+  the patched `/opt/flowise-app` tree — restored fast by `flowise-reinstall.sh`).
 - Postgres + Redis data dirs stay on the container disk (the volume can't `chown`,
   which PG requires) — back PG up with `/workspace/persistent/pg-backup.sh`.
 - **Restart after a pod stop/start:** `bash /workspace/persistent/start-all.sh`
@@ -332,7 +414,8 @@ so the stack runs **natively** on the pod, not via `docker compose`:
   Stop with `stop-all.sh`. These are plain background procs (no systemd here).
 - **If the CONTAINER DISK was wiped** (start-all.sh fails because psql/node/ollama are
   gone): `bash /workspace/persistent/bootstrap-pod.sh` FIRST, then `start-all.sh`.
-  It reinstalls PG + Redis + Node 20 + the Ollama binary + Flowise (/opt/flowise-app),
+  It reinstalls PG + Redis + Node 20 + the Ollama binary + Flowise (/opt/flowise-app —
+  now via the `flowise-app.tar.gz` snapshot fast-path, ~1-2 min instead of ~20),
   relinks `/root/.ollama` to the volume's models, recreates the DB role/database,
   restores the Engineering Agent from `postgres-backups/vitech.sql`, and regenerates
   the git SSH key (printing the pubkey to add to GitHub). Idempotent; it refuses to

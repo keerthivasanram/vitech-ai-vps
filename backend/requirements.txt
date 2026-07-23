@@ -11,3 +11,4 @@ python-multipart      # file uploads (multipart/form-data) for the Upload page
 pdfplumber            # page-aware PDF text + table extraction for the RAG loader
 python-docx            # DOCX text + table extraction for the RAG document loader
 openpyxl               # XLSX text extraction for the RAG document loader
+redis>=5,<6
