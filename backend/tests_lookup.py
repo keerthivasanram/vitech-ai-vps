@@ -60,6 +60,13 @@ check("hot air oven query includes both known oven offers",
 listq = project_hits("list clients we worked on hot air oven")
 check("'list clients ... hot air oven' lists oven clients", len(listq) >= 2, ids(listq))
 
+# 8) CONTENT relevance: "paint booth conveyor improvement" must find Armstrong
+#    (category=conveyor) by what the project IS, and NOT dump paint booths — even
+#    though the words "paint booth" classify the query as paint_booth.
+conv = project_hits("is that we have any client worke for paint booth conveyor improvement")
+check("content relevance surfaces Armstrong first", conv and conv[0]["id"] == "OFF-ARMSTRONG-CONV-395", ids(conv))
+check("content relevance does not dump unrelated paint booths", len(conv) <= 3, ids(conv))
+
 print()
 if _fail:
     print(f"{_fail} LOOKUP TEST(S) FAILED")

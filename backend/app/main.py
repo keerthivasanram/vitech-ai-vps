@@ -493,7 +493,11 @@ def tool_list_projects(payload: dict = Body(...)):
     scope = payload.get("category") or payload.get("equipment_type")
     if not scope:
         guess, score = classify_equipment(q)
-        scope = guess if score >= CONFIDENT else None
+        # scope on a confident classification, OR when the category is named
+        # literally (e.g. "how many clients for conveyor" — 'conveyor' classifies
+        # weakly but is stated outright, and must not return all 33).
+        if guess and (score >= CONFIDENT or guess.replace("_", " ") in q.lower()):
+            scope = guess
     scope = scope if scope in all_cats else None   # only filter on a real category
     scoped = [o for o in offers if o.get("category") == scope] if scope else offers
     scope_label = category_label(scope) if scope else None

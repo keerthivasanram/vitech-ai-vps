@@ -148,11 +148,15 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   only (word-boundary) — NOT title words, so "water wall **paint booth**" no longer matches
   every paint/booth/conveyor offer. `structured_project_hits` handles no-client queries by
   equipment type + dimensions (deterministic, exact match returned alone), e.g.
-  "0.9 x 0.92 x 2 water wall paint booth" → the one Yonex booth. When equipment is
-  classified confidently but there is NO parseable dimension ("hot air oven U-type 6.5L",
-  "which clients for hot air oven"), it returns the category's projects rather than claim we
-  have none — fixed the "hot air oven → no clients" bug when 2 oven offers existed.
-  `project_hits` = named first, else structured. Guarded by `tests_lookup.py`.
+  "0.9 x 0.92 x 2 water wall paint booth" → the one Yonex booth (exact-dimension path).
+  Otherwise `_relevant_offer_hits` does a **content-relevance search over the offers**
+  (semantic vector fused with query-term overlap, then a gap-cut so only the cluster near
+  the top score is returned — never a whole-category dump, so it scales to thousands of
+  files). This finds Armstrong (category=conveyor) for "paint booth conveyor improvement"
+  by what the project IS, not by crude category classification, and lists the oven clients
+  for "hot air oven ...". `project_hits` = named first, else structured. `list_projects`
+  scopes on a literal category mention too (e.g. "how many clients for conveyor" → 1, not
+  all 33), not just a confident classification. Guarded by `tests_lookup.py`.
 - **Support**: `app/validate.py`, `app/ledger.py`, `app/catalog.py` (category
   profiles + `required_inputs`), `app/understand.py` (intent + param extraction),
   `app/llm.py` (plan_answer, answer layer), `app/ollama_client.py` (Ollama transport,

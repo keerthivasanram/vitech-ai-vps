@@ -179,15 +179,27 @@ def entity_hits(question: str) -> list[dict[str, Any]]:
     return hits
 
 
-def structured_project_hits(question: str) -> list[dict[str, Any]]:
-    """Deterministic lookup by equipment type + structured attributes (dimensions,
-    airflow) for questions that name NO client — e.g. '0.9 x 0.92 x 2 water wall
-    paint booth'. Filters offers to the confidently-classified equipment category
-    and ranks by how closely the given numeric attributes match each offer's
-    given_data. An EXACT attribute match is returned alone (one confident result);
-    otherwise the nearest few. This is the metadata-first ranking that keeps a
-    dimension query from doing a broad keyword sweep.
-    """
+# Relevance search knobs. Fuse dense (vector) + lexical (query-term overlap),
+# then keep only the cluster near the top score so we return the few genuinely
+# relevant projects — never a whole-category dump (which would not scale to
+# thousands of files).
+_REL_POOL = 15        # vector candidates to consider
+_REL_TOP_K = 6        # max projects returned
+_REL_DENSE_W = 0.55
+_REL_LEXICAL_W = 0.45
+_REL_GAP = 0.15       # keep hits within this of the top fused score
+_REL_FLOOR = 0.28     # absolute minimum fused score to be considered relevant
+
+
+def _content_terms(text: str) -> set[str]:
+    return {t for t in re.split(r"[\s,./_-]+", (text or "").lower())
+            if len(t) >= 3 and t not in _STOP}
+
+
+def _exact_dimension_hit(question: str) -> list[dict[str, Any]]:
+    """If the question gives an equipment type + dimensions that match ONE offer
+    exactly, return just that offer (the confident single result, e.g. the Yonex
+    0.9x0.92x2 booth). Exact matches only — near matches go through relevance."""
     from .classify import CONFIDENT, classify_equipment
     from .understand import _fallback                 # deterministic parse (no LLM)
 
@@ -196,50 +208,72 @@ def structured_project_hits(question: str) -> list[dict[str, Any]]:
         return []
     params = {k: v for k, v in _fallback(question).parameters.items()
               if isinstance(v, (int, float))}
-
+    if not params:
+        return []
     col = get_collection()
     if col.count() == 0:
         return []
     res = col.get(include=["documents", "metadatas"])
-    cat_offers = []                                   # (doc, rec) for this category
     for doc, meta in zip(res["documents"], res["metadatas"]):
         raw = meta.get("_raw")
         if not raw:
             continue
         rec = json.loads(raw)
-        if rec.get("type", "offer") == "offer" and rec.get("category") == cat:
-            cat_offers.append((doc, rec))
-    if not cat_offers:
-        return []
-
-    # Equipment named but no dimensions to match on (e.g. "hot air oven" or a spec
-    # like "U-type 6.5L" that isn't a parseable size): return the category's
-    # projects so "have we done a hot air oven / which clients" lists the real
-    # clients — never claim we have none when we plainly have offers in this type.
-    if not params:
-        return [_make_hit(rec, doc, score=0.6) for doc, rec in cat_offers]
-
-    scored = []
-    for doc, rec in cat_offers:
+        if rec.get("type", "offer") != "offer" or rec.get("category") != cat:
+            continue
         gd = rec.get("given_data", {}) or {}
         keys = [k for k in params if isinstance(gd.get(k), (int, float))]
-        if not keys:
-            continue
-        diffs = [abs(params[k] - gd[k]) / max(abs(gd[k]), 1e-9) for k in keys]
-        avg = sum(diffs) / len(diffs)
-        # exact only when EVERY numeric attribute the user gave was compared and matched
-        exact = len(keys) == len(params) and all(d < 0.02 for d in diffs)
-        scored.append((exact, max(0.0, 1 - avg), len(keys), rec, doc))
+        if keys and len(keys) == len(params) and all(
+                abs(params[k] - gd[k]) / max(abs(gd[k]), 1e-9) < 0.02 for k in keys):
+            return [_make_hit(rec, doc, score=0.99)]
+    return []
 
-    # params given but none comparable to this category's data -> still show the
-    # category's projects rather than claim we have none.
-    if not scored:
-        return [_make_hit(rec, doc, score=0.6) for doc, rec in cat_offers]
-    # exact matches first, then by closeness, then by how many attributes matched
-    scored.sort(key=lambda p: (not p[0], -p[1], -p[2]))
-    exacts = [t for t in scored if t[0]]
-    chosen = exacts[:1] if exacts else scored[:5]     # one confident hit, else nearest few
-    return [_make_hit(rec, doc, score=round(sv, 3)) for _ex, sv, _n, rec, doc in chosen]
+
+def _relevant_offer_hits(question: str, top_k: int = _REL_TOP_K) -> list[dict[str, Any]]:
+    """Content-relevance search over the OFFERS: semantic vector similarity fused
+    with query-term overlap, then a gap cut so only the projects near the top
+    score are returned. This is what finds 'Armstrong' for 'paint booth conveyor
+    improvement' (its content matches, though its CATEGORY is conveyor, not paint
+    booth) and it scales — top-k relevance, never a category dump."""
+    col = get_collection()
+    n = col.count()
+    if n == 0:
+        return []
+    res = col.query(query_texts=[question], n_results=min(_REL_POOL, n),
+                    where={"type": "offer"},
+                    include=["documents", "metadatas", "distances"])
+    if not res["documents"] or not res["documents"][0]:
+        return []
+    q_terms = _content_terms(question)
+    cands = []
+    for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
+        raw = meta.get("_raw")
+        if not raw:
+            continue
+        rec = json.loads(raw)
+        dense = 1 - dist                              # cosine similarity
+        d_terms = _content_terms(doc)
+        lex = (len(q_terms & d_terms) / len(q_terms)) if q_terms else 0.0
+        fused = _REL_DENSE_W * dense + _REL_LEXICAL_W * lex
+        cands.append((fused, dense, rec, doc))
+    if not cands:
+        return []
+    cands.sort(key=lambda p: -p[0])
+    top = cands[0][0]
+    threshold = max(top - _REL_GAP, _REL_FLOOR)
+    kept = [c for c in cands if c[0] >= threshold][:top_k]
+    return [_make_hit(rec, doc, score=round(dense, 3)) for _f, dense, rec, doc in kept]
+
+
+def structured_project_hits(question: str) -> list[dict[str, Any]]:
+    """No-client project lookup: an exact equipment+dimension match returns that
+    one project; otherwise a content-relevance search over the offers returns the
+    few most relevant. Ranks by what the project IS, and scales to a large corpus
+    because it never enumerates a whole category."""
+    exact = _exact_dimension_hit(question)
+    if exact:
+        return exact
+    return _relevant_offer_hits(question)
 
 
 def project_hits(question: str) -> list[dict[str, Any]]:
