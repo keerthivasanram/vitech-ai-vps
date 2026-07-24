@@ -23,6 +23,7 @@ from .engineering.engineering_planner import _fmt, _given, _num, _tech, generate
 from .ledger import build_ledger
 from .schema import QueryUnderstanding
 from .spec_schema import ATS
+from .spec_template import apply_template
 from .validate import cross_validate, validate
 
 _STRUCTURED = {"specification", "quotation"}
@@ -104,6 +105,11 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
     technical, rules_list = ([], [])
     if structured:
         technical, rules_list = generate_spec(profile, category, params, chosen, offers, policy)
+        # Reconcile against the category spec TEMPLATE: guarantee every expected
+        # field is present, filling any gap with an explicit TBD (needs engineering
+        # input) rather than leaving a hole for the model to hallucinate into.
+        # Opt-in per category; no-op where no template is defined.
+        technical = apply_template(profile, technical)
 
     assumptions, missing = _assumptions_and_missing(profile, params, offers) if structured else ([], [])
     validation = ((validate(category, params) + cross_validate(category, params, chosen, technical))

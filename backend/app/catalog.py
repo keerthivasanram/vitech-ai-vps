@@ -30,6 +30,7 @@ ORIGIN_LABELS = {
     "scaled": "Scaled from nearest design",
     "consistent": "Historical consensus",
     "reused": "Reused from nearest design",
+    "tbd": "To be determined (needs engineering input)",
     # legacy
     "kept": "Reused from nearest design",
     "adapted": "Scaled from nearest design",
@@ -189,6 +190,27 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
                          "no_of_zones": "No. of heating zones", "conveyor": "Conveyor",
                          "door": "Door", "motorized_trolley": "Motorized trolley",
                          "heating_mode": "Heating mode", "finish": "Finish"},
+        # SPEC TEMPLATE — the sections a complete oven spec must cover (the ones
+        # the client asks for). Each field resolves to given/calc/reuse or an
+        # explicit TBD. Labels for reused fields match field_labels so history
+        # fills them; the rest (dimensions, control panel, utilities, safety)
+        # stay TBD until an engineering calc / the client's data supplies them.
+        "spec_template": [
+            {"label": "Oven type", "kind": "standard"},
+            {"label": "Overall dimensions (mm)", "kind": "geometry"},
+            {"label": "Chamber", "kind": "standard"},
+            {"label": "Airflow (m3/h)", "kind": "computed"},
+            {"label": "Circulation blower (HP)", "kind": "computed"},
+            {"label": "Baking time (min)", "kind": "computed"},
+            {"label": "Insulation", "kind": "computed"},
+            {"label": "Heating source", "kind": "computed"},
+            {"label": "Heating capacity (kcal/hr)", "kind": "computed"},
+            {"label": "Conveyor", "kind": "standard"},
+            {"label": "Control panel", "kind": "standard"},
+            {"label": "Utilities", "kind": "standard"},
+            {"label": "Safety features", "kind": "standard"},
+            {"label": "Finish", "kind": "standard"},
+        ],
     },
     "dust_collector": {
         "label": "Dust Collector",

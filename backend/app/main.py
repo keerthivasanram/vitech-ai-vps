@@ -279,6 +279,34 @@ def _spec_markdown(resp: dict) -> str | None:
     return "\n".join(L)
 
 
+def _spec_geometry(a: dict) -> dict:
+    """Machine-readable geometry for the 2D drawing generator: the numeric
+    envelope (mm) plus the status of every geometry-kind template field. Only
+    real numeric dimensions are emitted — a dimension with no client value / rule
+    is reported as TBD, never guessed. The drawing consumes this, not the prose
+    table. Fills out as engineering calcs land (they output numbers we keep here)."""
+    params = (a.get("understanding") or {}).get("parameters") or {}
+
+    def to_mm(key):
+        v = params.get(key)
+        try:
+            return round(float(v) * 1000)   # stored in metres -> mm
+        except (TypeError, ValueError):
+            return None
+
+    L, W, H = to_mm("length_m"), to_mm("width_m"), to_mm("height_m")
+    env = {"length": L, "width": W, "height": H}
+    have = [x for x in (L, W, H) if x is not None]
+    src = "given" if len(have) == 3 else ("partial" if have else "tbd")
+    fields = [
+        {"label": t.get("label"), "value": t.get("value"),
+         "status": "tbd" if t.get("origin") == "tbd" else "resolved"}
+        for t in (a.get("technical_details") or []) if t.get("kind") == "geometry"
+    ]
+    return {"envelope_mm": env, "envelope_source": src,
+            "ready": len(have) == 3, "fields": fields}
+
+
 @app.post("/api/tools/spec", operation_id="generate_specification")
 def tool_spec(payload: dict = Body(...)):
     """Requirement -> engineering specification (deterministic + structured)."""
@@ -306,9 +334,16 @@ def tool_spec(payload: dict = Body(...)):
              # the derivation: the actual formula for a calculated value, or which
              # historical offer a value was reused/scaled from. Surfaced so the
              # spec shows HOW each number was arrived at, not just a generic label.
-             "reason": t.get("reason")}
+             "reason": t.get("reason"),
+             # 'tbd' marks a template field with no value yet (needs engineering
+             # input) — the agent must render it as TBD, never fill it in.
+             "status": "tbd" if t.get("origin") == "tbd" else "resolved",
+             "kind": t.get("kind")}
             for t in (a.get("technical_details") or [])
         ],
+        # structured geometry for the 2D-drawing generator (numeric mm envelope
+        # + per-dimension status); prose table above is for humans, this is for code.
+        "geometry": _spec_geometry(a),
         "sources": a.get("source_files") or [],
         "text": _spec_text(a),
     }
