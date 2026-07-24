@@ -121,7 +121,7 @@ export default function App() {
         />
       );
     }
-    if (view === "drawing") return <DrawingStudio key={view} />;
+    if (view === "drawing") return <DrawingStudio key={view} isDark={isDark} />;
     if (view === "dashboard") return <Dashboard key={view} setView={go} />;
     if (view === "knowledge") return <KnowledgeBase key={view} setView={go} />;
     if (view === "upload") return <UploadPage key={view} />;

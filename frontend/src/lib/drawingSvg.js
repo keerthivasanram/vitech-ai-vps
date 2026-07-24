@@ -12,6 +12,12 @@
  * envelope / dimensions / grid / title-block.
  */
 
+// `?inline` gives a base64 data URI so the logo embeds in the SVG itself —
+// it renders on-canvas AND survives an SVG export (a bare URL would not).
+// Two variants: the dark one lifts the near-black tagline for a dark sheet.
+import logoUrl from "../assets/logo.png?inline";
+import logoDarkUrl from "../assets/logo-dark.png?inline";
+
 const MM = (v) => (v == null ? null : Math.round(v));
 
 /* Parse "5 x 3 x 4", "5000x3000", "L 6 W 3 H 4 m", "800 dia" etc. into mm. */
@@ -73,6 +79,7 @@ function dimV(x, y1, y2, val, cls = "") {
  */
 export function buildDrawingSvg(env, meta = {}) {
   const W = 1120, H = 760;                       // sheet units
+  const logo = meta.isDark ? logoDarkUrl : logoUrl;
   const label = env.label || "Equipment";
   const L = env.length, Wd = env.width, Ht = env.height;
 
@@ -117,7 +124,8 @@ export function buildDrawingSvg(env, meta = {}) {
   const scaleText = meta.scaleText || "NTS (preview)";
   const tb = `<g data-layer="titleblock">
     <rect class="tb" x="0" y="${H - 118}" width="${W}" height="118"/>
-    <text class="tb-co" x="24" y="${H - 82}">VITECH ENVIRO SYSTEMS PVT. LTD</text>
+    <image href="${logo}" x="24" y="${H - 108}" height="30" width="93" preserveAspectRatio="xMidYMid meet"/>
+    <text class="tb-co" x="126" y="${H - 86}">VITECH ENVIRO SYSTEMS PVT. LTD</text>
     <text class="tb-sub" x="24" y="${H - 62}">AP-123, AF-BLOCK, 6th STREET, 11th MAIN ROAD, ANNA NAGAR, CHENNAI-600 040</text>
     <text class="tb-sub" x="24" y="${H - 42}">General Arrangement — ${esc(label)}</text>
     <line class="tb-div" x1="${W - 360}" y1="${H - 118}" x2="${W - 360}" y2="${H}"/>

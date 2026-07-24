@@ -21,7 +21,7 @@ const LAYERS = [
   { id: "grid", label: "Grid" },
 ];
 
-export function DrawingStudio() {
+export function DrawingStudio({ isDark = false }) {
   const [prompt, setPrompt] = useState("");
   const [env, setEnv] = useState(() => parseEnvelope("wet scrubber 3 x 1.5 x 4 m"));
   const [layers, setLayers] = useState({ envelope: true, dimensions: true, titleblock: true, grid: true });
@@ -31,7 +31,7 @@ export function DrawingStudio() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef(null);
 
-  const svg = useMemo(() => buildDrawingSvg(env, { ref: "VT/DRG/PREVIEW" }), [env]);
+  const svg = useMemo(() => buildDrawingSvg(env, { ref: "VT/DRG/PREVIEW", isDark }), [env, isDark]);
   const tbds = useMemo(() => tbdList(env), [env]);
 
   const generate = useCallback((text) => {
