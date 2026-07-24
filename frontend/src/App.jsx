@@ -166,6 +166,7 @@ export default function App() {
           onTogglePanel={togglePanel}
           showPanelToggle={chatView}
           panelOpen={panelOpen}
+          flat={chatView}
         />
 
         <Workspace>

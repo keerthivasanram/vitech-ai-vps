@@ -431,6 +431,11 @@
   border-bottom: 1px solid var(--glass-border);
 }
 
+/* Chat view: no bar of its own — it reads as the top edge of the same
+   open surface as the transcript below it (see .chat-surface), rather
+   than a separate bordered strip sitting on top of a separate card. */
+.topheader.is-flat { background: transparent; border-bottom-color: transparent; }
+
 .topheader-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
 
 .topheader-burger {
@@ -531,20 +536,18 @@
 /* --------------------------------------------------------------------------
    Chat surface — hero + quick actions + transcript + composer
    -------------------------------------------------------------------------- */
+/* No card chrome here on purpose — every child (hero, bubbles, composer)
+   already carries its own background/border, so a wrapping card around
+   all of them was redundant framing that just drew a box around empty
+   space. Transparent, so it reads as one continuous surface with the
+   (also-flat, see .topheader.is-flat) header above it — full-height,
+   full-width, Claude/ChatGPT-style, not a floating panel. */
 .chat-surface {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   animation: page-fade-in var(--t-page) both;
-  border: 1px solid var(--border);
-  border-radius: var(--r-card);
-  /* Barely translucent — the blueprint canvas behind #root should only ever
-     be a whisper here, never compete with the transcript's readability. */
-  background: color-mix(in srgb, var(--card) 97%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 

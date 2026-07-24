@@ -27,12 +27,12 @@ function useFullscreen() {
  */
 export const TopHeader = memo(function TopHeader({
   title, online, notifications = 0,
-  isDark, onToggleTheme, onToggleSidebar, onTogglePanel, showPanelToggle, panelOpen,
+  isDark, onToggleTheme, onToggleSidebar, onTogglePanel, showPanelToggle, panelOpen, flat,
 }) {
   const { isFull, toggle: toggleFull } = useFullscreen();
 
   return (
-    <header className="topheader">
+    <header className={`topheader${flat ? " is-flat" : ""}`}>
       <div className="topheader-l">
         <button
           type="button"
