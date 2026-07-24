@@ -18,7 +18,8 @@ from .schema import ComputedSpec
 
 def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
     return compute_spec(params.get("length_m"), params.get("width_m"),
-                        params.get("height_m"), params.get("paint_type"))
+                        params.get("height_m"), params.get("paint_type"),
+                        params.get("booth_type"))
 
 
 # Engineering-oriented labels for value provenance (shown to users).

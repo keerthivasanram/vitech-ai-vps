@@ -38,9 +38,12 @@ _G = 9.81                     # m/s^2
 
 def compute_spec(length_m: Optional[float], width_m: Optional[float],
                  height_m: Optional[float] = None,
-                 paint_type: Optional[str] = None) -> ComputedSpec:
+                 paint_type: Optional[str] = None,
+                 booth_type: Optional[str] = None) -> ComputedSpec:
     """Apply engineering rules to a paint-booth requirement. Returns computed
-    values, each tagged with provenance, plus the rule trail (formula + standard)."""
+    values, each tagged with provenance, plus the rule trail (formula + standard).
+    booth_type is honoured so a liquid booth's filtration/material stays coherent
+    with the actual booth design (dry-filter unless a water-wash booth)."""
     spec = ComputedSpec(length_m=length_m, width_m=width_m, height_m=height_m)
     if length_m is None or width_m is None:
         return spec  # not enough to compute a booth; caller handles concept Qs
@@ -48,7 +51,7 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     height = height_m or DEFAULT_HEIGHT
     spec.height_m = height
     paint = (paint_type or "powder").lower()
-    proc = select_paint_process(paint_type)
+    proc = select_paint_process(paint_type, booth_type)
 
     face_area = width_m * height          # open working face
     floor_area = length_m * width_m
