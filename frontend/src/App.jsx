@@ -9,16 +9,16 @@ import { KnowledgeBase } from "./pages/KnowledgeBase";
 import { CollectionPage } from "./pages/CollectionPage";
 import { UploadPage } from "./pages/UploadPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { LoginPage } from "./pages/LoginPage";
 import { LiveHelpPage } from "./pages/LiveHelpPage";
 import { RoadmapPage } from "./pages/RoadmapPage";
 import { useAgentChat } from "./hooks/useAgentChat";
 import { useHealth } from "./hooks/useHealth";
 import { useTheme } from "./hooks/useTheme";
 import { useIsCompact, useIsMobile } from "./hooks/useMediaQuery";
+import { useAuth } from "./auth/AuthProvider";
 import { AGENT_UI, COLLECTION_KEYS, VIEW_TITLES, isChatView } from "./lib/constants";
-
-/* Signed-in user. Wire to real auth when the multi-user phase lands. */
-const USER = { name: "Loganathan R", role: "Admin" };
 
 const PANEL_KEY = "vitech_panel";
 
@@ -36,6 +36,7 @@ export default function App() {
   const [navOpen, setNavOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(initialPanel);
 
+  const { user, ready, login, logout } = useAuth();
   const health = useHealth();
   const { isDark, toggle: toggleTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -110,7 +111,7 @@ export default function App() {
         <ChatWindow
           key={view}
           ui={ui}
-          userName={USER.name.split(" ")[0]}
+          userName={(user?.name || "there").split(" ")[0]}
           messages={chat.messages}
           input={chat.input}
           setInput={chat.setInput}
@@ -126,12 +127,26 @@ export default function App() {
       return (
         <ProfilePage
           key={view}
-          user={USER}
+          user={user}
           health={health}
           sessionId={chat.sessionId}
           conversationCount={chat.conversations.length}
           isDark={isDark}
           onToggleTheme={toggleTheme}
+          onLogout={logout}
+        />
+      );
+    }
+    if (view === "settings") {
+      return (
+        <SettingsPage
+          key={view}
+          user={user}
+          health={health}
+          sessionId={chat.sessionId}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          onLogout={logout}
         />
       );
     }
@@ -144,13 +159,21 @@ export default function App() {
 
   const drawerOpen = (isMobile && navOpen) || (isCompact && panelOpen);
 
+  /* Auth gate. All hooks above run unconditionally (Rules of Hooks); only the
+     render branches. `ready` prevents a login flash before the stored session
+     is read on first paint. */
+  if (!ready) return null;
+  if (!user) {
+    return <LoginPage onLogin={login} isDark={isDark} onToggleTheme={toggleTheme} />;
+  }
+
   return (
     <Shell>
       <Sidebar
         view={view}
         onSelect={go}
         onNewChat={startNewChat}
-        user={USER}
+        user={user}
         open={navOpen}
         isDark={isDark}
       />

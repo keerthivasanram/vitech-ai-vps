@@ -53,7 +53,7 @@ export const NAV = [
 
   { id: "profile",   label: "Profile",   icon: "UserRound",      group: "System", status: "live" },
   { id: "live_help", label: "Live Help", icon: "LifeBuoy",       group: "System", status: "live" },
-  { id: "settings",  label: "Settings",  icon: "Settings",       group: "System", status: "soon" },
+  { id: "settings",  label: "Settings",  icon: "Settings",       group: "System", status: "live" },
 ];
 
 /* Every child id under the collapsible agent group. */
