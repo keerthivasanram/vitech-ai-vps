@@ -358,9 +358,13 @@ remove them (without one, FastAPI auto-generates `tool_spec_api_tools_spec_post`
 **Flowise orchestrates; Python owns all business logic + calculations.** Stack:
 React+Vite+**TypeScript**, FastAPI, **Flowise** + Ollama + **Llama 3** + ChromaDB +
 Redis, **PostgreSQL**, **Docker Compose**, **RunPod GPU VPS** (Ubuntu 22.04). Agents:
-Engineering (live), Quotation (live), Drawing (roadmap), coordinated later by a
-**Supervisor**. The current chat engine's reasoning becomes the Flowise **tools**
-above; the chat-orchestration layer (`/api/query`, `llm.py`) is what Flowise replaces.
+Engineering (live), Quotation (live), Drawing (roadmap — **design plan in
+`docs/drawing-agent-plan.md`**: a "studio" split chat+canvas that turns the
+deterministic `_spec_geometry` envelope into a 2D GA drawing via a new
+`backend/app/drawing/` engine + `/api/tools/drawing`; geometry stays
+deterministic, TBDs render as callouts), coordinated later by a **Supervisor**.
+The current chat engine's reasoning becomes the Flowise **tools** above; the
+chat-orchestration layer (`/api/query`, `llm.py`) is what Flowise replaces.
 
 ## Dev commands
 - **Start EVERYTHING on the pod (do this first, every new session):**
