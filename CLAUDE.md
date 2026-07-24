@@ -124,6 +124,15 @@ script is only needed for a from-scratch rebuild.
 Backend next-phase (sequenced; full detail + rationale in local memory
 `backend-next-phase-plan`). **Every engine change: run `tests_golden.py` before AND after —
 must stay ALL PASS.** Pod-side unless marked LOCAL:
+- [ ] B0b. **Reconcile a client-given attribute that conflicts with a REUSED design**
+      (found 2026-07-24, generalises B0). Case-based reuse (paint booth Track A kept-fields,
+      hot air oven Track B) does not honour/flag a client requirement that contradicts the
+      reused categorical field. Examples: customer asks **LPG fired** but the nearest oven
+      (OFF-SURFACE-OVEN-356R3) is **diesel** — the tech table shows "diesel fired ..." (only 2
+      historical ovens exist, neither LPG); paint-booth water-wash request reuses a dry booth's
+      booth_type. Both are honestly attributed + Low confidence, but should either override the
+      fuel word / booth_type from the requirement or emit a cross-validation "confirm: customer
+      requested X, nearest design is Y" note. `analysis.py::cross_validate` is the natural seam.
 - [ ] B0. **Filtration-aware paint-booth matching** (found 2026-07-24). `retriever.py`
       picks the nearest paint booth by DIMENSIONS only, not by filtration type. Vitech has
       1 water-wash booth (OFF-YONEX-PB-367) vs 13 dry — so a water-wash REQUEST ("wet cross
