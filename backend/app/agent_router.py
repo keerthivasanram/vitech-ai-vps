@@ -55,11 +55,18 @@ def prepare(question: str, top_k: int | None, history=None):
         adaptable = bool(profile and (
             profile.get("rules") or profile.get("field_rules")
             or (profile.get("scale_driver") and profile.get("scalable"))))
+        # CASE-BASED = no closed-form rules, but we DO reuse the nearest matching
+        # historical design deterministically (e.g. ovens). Distinct from adaptable
+        # (which SCALES) — case-based REUSES. Build from data whenever the category
+        # has offers and the user gave something to match on, so the model never has
+        # to invent an oven's dimensions/heating/insulation from an empty spec.
+        case_based = bool(profile and profile.get("case_based"))
         buildable = adaptable or has_offers(u.category)
         wants_quote = u.intent == "quotation"
         use_data = buildable and (
             refer_db
             or (adaptable and essential and completeness >= config.HYBRID_THRESHOLD)
+            or (case_based and has_offers(u.category) and bool(u.parameters))
             or (wants_quote and essential))
 
     # Multi-turn memory: resolve a short/pronoun follow-up ("compare it with the

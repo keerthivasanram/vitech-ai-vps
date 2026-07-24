@@ -19,8 +19,11 @@ _SIGNALS: dict[str, list[tuple[str, int]]] = {
         (r"coating\s*booth", 2), (r"painting\s*booth", 2), (r"\bbooth\b", 1),
     ],
     "hot_air_oven": [
-        (r"hot\s*air\s*oven", 3),
-        (r"curing\s*oven|baking\s*oven|batch\s*oven|conveyor\s*oven|paint\s*oven", 3),
+        (r"hot\s*air\s*oven|bake\s*oven|baking\s*oven|curing\s*oven|batch\s*oven|"
+         r"conveyor\s*oven|paint\s*oven|powder\s*curing\s*oven", 3),
+        # A conveyorized / overhead-conveyor OVEN is an oven, not a conveyor — this
+        # boost keeps it from losing to the conveyor category on the conveyor words.
+        (r"conveyor\w*\b[\w\s,-]{0,28}\boven\b|\boven\b[\w\s,-]{0,28}conveyor", 3),
         (r"\boven\b", 2), (r"\bcuring\b|\bbaking\b", 1),
     ],
     "dust_collector": [

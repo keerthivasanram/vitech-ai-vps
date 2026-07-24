@@ -83,6 +83,13 @@ _PARAM_ALIASES = {
     "tower_diameter": "tower_diameter_mm", "tower_dia": "tower_diameter_mm",
     "quantity": "qty", "nos": "qty", "units": "qty", "no_of_units": "qty", "number": "qty",
     "temperature": "operating_temp", "operating_temperature": "operating_temp", "temp": "operating_temp",
+    "max_operating_temp": "operating_temp", "max_operating_temp_c": "operating_temp",
+    "max_oven_temp": "operating_temp", "max_oven_temperature": "operating_temp",
+    "oven_temp": "operating_temp", "operating_temp_c": "operating_temp", "max_temp": "operating_temp",
+    # oven job/hook load -> the offer's given key, so a matching oven ranks first
+    "job_weight": "job_weight_kg", "hook_load": "job_weight_kg", "hook_load_kg": "job_weight_kg",
+    "max_hook_load": "job_weight_kg", "max_hook_load_kg": "job_weight_kg", "load_per_hook_kg": "job_weight_kg",
+    "fuel": "heating_mode", "fuel_type": "heating_mode",
     "pressure": "operating_pressure",
     "airflow": "air_volume_cfm", "air_volume": "air_volume_cfm", "cfm": "air_volume_cfm",
     "flow_cfm": "air_volume_cfm", "air_flow_cfm": "air_volume_cfm",

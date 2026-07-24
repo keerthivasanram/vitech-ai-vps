@@ -173,8 +173,22 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         ],
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [],
+        # CASE-BASED: ovens have no closed-form sizing rules, but Vitech has real
+        # oven offers to reuse. Rather than consulting from scratch (which left the
+        # LLM to invent dimensions), build the spec by REUSING the nearest matching
+        # historical oven design — deterministic, with honest "reused from offer X"
+        # provenance. The nearest offer is chosen by semantic + given-attribute rank.
+        "case_based": True,
         "field_labels": {"chamber": "Chamber", "insulation": "Insulation",
-                         "heating": "Heating source", "operating_temp": "Operating temperature"},
+                         "heating": "Heating source", "operating_temp": "Operating temperature",
+                         "oven_type": "Oven type", "baking_time_min": "Baking time (min)",
+                         "circulation_blower_hp": "Circulation blower (HP)",
+                         "circulation_blower_qty": "Circulation blower (nos)",
+                         "circulation_blower_drive": "Circulation blower drive",
+                         "circulation_fan_hp": "Circulation fan (HP)",
+                         "no_of_zones": "No. of heating zones", "conveyor": "Conveyor",
+                         "door": "Door", "motorized_trolley": "Motorized trolley",
+                         "heating_mode": "Heating mode", "finish": "Finish"},
     },
     "dust_collector": {
         "label": "Dust Collector",
