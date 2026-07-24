@@ -5,7 +5,6 @@ import {
   ThumbsDown, ThumbsUp,
 } from "lucide-react";
 import { Answer } from "../lib/markdown";
-import { QuotationCard } from "./QuotationCard";
 import { THINK_LABELS } from "../lib/constants";
 
 /* POST a specification payload to the backend and download the returned PDF.
@@ -116,6 +115,49 @@ const SpecActions = memo(function SpecActions({ spec, text }) {
   );
 });
 
+/* POST the structured quotation to the backend and download the Vitech-
+   letterhead PDF. Mirrors downloadSpecPdf — nothing is computed in the UI. */
+async function downloadQuotePdf(quote) {
+  try {
+    const resp = await fetch("/api/quotation/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(quote),
+    });
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(quote.ref || "quotation").replace(/[\s/]+/g, "_")}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    /* offline / backend down — no-op */
+  }
+}
+
+/* Download-as-PDF control shown below a generated quotation. Keeps the agent's
+   own quotation markdown as the visible reply; this just adds the button. */
+const QuoteActions = memo(function QuoteActions({ quote }) {
+  return (
+    <div className="spec-actions">
+      <button
+        type="button"
+        className="spec-pdf-btn"
+        onClick={() => downloadQuotePdf(quote)}
+        aria-label="Download quotation as PDF"
+        title="Download quotation as PDF"
+      >
+        <FileDown size={15} strokeWidth={1.8} aria-hidden="true" />
+        Download PDF
+      </button>
+    </div>
+  );
+});
+
 /* Citeable source files. Each opens its extracted content in the record
    inspector — clicking hands the source up to the chat window's onOpenSource. */
 const Sources = memo(function Sources({ sources, onOpenSource }) {
@@ -157,7 +199,7 @@ const AssistantBody = memo(function AssistantBody({ data, onOpenSource }) {
       </div>
 
       <Answer text={data.answer} />
-      {data.quotation && <QuotationCard q={data.quotation} />}
+      {data.quotation && <QuoteActions quote={data.quotation} />}
       {data.spec && <SpecActions spec={data.spec} text={data.answer} />}
 
       {data.sources?.length > 0 && (

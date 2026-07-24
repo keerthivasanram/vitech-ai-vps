@@ -47,6 +47,18 @@ function collectSources(calls) {
   return out;
 }
 
+/* True once generate_quotation actually produced a quotation (not a guard
+   "need_requirement" bounce), plus the payload the QuotationCard + PDF route
+   consume. This is what surfaces the "Download PDF" button under a quote. */
+function findQuote(calls) {
+  for (const c of calls) {
+    if (c.tool !== "generate_quotation") continue;
+    const o = parseOutput(c.toolOutput);
+    if (o && o.ok !== false && o.price && (o.ref || o.headline)) return o;
+  }
+  return null;
+}
+
 /* True once generate_specification actually produced a structured spec (not a
    guard "need_requirement" bounce), plus the payload we hand to the PDF route. */
 function findSpec(calls) {
@@ -70,6 +82,7 @@ function agentData(answer, calls, llm) {
   const tools = calls.map((c) => c.tool).filter(Boolean);
   const deterministic = tools.some((t) => DETERMINISTIC_TOOLS.includes(t));
   const spec = findSpec(calls);
+  const quotation = findQuote(calls);
   const sources = collectSources(calls);
   return {
     answer,
@@ -79,6 +92,7 @@ function agentData(answer, calls, llm) {
     spec_mode: deterministic ? "data" : tools.length === 0 ? "knowledge" : undefined,
     intent: tools.length ? tools.join(" · ") : undefined,
     spec,                                  // structured spec payload → PDF (null if none)
+    quotation,                             // structured quote payload → QuotationCard + PDF
     sources: sources.length ? sources : undefined,
   };
 }
