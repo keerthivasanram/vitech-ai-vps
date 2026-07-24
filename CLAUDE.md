@@ -218,6 +218,25 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   `standards_service.py` (governing standards), `material_service.py` (process→material).
   `app/rules.py` is a back-compat shim → `formula_service`. `analysis.py` orchestrates
   matching/confidence/presentation around the planner.
+- **Spec templates + TBD gap-fill** (`app/spec_template.py`, added 2026-07-24): a
+  per-category **`spec_template`** in `catalog.py` (ordered `{label, kind}` list) defines
+  the OUTPUT fields a complete spec must have (`kind` ∈ geometry/computed/standard/text).
+  `apply_template` runs in `analyze()` after `generate_spec`: resolved rows appear in
+  template order and every uncovered field becomes an explicit **`origin:"tbd"`** row
+  ("To be determined — needs engineering input"). This is the **deterministic guardrail** —
+  a gap is shown AS a gap so the LLM never fills a vacuum (the oven-hallucination root cause).
+  **Opt-in**: no template = unchanged (booth/scrubber/golden untouched). `hot_air_oven` is the
+  reference impl. **The Engineering Agent prompt keeps "To be determined" verbatim** (never
+  guesses) — in `agent-harden-prompt.py`. **HOW TO EXTEND when the client uploads calcs/data:**
+  (1) add the category's `spec_template` field list to its catalog profile; (2) wire its
+  formulas into `formula_service.py` (+ `field_rules`/`rules` in the profile) so `computed`
+  fields resolve instead of showing TBD; the geometry/reuse plumbing needs no further change.
+- **Structured geometry for 2D drawings** (`main.py::_spec_geometry`, `/api/tools/spec` →
+  `geometry`): a machine-readable numeric **mm envelope** + per-dimension status the drawing
+  generator consumes (the prose table is for humans). Real numeric dims only — an unknown
+  dimension is `tbd`, never guessed. Populates when dims are given (booth 5×3×4 →
+  5000×3000×4000 `ready:true`), `tbd` when not (oven). Fills as calcs land (keep their
+  outputs numeric here). Per-row `status`/`kind` also exposed on the tool response.
 - **Pricing**: `app/pricing.py` — nearest priced offer normalised **per-unit**,
   scaled by the sizing driver, cross-checked against a size→price trend, ±range +
   confidence.
