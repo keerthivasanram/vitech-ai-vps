@@ -279,8 +279,29 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   outputs numeric here). Per-row `status`/`kind` also exposed on the tool response.
 - **Pricing**: `app/pricing.py` — nearest priced offer normalised **per-unit**,
   scaled by the sizing driver, cross-checked against a size→price trend, ±range +
-  confidence.
-- **Quotation**: `app/quotation.py` (assembly) + `app/quotation_pdf.py` (fpdf2 PDF).
+  confidence. This figure stays the **recommended headline** (verified quotes never move).
+- **Pricing intelligence** (`app/pricing_intelligence.py`, added 2026-07-24 — "how the
+  amount is fixed"): layers **three deterministic signals** on top of the historical
+  headline and reconciles them (golden rule #2 holds — numbers from code + history + seeded
+  constants, the LLM only explains): (A) **historical scaling** (the anchor), (B) **cost-plus
+  build-up** = material + fabrication + bought-outs + overhead + margin from `SEED_*` tunable
+  constants (weight = driver × `SEED_KG_PER_DRIVER`), (C) **market benchmark** = ₹-per-driver
+  band across priced offers + positioning (**aggressive / market / premium**). `analyse_pricing`
+  returns `position`, `rationale`, `flags` (fires when cost-plus vs history diverge ≥30% — a
+  *tuning signal*, not a bug), and `basis_markdown` (internal "Pricing Basis" block). Attached
+  to the quote as `pricing_intelligence` / `pricing_basis_markdown` — **advisory, NOT printed in
+  the customer `quotation_markdown`**. Quotation Agent **RULE 5** presents the basis only when
+  the user asks why/margin/market/how-competitors-price. **CLIENT ACTION: the `SEED_*` rates are
+  industry defaults — replace with the real rate card / margin policy; until then cost-plus
+  diverges from history for bought-out-heavy gear (booth/DC) and the flag says so.** Guarded by
+  `tests_pricing.py`.
+- **Quotation**: `app/quotation.py` (assembly) + `app/quotation_pdf.py` / `app/specification_pdf.py`
+  (fpdf2 PDF). Both PDFs now render the **official Vitech data-sheet letterhead** via the shared
+  `app/vitech_letterhead.py` (added 2026-07-24): logo + "VITECH ENVIRO SYSTEMS PVT. LTD" +
+  Chennai address header on every page, vertical green tagline banner, green footer band
+  (office/factory/tel/e-mail), and a "For any assistance, please contact" block (Mageswaran /
+  Sam Mohan) — matching the client's uploaded data sheets. Logo asset: `app/assets/logo.png`.
+  Row helpers pre-measure with fpdf `dry_run` so table rows never split across a page break.
 - **Deterministic analytics + record lookup**: `app/analytics.py` (exact counts /
   lists / clients; `record_detail` renders one file's extracted fields). **Project lookup**
   (`app/retriever.py`, fixed 2026-07-23): `entity_hits` keys on CLIENT IDENTITY + offer-id
@@ -311,7 +332,9 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
 - **Golden tests**: `backend/tests_golden.py` (10 cases, byte-identical) — **run before and
   after any engine change**, must stay ALL PASS. **Retrieval tests**: `backend/tests_retrieval.py`
   (reranker/selector/permissions/citations/formatter/cache; model-free) — run after any
-  `rag/` change.
+  `rag/` change. **Pricing tests**: `backend/tests_pricing.py` (headline stays historical;
+  cost-plus/market signals present, consistent, deterministic) — run after any
+  `pricing*.py`/`quotation.py` change. **Lookup tests**: `backend/tests_lookup.py`.
 
 ## Tool endpoints for Flowise (the migration bridge)
 `app/main.py` exposes clean JSON tools so Flowise Custom Tools call Python (Python
@@ -441,15 +464,24 @@ Same architecture as the Engineering Agent (ChatOllama llama3.1:8b @ temp 0 +
   Engineering Agent flow (guarantees correctly-shaped nodes for this install), keeps only
   the quotation tools, swaps in the quotation prompt. **Idempotent**: updates the existing
   'Quotation Agent' in place, never duplicates. Or just restore `vitech.sql`.
-- **Prompt**: quotation-centric two-mode prompt. Same price discipline as the Engineering
-  Agent (copy `..._display` verbatim). Extra rules learned in testing: never preface with
-  "Based on the tool's output"; when comparing, report each tool figure and say which is
-  higher — **do not compute percentages/ratios** (llama3.1 got them wrong); report
-  confidence as High/Med/Low and **do not expose R-squared / regression internals**.
-- **Memory note**: Flowise 3.0.13 has **no Postgres *chat*-memory node** compatible with
-  the Tool Agent (`AgentMemory` is a LangGraph checkpointer, not a `BaseChatMemory`, so it
-  won't connect). We use BufferMemory (same as Engineering, proven). If cross-restart
-  persistence is wanted later, `RedisBackedChatMemory` is the drop-in (Redis is running).
+- **Prompt** (6 RULES, ~4250 chars — 2026-07-24): same price discipline (copy `..._display`
+  verbatim); never preface with "Based on the tool's output"; compare = report each figure +
+  which is higher, **no percentages/ratios**; **no confidence / R-squared exposed**.
+  **RULE 5** = present `pricing_basis_markdown` (margin/cost-plus/market) only when pricing
+  basis is asked. **RULE 6** = **technical/engineering questions are HANDED OFF to the
+  Engineering Agent** (one-sentence redirect, no tool, no answer) — the Quotation Agent no
+  longer answers engineering theory. **KEEP THE PROMPT SHORT**: at ~7.4k chars (after adding
+  RULE 5+6 verbosely) llama3.1 **leaked `greet` tool-call JSON at greetings 3/3**; compressing
+  back to ~4.25k fixed it 3/3. Do not let it grow; compress, don't append.
+- **Memory** (2026-07-24): **BufferMemory** — gives correct **per-session** memory keyed on
+  the request `chatId` (verified: a follow-up recalls the earlier requirement). It is
+  **in-process**, so it resets on a Flowise restart. **RedisBackedChatMemory attempt FAILED**:
+  building the node programmatically in `quotation-agent-build.py` made the Tool Agent throw
+  `memory.getChatMessages is not a function` at prediction (Flowise instantiated a stub, not
+  the class) — reverted to BufferMemory. The node's connect-credential IS optional (→
+  `localhost:6379`), so **for cross-restart persistence add a "Redis-Backed Chat Memory" node
+  via the Flowise UI** and wire it to the Tool Agent's memory input (the UI builds the instance
+  correctly); the disabled `_to_redis_memory()` helper in the build script documents the shape.
 - **Verified end-to-end (5 cases)**: generate, revise/add-qty (₹25,50,000 → ₹38,25,000
   for 4→6 nos, matches backend), compare (two quotes, no bad math), client-specific lookup
   (₹99,64,925 Indian grouping), enumerate. Through the UI proxy too (`:5173/flowise`).

@@ -13,6 +13,7 @@ from datetime import date
 from typing import Any, Optional
 
 from .pricing import estimate_price
+from .pricing_intelligence import analyse_pricing
 
 # Standard Vitech commercial terms — boilerplate wording only, no numbers invented.
 TERMS = [
@@ -75,6 +76,10 @@ def build_quotation(analysis: dict, params: dict,
         (price.get("basis") or [])
         + [b for b in [analysis.get("nearest_match")] if b]))
 
+    # pricing intelligence — cost-plus build-up + market band reconciled with the
+    # historical anchor (headline price is NOT changed). "How the amount is fixed".
+    intel = analyse_pricing(category, params, analysis, price, offers)
+
     quote = {
         "ref": _ref(),
         "date": f"{date.today():%d %b %Y}",
@@ -91,6 +96,12 @@ def build_quotation(analysis: dict, params: dict,
         "confidence_pct": pct,
         "confidence_label": _label(pct),
         "basis_offers": basis,
+        # pricing intelligence (advisory) — the agent explains this on request;
+        # NOT printed in the customer quotation_markdown.
+        "pricing_intelligence": intel,
+        "pricing_position": intel.get("position"),
+        "pricing_rationale": intel.get("rationale"),
+        "pricing_basis_markdown": intel.get("basis_markdown"),
         "draft": True,
         "note": "Budgetary draft generated from historical offers - for engineer review before issue.",
     }
