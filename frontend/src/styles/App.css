@@ -558,6 +558,22 @@
   gap: 20px;
 }
 
+/* Wraps the hero + quick actions so they collapse as one unit (see
+   ChatWindow's AnimatePresence) — needs its own flex/gap since they're no
+   longer direct children of .chat-scroll's flex, and overflow:hidden so the
+   height animation actually clips rather than just resizing a scrollbar. */
+.chat-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+}
+
+/* Once a conversation is under way the transcript owns the whole surface —
+   full-screen chat, the way Claude/ChatGPT hand the welcome space over. */
+.chat-surface.is-active .chat-scroll { padding-top: 20px; }
+.chat-surface.is-active .transcript { padding-top: 0; }
+
 /* --------------------------------------------------------------------------
    Hero card
    -------------------------------------------------------------------------- */

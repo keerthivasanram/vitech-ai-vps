@@ -773,6 +773,21 @@
 .answer .marker { flex-shrink: 0; min-width: 16px; color: var(--primary); font-weight: 700; }
 .answer .li.ul .marker { font-size: 17px; line-height: 1; }
 .answer .li-body { flex: 1; }
+
+/* Nested sub-bullet ("+" lines) — a model's way of marking detail under a
+   "•" heading without indentation of its own. Indented, quieter and denser
+   than a top-level item so the two read as one item + its detail block,
+   not a flat run of equally-weighted lines. */
+.answer .li.sub {
+  margin: 3px 0 3px 24px;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+.answer .li.sub .marker { min-width: 10px; color: var(--text-muted); font-weight: 600; }
+/* No blank line back to a top-level bullet in the source — still give the
+   next group visible separation instead of running straight into it. */
+.answer .li.sub + .li.ul { margin-top: 14px; }
 .answer strong { font-weight: 700; }
 .answer em { color: var(--text-secondary); }
 .answer code {

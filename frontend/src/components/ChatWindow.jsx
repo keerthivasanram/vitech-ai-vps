@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { HeroCard } from "./HeroCard";
 import { QuickActions } from "./QuickActions";
 import { ChatBubble } from "./ChatBubble";
@@ -36,13 +37,30 @@ export const ChatWindow = memo(function ChatWindow({
     }
   }, []);
 
-  return (
-    <div className="chat-surface">
-      <div className="chat-scroll">
-        <HeroCard userName={userName} title={ui.hero} subtitle={ui.sub} />
-        <QuickActions onPick={send} disabled={loading} />
+  const started = messages.length > 0;
 
-        {messages.length > 0 && (
+  return (
+    <div className={`chat-surface${started ? " is-active" : ""}`}>
+      <div className="chat-scroll">
+        {/* The welcome state (hero + quick actions) only makes sense before the
+            first message — once a conversation is under way it collapses away
+            like Claude/ChatGPT, handing its space straight to the transcript. */}
+        <AnimatePresence initial={false}>
+          {!started && (
+            <motion.div
+              key="welcome"
+              className="chat-welcome"
+              initial={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <HeroCard userName={userName} title={ui.hero} subtitle={ui.sub} />
+              <QuickActions onPick={send} disabled={loading} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {started && (
           <div className="transcript" role="log" aria-live="polite" aria-label="Conversation">
             {messages.map((m) => (
               <ChatBubble key={m.id} msg={m} agentName={ui.name} onOpenSource={handleOpenSource} />
