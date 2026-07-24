@@ -124,6 +124,16 @@ script is only needed for a from-scratch rebuild.
 Backend next-phase (sequenced; full detail + rationale in local memory
 `backend-next-phase-plan`). **Every engine change: run `tests_golden.py` before AND after —
 must stay ALL PASS.** Pod-side unless marked LOCAL:
+- [ ] B0. **Filtration-aware paint-booth matching** (found 2026-07-24). `retriever.py`
+      picks the nearest paint booth by DIMENSIONS only, not by filtration type. Vitech has
+      1 water-wash booth (OFF-YONEX-PB-367) vs 13 dry — so a water-wash REQUEST ("wet cross
+      draft"/"water wall") reuses a DRY booth's categorical fields (booth_type "dry type...",
+      paper_filter, dry_scrubber) which then contradict the rule engine's water-wash/SS304.
+      The common DRY case is already coherent (fixed in b307ff1: liquid→dry/MS default). Fix:
+      score offers on filtration match (wet vs dry) as well as size, OR in `generate_spec`
+      Track A suppress dry-only reused fields when the design is water-wash. Guard with a new
+      golden case for a water-wash booth. Also: Track A does not honour a client-given
+      categorical `booth_type` over the reused one (Track B does) — same file.
 - [ ] B1. Add a **BGE cross-encoder reranker** to `rag/retrieve.py` (top-20 → top-5),
       new `rag/reranker.py` — biggest quality win, no migration. (needs models; do after A2 ingest)
 - [ ] B2. Add a **Redis cache** for embeddings/retrieval (Redis already runs, unused today).
