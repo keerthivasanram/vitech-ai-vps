@@ -19,7 +19,9 @@ grounded in historical offers + engineering knowledge. **Not** a general chatbot
 3. **Human-in-the-loop** — every output is an engineer-reviewed *draft*, not auto-sent.
 
 ## Working mode — WHO does what (local dev vs VPS)
-The VPS/RunPod pod is **currently stopped**. Development happens in two places:
+The VPS/RunPod pod is **currently UP** (started 2026-07-24, container disk was wiped
+so `bootstrap-pod.sh` + `start-all.sh` were run; all services verified 200). Development
+happens in two places:
 - **Local sessions (Windows, this machine)**: work on **frontend + backend code only**
   — anything that is just source edits and can be validated without a running pod
   (React/CSS/JS, FastAPI Python logic, golden tests where the venv is present).
@@ -57,6 +59,43 @@ ONLY thing blocking grounded knowledge answers is client documents.
    to the "Historical Project Found / Commercial / Source" template the user sketched.
 5. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
    the container disk — the dump on the volume is its only lifeline).
+
+### ▶ 2026-07-24 session: agent testing + Quotation Agent prompt tuning (DONE)
+Container disk had been wiped again; ran `bootstrap-pod.sh` then `start-all.sh` — all 4
+services verified 200, DB restored 2 chatflows + 5 tools, golden 10 / lookup 12 / retrieval
+16 ALL PASS. Then live-tested both agents with varied real prompts (Mode A/B routing,
+enumeration, content-relevance lookup, revise/compare flows, small talk) and found + fixed
+**two reproducible bugs** in the **Quotation Agent** (Engineering Agent was clean):
+1. **Missing quotation on first ask**: "quote wet scrubber 800 cfm 750mm tower 4 nos" on a
+   fresh chat reliably (3/3 runs) returned a generic "This is the quotation... as per your
+   requirement" sentence with **no price and no quotation_markdown block**, even though the
+   tool returned it correctly. Root cause: the "output quotation_markdown verbatim" rule was
+   the 3rd bullet under "QUOTATION WORK", buried below several other rules — llama3.1:8b
+   wasn't reliably obeying it. **Fix**: promoted it to a top-level "RULE 4" right after RULE
+   3, with a concrete pattern-match cue (the literal `### VITECH ENVIRO SYSTEMS...` starting
+   string) and an explicit self-check ("if your sentence doesn't start with ###, stop and
+   paste the field instead"). Verified 3/3 fresh chats now emit the full block with the
+   correct price; revise/compare flows re-verified still correct after the change.
+2. **Leaked tool-call JSON on compound greetings**: "hello there" / "hi, who are you?" (but
+   NOT single-clause "hi" or "who are you?" alone) returned the literal text
+   `{"name": "greet", "parameters": {}}` to the user — reproduced on brand-new UUID chatIds,
+   so NOT the known BufferMemory-poisoning gotcha (that needs a fresh chat, which this was).
+   RULE 1 already said "never output JSON like {...}" but wasn't concrete enough. **Fix**:
+   added an explicit named anti-example to RULE 1 ("if greeted, reply in a plain sentence...
+   NEVER output a tool-call-shaped JSON stub... a reply that begins with a curly brace is
+   always wrong"). **Gotcha hit while editing**: an intermediate version added a literal
+   `{"name": "greet", "parameters": {}}` example directly into the system prompt string and
+   Flowise's chatflow build threw `Error: Single '}' in template` (500) — the prompt is
+   loaded into a template engine that chokes on certain literal brace patterns (nested/
+   matched empty `{}` in particular). Fix: describe the anti-pattern in words, no literal
+   braces in the prompt text. Verified 6/6 across repeated fresh chats after the reword.
+   **If tuning either agent's prompt again and need to show a literal JSON example, avoid
+   raw curly braces in the system prompt string — describe it instead or the chatflow build
+   will 500.**
+Both fixes are in `/workspace/persistent/quotation-agent-build.py`'s `SYS` string (already
+applied to the live chatflow + `pg-backup.sh` run afterward, 2026-07-24 06:44). If the pod
+is rebuilt from `vitech.sql`, the fix is already baked into the restored dump; the `.py`
+script is only needed for a from-scratch rebuild.
 
 - [x] `git pull` DONE (2026-07-23): merged origin/main into fix/list-projects-category-filter
       (conflict in main.py resolved for the agent_router extraction), golden ALL PASS.
