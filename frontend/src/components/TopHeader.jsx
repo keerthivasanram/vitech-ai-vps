@@ -43,21 +43,32 @@ export const TopHeader = memo(function TopHeader({
           <Menu size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
 
-        <h1 className="topheader-title">{title}</h1>
-        <StatusBadge online={online} />
+        {/* Chat view is header-less (ChatGPT-style): the sidebar already names
+            the agent, so we drop the title + status + notification/search
+            clutter and keep only a thin strip with the essential controls. */}
+        {!flat && (
+          <>
+            <h1 className="topheader-title">{title}</h1>
+            <StatusBadge online={online} />
+          </>
+        )}
       </div>
 
       <div className="topheader-r">
-        {/* Search and fullscreen drop out on narrow screens so the page title
-            keeps its room — see .icon-btn.is-optional in App.css. */}
-        <button type="button" className="icon-btn is-optional" aria-label="Search">
-          <Search size={20} strokeWidth={1.8} aria-hidden="true" />
-        </button>
+        {!flat && (
+          <>
+            {/* Search and fullscreen drop out on narrow screens so the page title
+                keeps its room — see .icon-btn.is-optional in App.css. */}
+            <button type="button" className="icon-btn is-optional" aria-label="Search">
+              <Search size={20} strokeWidth={1.8} aria-hidden="true" />
+            </button>
 
-        <button type="button" className="icon-btn" aria-label={`Notifications: ${notifications} unread`}>
-          <Bell size={20} strokeWidth={1.8} aria-hidden="true" />
-          {notifications > 0 && <span className="icon-btn-badge">{notifications}</span>}
-        </button>
+            <button type="button" className="icon-btn" aria-label={`Notifications: ${notifications} unread`}>
+              <Bell size={20} strokeWidth={1.8} aria-hidden="true" />
+              {notifications > 0 && <span className="icon-btn-badge">{notifications}</span>}
+            </button>
+          </>
+        )}
 
         <button
           type="button"

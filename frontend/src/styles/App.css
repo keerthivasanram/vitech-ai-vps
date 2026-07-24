@@ -29,6 +29,9 @@
   gap: var(--gap);
   padding: var(--pad);
 }
+/* Chat is header-less and full-height: pull the surface up under the thin top
+   strip and let the composer sit close to the bottom — no dead band either end. */
+.workspace.is-chat { padding-top: 4px; padding-bottom: 10px; }
 
 .workspace-main {
   flex: 1;
@@ -431,10 +434,15 @@
   border-bottom: 1px solid var(--glass-border);
 }
 
-/* Chat view: no bar of its own — it reads as the top edge of the same
-   open surface as the transcript below it (see .chat-surface), rather
-   than a separate bordered strip sitting on top of a separate card. */
-.topheader.is-flat { background: transparent; border-bottom-color: transparent; }
+/* Chat view: no bar of its own — a thin, header-less strip (ChatGPT-style).
+   The sidebar already names the agent, so the top just carries the essential
+   controls (theme, panel toggle) floated right and recedes into the surface. */
+.topheader.is-flat {
+  height: 50px;
+  flex-basis: 50px;
+  background: transparent;
+  border-bottom-color: transparent;
+}
 
 .topheader-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
 
@@ -973,7 +981,7 @@
 /* --------------------------------------------------------------------------
    Composer
    -------------------------------------------------------------------------- */
-.composer-wrap { padding: 8px 24px 20px; }
+.composer-wrap { padding: 6px 24px 10px; }
 
 /* Premium AI input: rounded rect (not a full pill — 22px per spec), glass,
    with the send button seated circular inside it. */
@@ -1077,8 +1085,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 12px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 11.5px;
   color: var(--text-muted);
 }
 .composer-foot .sep { opacity: 0.5; }

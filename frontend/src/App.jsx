@@ -169,7 +169,7 @@ export default function App() {
           flat={chatView}
         />
 
-        <Workspace>
+        <Workspace chat={chatView}>
           <WorkspaceMain scroll={!chatView}>{page()}</WorkspaceMain>
 
           {chatView && (
