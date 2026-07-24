@@ -10,6 +10,7 @@ import { CollectionPage } from "./pages/CollectionPage";
 import { UploadPage } from "./pages/UploadPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { DrawingStudio } from "./pages/DrawingStudio";
 import { LoginPage } from "./pages/LoginPage";
 import { LiveHelpPage } from "./pages/LiveHelpPage";
 import { RoadmapPage } from "./pages/RoadmapPage";
@@ -120,6 +121,7 @@ export default function App() {
         />
       );
     }
+    if (view === "drawing") return <DrawingStudio key={view} />;
     if (view === "dashboard") return <Dashboard key={view} setView={go} />;
     if (view === "knowledge") return <KnowledgeBase key={view} setView={go} />;
     if (view === "upload") return <UploadPage key={view} />;

@@ -43,7 +43,7 @@ export const NAV = [
     children: [
       { id: "engineering", label: "Engineering Agent", icon: "Bot",         status: "live" },
       { id: "quotation",   label: "Quotation Agent",   icon: "ReceiptText", status: "live" },
-      { id: "drawing",     label: "Drawing Agent",     icon: "PenTool",     status: "soon" },
+      { id: "drawing",     label: "Drawing Studio",    icon: "PenTool",     status: "live" },
     ],
   },
   { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard", group: "Workspace", status: "live" },
@@ -64,7 +64,7 @@ export const VIEW_TITLES = {
   dashboard: "Dashboard",
   engineering: "Engineering Agent",
   quotation: "Quotation Agent",
-  drawing: "Drawing Agent",
+  drawing: "Drawing Studio",
   knowledge: "Knowledge Base",
   upload: "Documents",
   settings: "Settings",

@@ -1045,3 +1045,138 @@
   .settings-grid { grid-template-columns: 1fr; }
   .login-card { padding: 28px 22px 22px; }
 }
+
+/* ============================================================
+   Drawing Studio (frontend preview, 2026-07-24)
+   ============================================================ */
+.studio {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  height: 100%;
+  min-height: calc(100vh - 130px);
+  animation: page-fade-in var(--t-page) both;
+}
+.studio-side {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.studio-side-head { display: flex; align-items: center; justify-content: space-between; }
+.studio-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text); }
+.studio-badge svg { color: var(--primary); }
+.studio-preview-tag {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--primary); background: rgba(var(--secondary-rgb), 0.12);
+  padding: 3px 8px; border-radius: 999px;
+}
+.studio-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.studio-prompt { position: relative; display: flex; }
+.studio-input {
+  width: 100%; height: 42px; padding: 0 42px 0 12px;
+  border-radius: var(--r-btn); border: 1px solid var(--border-strong);
+  background: var(--card-sunken); color: var(--text); font-size: 13.5px; outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.studio-input:focus { border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(var(--secondary-rgb), 0.15); background: var(--card); }
+.studio-send {
+  position: absolute; right: 6px; top: 6px; width: 30px; height: 30px;
+  display: grid; place-items: center; border: none; border-radius: 9px;
+  background: var(--primary); color: #fff; cursor: pointer;
+}
+.studio-send:hover { filter: brightness(1.05); }
+.studio-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.studio-chip {
+  font-size: 11.5px; color: var(--text-secondary); background: var(--card-sunken);
+  border: 1px solid var(--border); border-radius: 999px; padding: 5px 10px; cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.studio-chip:hover { color: var(--text); border-color: var(--border-strong); }
+.studio-dims { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.studio-dim { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); }
+.studio-dim input {
+  width: 100%; height: 34px; padding: 0 8px; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: var(--card-sunken); color: var(--text);
+  font-size: 12.5px; outline: none; font-variant-numeric: tabular-nums;
+}
+.studio-dim input:focus { border-color: var(--secondary); }
+.studio-section { display: flex; flex-direction: column; gap: 7px; padding-top: 4px; border-top: 1px solid var(--border); }
+.studio-section-h { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.studio-section-h svg { color: var(--text-secondary); }
+.studio-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+.studio-toggle input { accent-color: var(--primary); width: 15px; height: 15px; }
+.studio-tbd-row { font-size: 12px; color: #b45309; }
+:root[data-theme="dark"] .studio-tbd-row { color: #fbbf24; }
+.studio-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 8px; }
+.studio-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+.studio-canvas {
+  position: relative;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(120,130,140,0.16) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--card-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  cursor: grab;
+}
+.studio-canvas:active { cursor: grabbing; }
+.studio-canvas-toolbar {
+  position: absolute; top: 12px; right: 12px; z-index: 3;
+  display: flex; align-items: center; gap: 4px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 4px; box-shadow: var(--shadow-sm);
+}
+.studio-canvas-toolbar button {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border: none; background: transparent; color: var(--text-secondary); cursor: pointer; border-radius: 8px;
+}
+.studio-canvas-toolbar button:hover { background: var(--card-sunken); color: var(--text); }
+.studio-zoom { font-size: 11.5px; font-weight: 700; color: var(--text-muted); padding: 0 6px; font-variant-numeric: tabular-nums; }
+.studio-stage {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  transform-origin: center center; transition: transform 0.06s linear;
+  padding: 26px;
+}
+.studio-stage .ga-svg { width: 100%; max-width: 940px; height: auto; user-select: none; }
+
+/* GA drawing styling (SVG classes emitted by lib/drawingSvg) */
+.ga-svg { font-family: var(--font-mono); }
+.ga-svg .sheet-border { fill: var(--card); stroke: var(--border-strong); stroke-width: 1.5; }
+.ga-svg .grid line { stroke: rgba(120,130,140,0.14); stroke-width: 0.5; }
+.ga-svg .body { fill: rgba(var(--secondary-rgb), 0.06); stroke: var(--text); stroke-width: 1.6; }
+.ga-svg .hatch { stroke: rgba(var(--secondary-rgb), 0.35); stroke-width: 0.8; }
+.ga-svg .ground { stroke: var(--text-secondary); stroke-width: 1.4; }
+.ga-svg .view-t { fill: var(--text-secondary); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
+.ga-svg .dim line { stroke: var(--primary); stroke-width: 0.9; }
+.ga-svg .dim .dim-line { stroke: var(--primary); stroke-width: 1; }
+.ga-svg .dim .arr { fill: var(--primary); }
+.ga-svg .dim .dim-bg { fill: var(--card); opacity: 0.92; }
+.ga-svg .dim text { fill: var(--text); font-size: 11px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
+.ga-svg .dim.tbd line, .ga-svg .dim.tbd .arr { stroke: #d97706; fill: #d97706; }
+.ga-svg .dim.tbd text { fill: #b45309; }
+.ga-svg .tb { fill: var(--card); stroke: var(--border-strong); stroke-width: 1.2; }
+.ga-svg .tb-div { stroke: var(--border-strong); stroke-width: 1; }
+.ga-svg .tb-co { fill: var(--text); font-size: 17px; font-weight: 800; font-family: Georgia, "Times New Roman", serif; }
+.ga-svg .tb-sub { fill: var(--text-secondary); font-size: 10px; }
+.ga-svg .tb-k { fill: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.ga-svg .tb-v { fill: var(--text); font-size: 12px; font-weight: 600; }
+.ga-svg .tb-v.draft { fill: #d97706; }
+.ga-svg .tb-units { fill: var(--text-muted); font-size: 9.5px; }
+
+/* layer visibility toggles */
+.studio-stage.hide-envelope [data-layer="envelope"],
+.studio-stage.hide-dimensions [data-layer="dimensions"],
+.studio-stage.hide-titleblock [data-layer="titleblock"],
+.studio-stage.hide-grid [data-layer="grid"] { display: none; }
+
+@media (max-width: 900px) {
+  .studio { grid-template-columns: 1fr; }
+  .studio-canvas { min-height: 60vh; }
+}
