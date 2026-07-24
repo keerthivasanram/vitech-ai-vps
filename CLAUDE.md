@@ -19,9 +19,12 @@ grounded in historical offers + engineering knowledge. **Not** a general chatbot
 3. **Human-in-the-loop** — every output is an engineer-reviewed *draft*, not auto-sent.
 
 ## Working mode — WHO does what (local dev vs VPS)
-The VPS/RunPod pod is **currently UP** (started 2026-07-24, container disk was wiped
-so `bootstrap-pod.sh` + `start-all.sh` were run; all services verified 200). Development
-happens in two places:
+The VPS/RunPod pod was **UP for the 2026-07-24 session and is being STOPPED at end of it**
+(bootstrapped from a wiped container disk, all services verified 200, extensive work done —
+see the 2026-07-24 queue entry). Everything is committed+pushed and PG is backed up
+(`vitech.sql`, 2026-07-24 08:40, hardened agent prompt confirmed in the dump). **On next
+start:** `bash /workspace/persistent/start-all.sh`; if psql/node/ollama are gone (container
+wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 - **Local sessions (Windows, this machine)**: work on **frontend + backend code only**
   — anything that is just source edits and can be validated without a running pod
   (React/CSS/JS, FastAPI Python logic, golden tests where the venv is present).
@@ -96,6 +99,43 @@ Both fixes are in `/workspace/persistent/quotation-agent-build.py`'s `SYS` strin
 applied to the live chatflow + `pg-backup.sh` run afterward, 2026-07-24 06:44). If the pod
 is rebuilt from `vitech.sql`, the fix is already baked into the restored dump; the `.py`
 script is only needed for a from-scratch rebuild.
+
+### ▶ 2026-07-24 (continued) — engine correctness + spec-template foundation + UI (DONE)
+Big session. All committed+pushed on `fix/list-projects-category-filter`; golden 10 / lookup
+12 / retrieval 16 stayed ALL PASS throughout; PG backed up 08:40 (hardened prompt in the dump).
+1. **Paint booth filtration bug FIXED** (commit b307ff1). An agent-generated paint-booth spec
+   contradicted itself (water-wash/SS304 from the rule engine vs a reused DRY booth). Root
+   cause: `PROCESS_RULES["liquid"]` = SS304/water-wash, but **13 of 14** Vitech booths are
+   dry-filter/MS. `material_service.py` now defaults liquid-family paint to **dry/MS**, water-
+   wash only when the booth type says so; `booth_type` threaded through `compute_spec`.
+2. **Hot air oven hallucination FIXED** (commit 7bd33f6). The oven spec showed INVENTED numbers
+   badged "Deterministic" (tool returned category=conveyor, 0 rows). Fixes: (a) `classify.py`
+   recognises "bake oven" + a "conveyorized oven is an OVEN not a conveyor" boost; (b) marked
+   `hot_air_oven` **`case_based`** so the router builds it in DATA mode by REUSING the nearest
+   historical oven (OFF-SURFACE-OVEN-356R3) deterministically; (c) param aliases
+   (max_operating_temp_c→operating_temp, hook_load→job_weight_kg, fuel_type→heating_mode).
+3. **Spec-template foundation BUILT** (commit 2814c5e) — the client's stated goal ("generate a
+   spec for every equipment type; look up project, reuse what exists, CALCULATE the gaps, then
+   generate a 2D drawing"). Three pieces, all deterministic, category-agnostic:
+   - **`app/spec_template.py` + `spec_template` in catalog**: per-category canonical output-field
+     list; `apply_template` (in `analysis.py`) fills every uncovered field with an explicit
+     **`origin:"tbd"`** row. Opt-in (no template = unchanged). `hot_air_oven` is the reference impl.
+   - **Deterministic guardrail**: TBD rows fill the vacuum that caused the hallucination; the
+     Engineering Agent prompt now keeps "To be determined" verbatim (never guesses).
+   - **Structured geometry** (`main.py::_spec_geometry`, `/api/tools/spec`→`geometry`): numeric
+     mm envelope + per-dimension status for the future 2D-drawing generator (real dims only).
+   **HOW TO EXTEND when the client uploads calcs/data** (see "The engine" §): add the category's
+   `spec_template` field list + wire its formulas into `formula_service.py`; TBDs then compute.
+4. **Frontend** (commits 8b4b2e1, bb7529d, 631a095): merged the chat header into the surface
+   then made chat **header-less (ChatGPT-style)** — thin 50px top strip with only theme/
+   fullscreen/panel controls; hero + quick-actions **collapse on first message**; markdown now
+   renders nested `+` sub-bullets; tighter top/bottom spacing. Verified in-browser (Playwright).
+- **STATUS / next**: user said **HOLD on adding templates for the other categories until they
+  upload the engineering calculations + field lists.** When those land: per category, add its
+  `spec_template` + formulas (see §3). Also fold in the client's note that an oven spec must
+  distinguish **hook load** (kg/hook) from **production capacity** (hooks × load) — a label fix
+  in the oven template. Follow-ups B0 (filtration-aware booth matching) + B0b (reconcile a
+  client attribute like LPG vs a reused diesel design) still open below.
 
 - [x] `git pull` DONE (2026-07-23): merged origin/main into fix/list-projects-category-filter
       (conflict in main.py resolved for the agent_router extraction), golden ALL PASS.
