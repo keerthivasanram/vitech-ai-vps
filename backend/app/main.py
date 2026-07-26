@@ -20,7 +20,7 @@ from . import config, jobs, session
 # — shared by the /api/query* endpoints and the generate_specification tool.
 # Kept under the original private names so the call sites are unchanged.
 from .agent_router import prepare as _prepare, build_meta as _meta
-from .analytics import record_detail, wants_price
+from .analytics import record_detail, render_lookup_markdown, wants_price
 from .analytics import _label as category_label
 from .classify import CONFIDENT, classify_equipment
 from .resolver import ATS, resolve
@@ -416,7 +416,11 @@ def tool_lookup(payload: dict = Body(...)):
                      "price_schedule_display": ps_display})
     if not recs:
         return {"ok": False, "message": "No matching client or offer found."}
-    return {"ok": True, "text": text, "price_asked": price_asked, "records": recs[:4]}
+    recs = recs[:4]
+    return {"ok": True, "text": text, "price_asked": price_asked, "records": recs,
+            # rendered in code so the agent prints it verbatim and can never
+            # re-dress an archive record as a freshly generated quotation
+            "lookup_markdown": render_lookup_markdown(recs, price_asked=price_asked)}
 
 
 # filter keys the agent may pass either nested under "filters" or at top level
