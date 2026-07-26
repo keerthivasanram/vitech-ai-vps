@@ -42,26 +42,35 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
-### ▶ TOMORROW — start here (as of 2026-07-23, end of session)
-State: Engineering Agent is **architecture-complete** (engineering/ calc package + full
-retrieval pipeline built; lookup now content-relevance + scales). Golden 10 / retrieval 16 /
-lookup 12 ALL PASS. Everything committed+pushed to `fix/list-projects-category-filter`. The
-ONLY thing blocking grounded knowledge answers is client documents.
+### ▶ TOMORROW — start here (as of 2026-07-26, end of session; pod STOPPED cleanly)
+State: both agents live and behaving; **Quotation Agent routing bugs fixed and verified**
+(see the 2026-07-26 entry). Golden / lookup / pricing / retrieval ALL PASS. Everything
+committed+pushed to `fix/list-projects-category-filter` (HEAD `41fdcb7`); PG dumped 2026-07-26
+12:24 with the tuned prompt (RULE 4b) confirmed inside the dump.
 1. **First**: `bash /workspace/persistent/start-all.sh`; forward 5173/3000/8000. If psql/node
-   /ollama are missing (container wiped), run `bootstrap-pod.sh` FIRST.
-2. **If the client provided documents** → drop them in `backend/data/bulk/`, run
-   `cd backend && .venv/bin/python -m rag.ingest data/bulk --equipment-type X --customer Y`,
-   then `curl -X POST localhost:8000/api/admin/reload-index` (no restart needed), and verify
-   `retrieve_knowledge` returns hits + the agent grounds + cites. This is the #1 value item.
-3. **If no documents yet** → either (a) START THE NEXT AGENT (Quotation is live; build Drawing
-   or a Supervisor by cloning the Engineering Agent pattern — prompt + which tools attached),
-   or (b) platform upgrades that the next agents inherit: cross-encoder reranker into
-   `rag/reranker.py`'s existing interface (B1), then Qdrant + BGE-M3 (D1), DeepSeek R1 (D2).
-4. **Optional polish** (user asked): tighten lookup relevance gap (`_REL_GAP` in
-   `app/retriever.py`) if stricter single-answer precision is wanted; reformat lookup output
-   to the "Historical Project Found / Commercial / Source" template the user sketched.
-5. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
-   the container disk — the dump on the volume is its only lifeline).
+   /ollama are missing (the container disk has been wiped on most restarts), run
+   `bootstrap-pod.sh` FIRST — it restores Flowise from the tarball and PG from `vitech.sql`.
+2. **Chase the client for a REAL ISSUED QUOTATION.** On 2026-07-26 the ask for "the company
+   format" produced three **data sheets** (enquiry/input forms) — useful, and already built
+   from, but they do NOT show the offer layout. Word the request as "a quotation you actually
+   sent a customer", not "the company format". Then make `quotation_pdf.py`'s section order
+   exact (the house *style* is already applied).
+3. **Client documents → `retrieve_knowledge` (still the #1 value item, still `count:0`)**:
+   `backend/data/bulk/` is STILL EMPTY. When files land: `cd backend && .venv/bin/python -m
+   rag.ingest data/bulk --equipment-type X --customer Y`, then `curl -X POST
+   localhost:8000/api/admin/reload-index`, then verify the agent grounds + cites.
+4. **Engineering calculations per category** — the new `spec_template`s (paint_booth,
+   dust_collector, powder_coating_plant) resolve what rules/history cover and honestly show the
+   rest as TBD. Wiring each category's formulas into `engineering/formula_service.py` (+
+   `field_rules`/`rules` in its catalog profile) turns those TBDs into computed values. This is
+   the client-input slot; **template labels must match what the engine emits** (see the gotcha).
+5. **No UI for the data-sheet generator yet** — `GET /api/datasheet/forms` +
+   `POST /api/datasheet/pdf` work, but nothing in `frontend/` calls them. A picker + Download
+   button is a small, high-visibility win.
+6. Otherwise: next agent (Drawing — plan in `docs/drawing-agent-plan.md`) or the platform
+   upgrades (B1 reranker, D1 Qdrant+BGE-M3, D2 DeepSeek R1); B0 / B0b still open below.
+7. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
+   the container disk — the dump on the volume is its only lifeline), and push any commits.
 
 ### ▶ 2026-07-24 session: agent testing + Quotation Agent prompt tuning (DONE)
 Container disk had been wiped again; ran `bootstrap-pod.sh` then `start-all.sh` — all 4
