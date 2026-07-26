@@ -371,9 +371,14 @@ def _confidence(match, technical, profile, params, missing, n_offers, validation
 
     historical = min(1.0, n_offers / 3.0)
 
+    # A "tbd" row is an ADMITTED GAP, never a backed decision. It stays in the
+    # denominator so unknowns dilute coverage: a spec with more open fields must
+    # score LOWER, not higher (before this, tbd fell through the `not in`
+    # test and counted as rule-backed, so adding gaps raised confidence).
     total_dec = len(technical) or 1
-    backed = sum(1 for it in technical if it["origin"] not in ("reused", "kept"))
+    backed = sum(1 for it in technical if it["origin"] not in ("reused", "kept", "tbd"))
     rule_coverage = backed / total_dec
+    n_tbd = sum(1 for it in technical if it.get("origin") == "tbd")
 
     n_val = len(validation or [])
     warns = sum(1 for c in (validation or []) if c.get("level") == "warn")
@@ -392,6 +397,10 @@ def _confidence(match, technical, profile, params, missing, n_offers, validation
         notes.append("Missing inputs: " + ", ".join(missing) + ".")
     if warns:
         notes.append(f"{warns} engineering check(s) flagged - see Engineering checks.")
+    if n_tbd:
+        plural = "s" if n_tbd != 1 else ""
+        notes.append(f"{n_tbd} specification field{plural} still to be determined - "
+                     f"needs engineering input.")
 
     factors = [
         {"label": "Requirement completeness", "value": f"{round(completeness * 100)}% ({provided}/{total_exp} inputs)"},

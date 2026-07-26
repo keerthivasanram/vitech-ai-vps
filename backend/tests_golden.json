@@ -457,10 +457,10 @@
     ]
   },
   "paint booth 10 x 6 powder": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 10\n- ✓ Width m: 6\n- ✓ Height m: 4\n- ✓ Paint type: powder\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 10 x 6 x 4 m — Derived from the client requirement.\n- **Exhaust airflow:** 38880 m3/h — Calculated: face area 6x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 3 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 36 (dry) — Calculated: ceil(floor area 60 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** GI — Calculated: powder process -> GI / dry filtration (ATS material-selection standard).\n- **Paint process:** powder — Derived from the client requirement.\n- **Booth type:** dry type side down draft, non-pressurized, 0.6 m/s cross velocity — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Construction:** base frame ISMC / panels MS 1.2mm — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Illumination:** 20w x 10 LED weatherproof — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paper filter:** paper with synthetic, 1.4H x 7.0W both sides — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Air intake filter:** 10 micron velcro type — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower cfm:** 20000 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower motor hp:** 15 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower qty:** 2 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower moc:** MS — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Finish:** primer + final coats — Reused from historical offer OFF-SYNERGY-PB-209R3.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-SYNERGY-PB-209R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 38% (6/16 decisions)\n- Validation: 100%\n\n**Overall confidence: 84% (High).**\n\n_Provenance: 16 decisions — 2 client requirement, 4 engineering rule, 10 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: SynergyFZE _R3_230823.pdf_",
-    "spec_writeup_sha": "bca7d1778eca4fac3bb93c68871aa556e61b9451036e47445dbfd6739342e648",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 10\n- ✓ Width m: 6\n- ✓ Height m: 4\n- ✓ Paint type: powder\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** dry type side down draft, non-pressurized, 0.6 m/s cross velocity — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Dimensions:** 10 x 6 x 4 m — Derived from the client requirement.\n- **Construction:** base frame ISMC / panels MS 1.2mm — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Construction material:** GI — Calculated: powder process -> GI / dry filtration (ATS material-selection standard).\n- **Exhaust airflow:** 38880 m3/h — Calculated: face area 6x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 3 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Blower airflow (CFM):** 20000 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Exhaust blower (nos):** 2 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Exhaust blower motor (HP):** 15 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower MOC:** MS — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Filters:** 36 (dry) — Calculated: ceil(floor area 60 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Paint arresting filter:** paper with synthetic, 1.4H x 7.0W both sides — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Air intake filter:** 10 micron velcro type — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** To be determined — Needs a standard selection or a historical match.\n- **Illumination:** 20w x 10 LED weatherproof — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Electrical fittings & motors:** To be determined — Needs a standard selection or a historical match.\n- **Fire extinguishing system:** To be determined — Needs a standard selection or a historical match.\n- **Material handling for painting:** To be determined — Needs a standard selection or a historical match.\n- **Control panel:** To be determined — Needs a standard selection or a historical match.\n- **Finish:** primer + final coats — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paint process:** powder — Derived from the client requirement.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-SYNERGY-PB-209R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 27% (6/22 decisions)\n- Validation: 100%\n\n**Overall confidence: 82% (High).** 6 specification fields still to be determined - needs engineering input.\n\n_Provenance: 22 decisions — 10 reused from historical offer, 2 client requirement, 4 engineering rule, 6 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: SynergyFZE _R3_230823.pdf_",
+    "spec_writeup_sha": "509ffc22e7a3bff0ae856fe627327ed5272f5a485ea87f35698f0e6568782504",
     "nearest_match": "OFF-SYNERGY-PB-209R3",
-    "confidence_pct": 84,
+    "confidence_pct": 82,
     "confidence_label": "High",
     "decision_origin": [
       {
@@ -477,20 +477,35 @@
       },
       {
         "type": "Reused",
-        "count": 10
+        "count": 16
       },
       {
         "type": "From Requirement",
         "count": 2
       }
     ],
-    "n_ledger": 16,
+    "n_ledger": 22,
     "n_validation": 0,
     "technical": [
+      [
+        "Type of paint booth",
+        "dry type side down draft, non-pressurized, 0.6 m/s cross velocity",
+        "kept"
+      ],
       [
         "Dimensions",
         "10 x 6 x 4 m",
         "given"
+      ],
+      [
+        "Construction",
+        "base frame ISMC / panels MS 1.2mm",
+        "kept"
+      ],
+      [
+        "Construction material",
+        "GI",
+        "rule"
       ],
       [
         "Exhaust airflow",
@@ -503,37 +518,32 @@
         "rule"
       ],
       [
+        "Blower airflow (CFM)",
+        "20000",
+        "kept"
+      ],
+      [
+        "Exhaust blower (nos)",
+        "2",
+        "kept"
+      ],
+      [
+        "Exhaust blower motor (HP)",
+        "15",
+        "kept"
+      ],
+      [
+        "Blower MOC",
+        "MS",
+        "kept"
+      ],
+      [
         "Filters",
         "36 (dry)",
         "rule"
       ],
       [
-        "Construction material",
-        "GI",
-        "rule"
-      ],
-      [
-        "Paint process",
-        "powder",
-        "given"
-      ],
-      [
-        "Booth type",
-        "dry type side down draft, non-pressurized, 0.6 m/s cross velocity",
-        "kept"
-      ],
-      [
-        "Construction",
-        "base frame ISMC / panels MS 1.2mm",
-        "kept"
-      ],
-      [
-        "Illumination",
-        "20w x 10 LED weatherproof",
-        "kept"
-      ],
-      [
-        "Paper filter",
+        "Paint arresting filter",
         "paper with synthetic, 1.4H x 7.0W both sides",
         "kept"
       ],
@@ -543,37 +553,57 @@
         "kept"
       ],
       [
-        "Blower cfm",
-        "20000",
+        "Dry scrubber",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Exhaust ducts",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Illumination",
+        "20w x 10 LED weatherproof",
         "kept"
       ],
       [
-        "Blower motor hp",
-        "15",
-        "kept"
+        "Electrical fittings & motors",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Blower qty",
-        "2",
-        "kept"
+        "Fire extinguishing system",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Blower moc",
-        "MS",
-        "kept"
+        "Material handling for painting",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Control panel",
+        "To be determined",
+        "tbd"
       ],
       [
         "Finish",
         "primer + final coats",
         "kept"
+      ],
+      [
+        "Paint process",
+        "powder",
+        "given"
       ]
     ]
   },
   "paint booth 3 x 3 liquid": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 3\n- ✓ Width m: 3\n- ✓ Height m: 2.35\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 3 x 3 x 2.35 m — Derived from the client requirement.\n- **Exhaust airflow:** 11420 m3/h — Calculated: face area 3x2.35 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 1 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 6 (dry) — Calculated: ceil(floor area 9 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** MS — Calculated: liquid process -> MS / dry filtration (ATS material-selection standard).\n- **Paint process:** liquid — Derived from the client requirement.\n- **Booth type:** dry type cross draft — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Construction:** MS 1.2mm, MS structure — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Illumination:** 18w x 2 tube light - 4 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Paper filter:** 700 x 1500mm - 4 nos (two layers folded perforated) — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Blower motor hp:** 10 — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Blower drive:** direct — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Exhaust duct:** GI 22g 550x550 - 10m — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Dry scrubber:** 1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Finish:** casing powder coated — Reused from historical offer OFF-DMN-PB-180624R3.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-DMN-PB-180624R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 40% (6/15 decisions)\n- Validation: 100%\n\n**Overall confidence: 85% (High).**\n\n_Provenance: 15 decisions — 2 client requirement, 4 engineering rule, 9 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: DMN Paint booth Dry -R3 280924.pdf_",
-    "spec_writeup_sha": "f94f83fdf759e6ed90b03dceb3b0a4720678f506faf32554e08bbc18a59d94c0",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 3\n- ✓ Width m: 3\n- ✓ Height m: 2.35\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** dry type cross draft — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Dimensions:** 3 x 3 x 2.35 m — Derived from the client requirement.\n- **Construction:** MS 1.2mm, MS structure — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Construction material:** MS — Calculated: liquid process -> MS / dry filtration (ATS material-selection standard).\n- **Exhaust airflow:** 11420 m3/h — Calculated: face area 3x2.35 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 1 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Blower airflow (CFM):** To be determined — Needs an engineering calculation (formula + standard).\n- **Exhaust blower (nos):** To be determined — Needs an engineering calculation (formula + standard).\n- **Exhaust blower motor (HP):** 10 — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Blower MOC:** To be determined — Needs a standard selection or a historical match.\n- **Filters:** 6 (dry) — Calculated: ceil(floor area 9 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Paint arresting filter:** 700 x 1500mm - 4 nos (two layers folded perforated) — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Air intake filter:** To be determined — Needs a standard selection or a historical match.\n- **Dry scrubber:** 1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Exhaust ducts:** GI 22g 550x550 - 10m — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Illumination:** 18w x 2 tube light - 4 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Electrical fittings & motors:** To be determined — Needs a standard selection or a historical match.\n- **Fire extinguishing system:** To be determined — Needs a standard selection or a historical match.\n- **Material handling for painting:** To be determined — Needs a standard selection or a historical match.\n- **Control panel:** To be determined — Needs a standard selection or a historical match.\n- **Finish:** casing powder coated — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Paint process:** liquid — Derived from the client requirement.\n- **Blower drive:** direct — Reused from historical offer OFF-DMN-PB-180624R3.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-DMN-PB-180624R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 26% (6/23 decisions)\n- Validation: 100%\n\n**Overall confidence: 82% (High).** 8 specification fields still to be determined - needs engineering input.\n\n_Provenance: 23 decisions — 9 reused from historical offer, 2 client requirement, 4 engineering rule, 8 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: DMN Paint booth Dry -R3 280924.pdf_",
+    "spec_writeup_sha": "7594092d318bfb09e3642cd358f4e35ab3a91f3dfeca8aa8888ca78c47e0419a",
     "nearest_match": "OFF-DMN-PB-180624R3",
-    "confidence_pct": 85,
+    "confidence_pct": 82,
     "confidence_label": "High",
     "decision_origin": [
       {
@@ -590,20 +620,35 @@
       },
       {
         "type": "Reused",
-        "count": 9
+        "count": 17
       },
       {
         "type": "From Requirement",
         "count": 2
       }
     ],
-    "n_ledger": 15,
+    "n_ledger": 23,
     "n_validation": 0,
     "technical": [
+      [
+        "Type of paint booth",
+        "dry type cross draft",
+        "kept"
+      ],
       [
         "Dimensions",
         "3 x 3 x 2.35 m",
         "given"
+      ],
+      [
+        "Construction",
+        "MS 1.2mm, MS structure",
+        "kept"
+      ],
+      [
+        "Construction material",
+        "MS",
+        "rule"
       ],
       [
         "Exhaust airflow",
@@ -616,28 +661,48 @@
         "rule"
       ],
       [
+        "Blower airflow (CFM)",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Exhaust blower (nos)",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Exhaust blower motor (HP)",
+        "10",
+        "kept"
+      ],
+      [
+        "Blower MOC",
+        "To be determined",
+        "tbd"
+      ],
+      [
         "Filters",
         "6 (dry)",
         "rule"
       ],
       [
-        "Construction material",
-        "MS",
-        "rule"
-      ],
-      [
-        "Paint process",
-        "liquid",
-        "given"
-      ],
-      [
-        "Booth type",
-        "dry type cross draft",
+        "Paint arresting filter",
+        "700 x 1500mm - 4 nos (two layers folded perforated)",
         "kept"
       ],
       [
-        "Construction",
-        "MS 1.2mm, MS structure",
+        "Air intake filter",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Dry scrubber",
+        "1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos",
+        "kept"
+      ],
+      [
+        "Exhaust ducts",
+        "GI 22g 550x550 - 10m",
         "kept"
       ],
       [
@@ -646,42 +711,47 @@
         "kept"
       ],
       [
-        "Paper filter",
-        "700 x 1500mm - 4 nos (two layers folded perforated)",
-        "kept"
+        "Electrical fittings & motors",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Blower motor hp",
-        "10",
-        "kept"
+        "Fire extinguishing system",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Blower drive",
-        "direct",
-        "kept"
+        "Material handling for painting",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Exhaust duct",
-        "GI 22g 550x550 - 10m",
-        "kept"
-      ],
-      [
-        "Dry scrubber",
-        "1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos",
-        "kept"
+        "Control panel",
+        "To be determined",
+        "tbd"
       ],
       [
         "Finish",
         "casing powder coated",
         "kept"
+      ],
+      [
+        "Paint process",
+        "liquid",
+        "given"
+      ],
+      [
+        "Blower drive",
+        "direct",
+        "kept"
       ]
     ]
   },
   "paint booth 5 x 3 x 4 liquid": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 5\n- ✓ Width m: 3\n- ✓ Height m: 4\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 5 x 3 x 4 m — Derived from the client requirement.\n- **Exhaust airflow:** 19440 m3/h — Calculated: face area 3x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 2 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 9 (dry) — Calculated: ceil(floor area 15 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** MS — Calculated: liquid process -> MS / dry filtration (ATS material-selection standard).\n- **Paint process:** liquid — Derived from the client requirement.\n- **Booth type:** dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Construction:** panels MS 1.6mm / supports MS tubes — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Illumination:** flame proof LED 700-800 LUX — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Paint arresting:** paper filter system — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Blower motor hp:** 7.5 / 10 / 12.5 (2 nos each, IE3 FLP) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Exhaust duct:** GI 22swg 10m — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Activated carbon chamber:** 2 sets/booth (cartridge, frame type) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Finish:** MS finish paint — Reused from historical offer OFF-CRI-PB-082406R4.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-CRI-PB-082406R4** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 43% (6/14 decisions)\n- Validation: 100%\n\n**Overall confidence: 86% (High).**\n\n_Provenance: 14 decisions — 2 client requirement, 4 engineering rule, 8 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: CRI PUMP PB 10.10.24-R4.pdf_",
-    "spec_writeup_sha": "7a94e14e01ef333e3aacefdf065d9d66c7a06e86fe0837ce1e0e172af1d2dc44",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 5\n- ✓ Width m: 3\n- ✓ Height m: 4\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Dimensions:** 5 x 3 x 4 m — Derived from the client requirement.\n- **Construction:** panels MS 1.6mm / supports MS tubes — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Construction material:** MS — Calculated: liquid process -> MS / dry filtration (ATS material-selection standard).\n- **Exhaust airflow:** 19440 m3/h — Calculated: face area 3x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 2 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Blower airflow (CFM):** To be determined — Needs an engineering calculation (formula + standard).\n- **Exhaust blower (nos):** To be determined — Needs an engineering calculation (formula + standard).\n- **Exhaust blower motor (HP):** 7.5 / 10 / 12.5 (2 nos each, IE3 FLP) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Blower MOC:** To be determined — Needs a standard selection or a historical match.\n- **Filters:** 9 (dry) — Calculated: ceil(floor area 15 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Paint arresting filter:** To be determined — Needs a standard selection or a historical match.\n- **Air intake filter:** To be determined — Needs a standard selection or a historical match.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** GI 22swg 10m — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Illumination:** flame proof LED 700-800 LUX — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Electrical fittings & motors:** To be determined — Needs a standard selection or a historical match.\n- **Fire extinguishing system:** To be determined — Needs a standard selection or a historical match.\n- **Material handling for painting:** To be determined — Needs a standard selection or a historical match.\n- **Control panel:** To be determined — Needs a standard selection or a historical match.\n- **Finish:** MS finish paint — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Paint process:** liquid — Derived from the client requirement.\n- **Paint arresting:** paper filter system — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Activated carbon chamber:** 2 sets/booth (cartridge, frame type) — Reused from historical offer OFF-CRI-PB-082406R4.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-CRI-PB-082406R4** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 25% (6/24 decisions)\n- Validation: 100%\n\n**Overall confidence: 81% (High).** 10 specification fields still to be determined - needs engineering input.\n\n_Provenance: 24 decisions — 8 reused from historical offer, 2 client requirement, 4 engineering rule, 10 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: CRI PUMP PB 10.10.24-R4.pdf_",
+    "spec_writeup_sha": "867592a3abf44a0ff0f8428e8d61fea1c6d534b8b426126e4425eb8da8acf5bb",
     "nearest_match": "OFF-CRI-PB-082406R4",
-    "confidence_pct": 86,
+    "confidence_pct": 81,
     "confidence_label": "High",
     "decision_origin": [
       {
@@ -698,20 +768,35 @@
       },
       {
         "type": "Reused",
-        "count": 8
+        "count": 18
       },
       {
         "type": "From Requirement",
         "count": 2
       }
     ],
-    "n_ledger": 14,
+    "n_ledger": 24,
     "n_validation": 0,
     "technical": [
+      [
+        "Type of paint booth",
+        "dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4)",
+        "kept"
+      ],
       [
         "Dimensions",
         "5 x 3 x 4 m",
         "given"
+      ],
+      [
+        "Construction",
+        "panels MS 1.6mm / supports MS tubes",
+        "kept"
+      ],
+      [
+        "Construction material",
+        "MS",
+        "rule"
       ],
       [
         "Exhaust airflow",
@@ -724,28 +809,48 @@
         "rule"
       ],
       [
+        "Blower airflow (CFM)",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Exhaust blower (nos)",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Exhaust blower motor (HP)",
+        "7.5 / 10 / 12.5 (2 nos each, IE3 FLP)",
+        "kept"
+      ],
+      [
+        "Blower MOC",
+        "To be determined",
+        "tbd"
+      ],
+      [
         "Filters",
         "9 (dry)",
         "rule"
       ],
       [
-        "Construction material",
-        "MS",
-        "rule"
+        "Paint arresting filter",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Paint process",
-        "liquid",
-        "given"
+        "Air intake filter",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Booth type",
-        "dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4)",
-        "kept"
+        "Dry scrubber",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Construction",
-        "panels MS 1.6mm / supports MS tubes",
+        "Exhaust ducts",
+        "GI 22swg 10m",
         "kept"
       ],
       [
@@ -754,28 +859,43 @@
         "kept"
       ],
       [
+        "Electrical fittings & motors",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Fire extinguishing system",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Material handling for painting",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Control panel",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Finish",
+        "MS finish paint",
+        "kept"
+      ],
+      [
+        "Paint process",
+        "liquid",
+        "given"
+      ],
+      [
         "Paint arresting",
         "paper filter system",
         "kept"
       ],
       [
-        "Blower motor hp",
-        "7.5 / 10 / 12.5 (2 nos each, IE3 FLP)",
-        "kept"
-      ],
-      [
-        "Exhaust duct",
-        "GI 22swg 10m",
-        "kept"
-      ],
-      [
         "Activated carbon chamber",
         "2 sets/booth (cartridge, frame type)",
-        "kept"
-      ],
-      [
-        "Finish",
-        "MS finish paint",
         "kept"
       ]
     ]
