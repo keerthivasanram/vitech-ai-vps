@@ -6,7 +6,7 @@ import html
 import json
 import re
 
-from fastapi import Body, FastAPI, File, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
@@ -28,6 +28,7 @@ from .prompt import spec_summary, spec_writeup
 from .pricing import inr_display
 from .quotation import build_quotation
 from .quotation_pdf import render_quotation_pdf
+from .datasheet_pdf import available_forms, render_datasheet_pdf, resolve_form
 from .specification_pdf import render_specification_pdf
 from .ingest import ingest_source
 from .llm import generate_answer, stream_answer
@@ -171,6 +172,37 @@ def specification_pdf(spec: dict = Body(...)):
     name = str(spec.get("category_label") or "specification").replace(" ", "_")
     return Response(content=data, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{name}_specification.pdf"'})
+
+
+@app.get("/api/datasheet/forms", operation_id="list_datasheets")
+def datasheet_forms():
+    """The enquiry data sheets that can be generated, for a UI picker."""
+    return {"forms": available_forms()}
+
+
+@app.post("/api/datasheet/pdf")
+def datasheet_pdf(payload: dict = Body(...)):
+    """Render a Vitech enquiry DATA SHEET (the customer requirement-capture
+    form) as a downloadable PDF, blank or prefilled.
+
+    Body: {"category": "paint_booth", "prefill": {"<label>": "<value>", ...}}
+    A bare label fills its first occurrence; qualify with "<section>::<label>"
+    to reach a repeated one. Nothing is inferred — only supplied values print.
+    """
+    category = payload.get("category") or payload.get("equipment_type") or ""
+    key = resolve_form(category)
+    if key is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No data sheet for {category!r}. Available: "
+                   + ", ".join(f["category"] for f in available_forms()))
+    prefill = payload.get("prefill") or {}
+    if not isinstance(prefill, dict):
+        raise HTTPException(status_code=422, detail="prefill must be an object")
+    data = render_datasheet_pdf(key, prefill)
+    return Response(content=data, media_type="application/pdf",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="{key}_data_sheet.pdf"'})
 
 
 @app.get("/api/offers/by-source/{source_file:path}")

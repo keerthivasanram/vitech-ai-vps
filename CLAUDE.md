@@ -137,6 +137,56 @@ Big session. All committed+pushed on `fix/list-projects-category-filter`; golden
   in the oven template. Follow-ups B0 (filtration-aware booth matching) + B0b (reconcile a
   client attribute like LPG vs a reused diesel design) still open below.
 
+### ▶ 2026-07-26 session: agent routing fixes + client data sheets landed (DONE)
+Container disk was wiped again → `bootstrap-pod.sh` then `start-all.sh`; all 4 services 200,
+DB restored 2 chatflows + 5 tools. Then two pieces of work, both committed on
+`fix/list-projects-category-filter`; golden/lookup/pricing/retrieval ALL PASS throughout.
+1. **Quotation Agent misrouting FIXED** (commit ed3b7f6). Reproduced by replaying multi-turn
+   chats against the live agent. (a) A stated requirement went to `lookup_project` instead of
+   `generate_quotation` — "specification for a paint booth 5m x 3m x 4m" hit lookup with no
+   client named, because RULE 3 never mentioned "specification" and RULE 6 listed "dimensions"
+   as a technical hand-off, fighting the quote rule. (b) A bare follow-up "generate quotation"
+   lost the requirement already stated in the chat ("for the same" worked, "generate quotation"
+   alone did not) — which is why a **fresh chat behaved better**. (c) Root of the visible
+   symptom: on a lookup the model **hand-wrote** a `### VITECH ENVIRO SYSTEMS PVT. LTD.` header,
+   dressing an archive record as a quotation. Prompt wording alone did NOT hold, so it is fixed
+   **structurally**: `analytics.render_lookup_markdown()` renders the record in code (headed
+   **"Historical Project Found"**, sections Requirement / Engineered Solution / Commercial /
+   Source), `/api/tools/lookup` returns it as **`lookup_markdown`**, and new **RULE 4b** makes
+   the agent print that field verbatim so it composes nothing. This also delivers the queued
+   "lookup output template" item. Prompt 4250 → ~4.9k chars (still far under the ~7.4k where
+   llama3.1 leaks tool-call JSON); greetings re-verified clean 3/3.
+2. **Client data sheets received** (commit 872795d) — 3 PDFs: painting plant, powder coating
+   plant, dust collection equipment. **They are ENQUIRY forms, not quotations**, so they do NOT
+   define the issued-quotation layout (still not supplied). What they gave:
+   - **House document style** → `quotation_pdf.py` restyled: centred underlined title, numbered
+     `1.0/2.0` underlined sections, `Label : Value` rows with an aligned colon column, bordered
+     grid tables, exclusions/notes/assumptions, closing contacts. **Confidence removed from the
+     customer PDF** (matches the markdown's customer-facing stance + the agent's own rule).
+   - **Per-category field lists** → `spec_template` + `field_labels` for **paint_booth**,
+     **dust_collector**, **powder_coating_plant** (this was the CLAUDE.md HOLD item). **Gotcha:
+     template labels MUST match what the engine actually emits** or the row appears twice —
+     once resolved, once as a phantom TBD (hit with "Exhaust airflow" / "Dimensions").
+   - **NEW `app/datasheet_pdf.py` + `POST /api/datasheet/pdf` + `GET /api/datasheet/forms`**:
+     generates the enquiry data sheets themselves (blank or prefilled) on the letterhead, with
+     vector tick-boxes and the client's yellow highlighter on ticked options. Forms are declared
+     as data in `FORMS` — adding an equipment type is a schema entry, not drawing code. A bare
+     prefill label fills its FIRST occurrence; qualify as `"<section>::<label>"` for a repeat
+     (labels like "Material Handling" appear in several sections).
+3. **Confidence bug FIXED** (in 872795d, found while templating): `analysis.py::_confidence`
+   counted a **`tbd` row as a rule-backed decision** (it fell through `origin not in
+   ("reused","kept")`), so **adding admitted gaps RAISED confidence** — templating paint_booth
+   pushed it 84% → 90% with 9 fields unknown. TBDs are now excluded from `backed` but stay in
+   the denominator, so unknowns dilute coverage (that case is now 82%, with a note naming the
+   open fields). Latent since spec templates were introduced (only `hot_air_oven` had one and it
+   is not in the ATS goldens). **`tests_golden.json` was recaptured** — the 3 paint_booth ATS
+   cases change (template order + TBD rows + corrected confidence); all 4 wet-scrubber cases
+   stayed byte-identical, which is the proof the confidence fix touches only TBD specs.
+- **STILL NEEDED FROM THE CLIENT**: a real **issued quotation** (the data sheets are input
+  forms). Until then the quotation PDF body is house-styled but its section order is our best
+  guess. Also still open: the engineering **calculations** per category — the new templates
+  resolve what history/rules cover and honestly show the rest as TBD.
+
 - [x] `git pull` DONE (2026-07-23): merged origin/main into fix/list-projects-category-filter
       (conflict in main.py resolved for the agent_router extraction), golden ALL PASS.
 - [x] Stack restarted DONE (2026-07-23): container disk was WIPED, so ran `bootstrap-pod.sh`
@@ -302,6 +352,14 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   (office/factory/tel/e-mail), and a "For any assistance, please contact" block (Mageswaran /
   Sam Mohan) — matching the client's uploaded data sheets. Logo asset: `app/assets/logo.png`.
   Row helpers pre-measure with fpdf `dry_run` so table rows never split across a page break.
+  The **quotation PDF body follows the client's data-sheet house style** (2026-07-26): centred
+  underlined title, numbered `1.0/2.0` sections, `Label : Value` rows, bordered grids; it shows
+  **no confidence** (customer-facing).
+- **Enquiry data sheets** (`app/datasheet_pdf.py`, added 2026-07-26): regenerates Vitech's own
+  requirement-capture forms (painting plant / powder coating plant / dust collection equipment)
+  on the letterhead — vector tick-boxes, highlighted selections, component-matrix + pretreatment
+  grids. `GET /api/datasheet/forms` lists them; `POST /api/datasheet/pdf` renders one blank or
+  prefilled. Forms are DATA (`FORMS` dict) — a new equipment type is a schema entry, not code.
 - **Deterministic analytics + record lookup**: `app/analytics.py` (exact counts /
   lists / clients; `record_detail` renders one file's extracted fields). **Project lookup**
   (`app/retriever.py`, fixed 2026-07-23): `entity_hits` keys on CLIENT IDENTITY + offer-id
@@ -344,7 +402,9 @@ remove them (without one, FastAPI auto-generates `tool_spec_api_tools_spec_post`
 - `POST /api/tools/spec`     → `generate_specification`
 - `POST /api/tools/quote`    → `generate_quotation` (carries preformatted `price_display`,
   `price_range_display`, and `price.*_display` rupee strings — see 10x-price fix below)
-- `POST /api/tools/lookup`   → `lookup_project`
+- `POST /api/tools/lookup`   → `lookup_project` (carries **`lookup_markdown`** — a
+  code-rendered "Historical Project Found" block the agent prints verbatim, so an
+  archive record can never be re-dressed as a freshly generated quotation)
 - `POST /api/tools/retrieve` → `retrieve_knowledge`
 - `POST /api/tools/list`     → `list_projects` (enumerate ALL offers: count, clients,
   category counts, projects — for "how many / list all / which clients / what categories")
