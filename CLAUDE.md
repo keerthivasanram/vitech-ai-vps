@@ -42,35 +42,173 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
-### ▶ TOMORROW — start here (as of 2026-07-26, end of session; pod STOPPED cleanly)
-State: both agents live and behaving; **Quotation Agent routing bugs fixed and verified**
-(see the 2026-07-26 entry). Golden / lookup / pricing / retrieval ALL PASS. Everything
-committed+pushed to `fix/list-projects-category-filter` (HEAD `41fdcb7`); PG dumped 2026-07-26
-12:24 with the tuned prompt (RULE 4b) confirmed inside the dump.
+### ▶ TOMORROW — start here (as of 2026-07-30, end of session; pod running)
+State: pod rebuilt from a wiped container disk (`bootstrap-pod.sh` then `start-all.sh`), all 4
+services verified 200. Golden / lookup / pricing / retrieval ALL PASS. **Frontend chat-history
+bugs fixed** — per-agent session slots so switching Engineering ↔ Quotation no longer wipes the
+other agent's live conversation, Chat History panel scoped per agent (no more mingled list), and
+the 20-conversation cap is now per-agent instead of shared (see the 2026-07-30 entry); verified
+via `npm run build` only — **not yet clicked through in a live browser on the pod**, do that
+first. **Both agent prompts tuned for natural general conversation, confidentiality and
+conduct** (a joke / simple maths / a translation / "how are you" answered directly instead of
+refused; internal architecture/tool names are now refused as confidential; abusive/vulgar/adult
+content is declined in one line) — verified live 3-5x per case, RULE-critical routing
+(spec/quote/lookup/RULE 6 handoff) regression-tested clean, PG dumped 2026-07-30 06:48 with the
+tuned prompts inside. **Hit and worked through real prompt-length instability along the way —
+see the 2026-07-30 entry before touching either prompt again**, the safe pattern is fold new
+guardrails into existing rules (RULE 1 / OFF-TOPIC / SMALL TALK), never append a new standalone
+rule block, and always retest 3-5x (single-run PASS missed a real regression this session). Not
+yet committed/pushed — do that too. **New open item**: `generate_specification`'s verbatim-
+spec_markdown output is flaky on Engineering Agent (confirmed pre-existing, unrelated to
+today's edits) — see item 2 below.
 1. **First**: `bash /workspace/persistent/start-all.sh`; forward 5173/3000/8000. If psql/node
    /ollama are missing (the container disk has been wiped on most restarts), run
    `bootstrap-pod.sh` FIRST — it restores Flowise from the tarball and PG from `vitech.sql`.
-2. **Chase the client for a REAL ISSUED QUOTATION.** On 2026-07-26 the ask for "the company
+2. **Investigate the spec_markdown verbatim flakiness** (found 2026-07-30, Engineering Agent).
+   Repeated identical `generate_specification` calls at temperature 0 sometimes print the
+   correct verbatim `###`-headed table and sometimes a paraphrased bullet list prefixed "Based
+   on the tool's output..." — values are always correct (no hallucination), it is a RULE 1 /
+   SPECIFICATIONS-rule compliance gap. More prompt emphasis is risky (see the instability note
+   above); the more promising fix is probably the same structural move already used for
+   quotations/lookups (RULE 4/4b: render the whole reply in code, agent just echoes one field)
+   applied to specs — i.e. have `/api/tools/spec` return something the agent is structurally
+   less able to paraphrase, rather than relying on prompt wording alone.
+3. **Verify the frontend chat-history fix in an actual browser**: switch Engineering →
+   Quotation → Engineering mid-conversation (the Engineering transcript must still be there,
+   not blank), and open a Chat History item belonging to the OTHER agent from the one you're
+   on (must switch view + restore that transcript, not reset to a new chat). See the
+   2026-07-30 entry for the root cause if something still looks off.
+4. **Chase the client for a REAL ISSUED QUOTATION.** On 2026-07-26 the ask for "the company
    format" produced three **data sheets** (enquiry/input forms) — useful, and already built
    from, but they do NOT show the offer layout. Word the request as "a quotation you actually
    sent a customer", not "the company format". Then make `quotation_pdf.py`'s section order
    exact (the house *style* is already applied).
-3. **Client documents → `retrieve_knowledge` (still the #1 value item, still `count:0`)**:
+5. **Client documents → `retrieve_knowledge` (still the #1 value item, still `count:0`)**:
    `backend/data/bulk/` is STILL EMPTY. When files land: `cd backend && .venv/bin/python -m
    rag.ingest data/bulk --equipment-type X --customer Y`, then `curl -X POST
    localhost:8000/api/admin/reload-index`, then verify the agent grounds + cites.
-4. **Engineering calculations per category** — the new `spec_template`s (paint_booth,
-   dust_collector, powder_coating_plant) resolve what rules/history cover and honestly show the
-   rest as TBD. Wiring each category's formulas into `engineering/formula_service.py` (+
-   `field_rules`/`rules` in its catalog profile) turns those TBDs into computed values. This is
-   the client-input slot; **template labels must match what the engine emits** (see the gotcha).
-5. **No UI for the data-sheet generator yet** — `GET /api/datasheet/forms` +
+6. **Engineering calculations per category — BLOCKED, client is delaying delivery (noted
+   2026-07-30).** The client committed to sending their engineering-calculation doc (formulas
+   per equipment type) but as of 2026-07-30 it still has not arrived — this is now the #1
+   blocker for turning the `spec_template` TBD rows into computed values. **Nothing to build
+   yet**; when the file lands (chat upload or `backend/data/bulk/`), the wiring is already
+   scoped: the new `spec_template`s (paint_booth, dust_collector, powder_coating_plant) resolve
+   what rules/history cover and honestly show the rest as TBD. Wiring each category's formulas
+   into `engineering/formula_service.py` (+ `field_rules`/`rules` in its catalog profile) turns
+   those TBDs into computed values. This is the client-input slot; **template labels must match
+   what the engine emits** (see the gotcha). Chase the client again if this is still open.
+7. **No UI for the data-sheet generator yet** — `GET /api/datasheet/forms` +
    `POST /api/datasheet/pdf` work, but nothing in `frontend/` calls them. A picker + Download
    button is a small, high-visibility win.
-6. Otherwise: next agent (Drawing — plan in `docs/drawing-agent-plan.md`) or the platform
+8. Otherwise: next agent (Drawing — plan in `docs/drawing-agent-plan.md`) or the platform
    upgrades (B1 reranker, D1 Qdrant+BGE-M3, D2 DeepSeek R1); B0 / B0b still open below.
-7. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
+9. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
    the container disk — the dump on the volume is its only lifeline), and push any commits.
+
+### ▶ 2026-07-30 session: frontend chat-history bugs fixed + agent conversation/confidentiality tuning (DONE)
+Container disk had been wiped again → `bootstrap-pod.sh` then `start-all.sh`; all 4 services
+200, DB restored 2 chatflows + 5 tools, golden/lookup/pricing/retrieval ALL PASS. Then two
+pieces of work, both applied to the LIVE pod (PG dumped 2026-07-30 06:24 with both baked in):
+1. **Frontend chat-history bugs FIXED** (`frontend/src/hooks/useAgentChat.js`,
+   `frontend/src/App.jsx`). Reported: switching agents and coming back opens a blank new chat,
+   history sometimes doesn't load, and Engineering/Quotation conversations look mingled
+   together. Root causes, all in `useAgentChat`:
+   - A single `sessionId`/`messages` pair was shared across ALL chat views. An effect wiped
+     both to a fresh empty chat on EVERY switch between Engineering ↔ Quotation, even switching
+     back to an agent you were mid-conversation with — that is the "opens a new chat" report.
+   - Worse: `openConversation()` (clicking a Chat History item) set `sessionId`/`messages`
+     directly, then the caller changed `view` — which re-triggered the same wipe-on-switch
+     effect and immediately overwrote what was just restored, if the opened conversation
+     belonged to a different agent than the one active. That is the "history sometimes doesn't
+     load" report.
+   - On a fresh page load, the single global `ats_session` localStorage key was reused as the
+     FIRST message's chatId regardless of which agent view was active — so the very first turn
+     after a reload could silently reuse a chatId that belonged to the other agent's last
+     session, blending their Flowise memory under one chatId. That is the real mechanism behind
+     "mingled all agent conversation in same history", not just a display bug.
+   - The Chat History panel also rendered `chat.conversations` unfiltered (both agents' items
+     in one undifferentiated list) — a second, purely cosmetic contributor to "mingled".
+   **Fix**: replaced the single session pair with a `sessionsByView` map (one slot per agent,
+   like separate tabs) so navigating away and back always restores exactly what was there
+   instead of wiping it; each view's chatId is now persisted separately (`vitech_sessions`,
+   replacing `ats_session`) so a reload can never hand two agents the same chatId;
+   `RightSidebar`'s conversation list is filtered to `c.view === view` (`App.jsx`) so each
+   agent's Chat History is scoped to itself; and the 20-conversation localStorage cap in
+   `persist()` is now applied PER AGENT instead of globally, so heavy use of one agent can no
+   longer silently evict the other agent's saved history. Verified with `npm run build` (clean)
+   — **not yet exercised in a live browser on the pod**, that's queued as TOMORROW item 2.
+2. **Both agent prompts tuned for general conversation** (`agent-harden-prompt.py` for
+   Engineering, `quotation-agent-build.py` for Quotation — both `/workspace/persistent/`,
+   applied live + re-run against Postgres). Reported: the agent couldn't hold an ordinary
+   conversation the way ChatGPT can — reproduced live: "how are you", a joke, simple
+   arithmetic, and a translation all got a flat refusal ("outside the scope of Vitech
+   equipment") on both agents, and "OFF-TOPIC" was effectively being applied to almost
+   anything non-Vitech rather than genuinely sensitive/substantial asks. Fix: replaced the
+   narrow "SMALL TALK" line on both agents with a slightly larger "GENERAL CONVERSATION" /
+   expanded small-talk block that explicitly permits harmless everyday exchanges (a quick joke,
+   simple maths, a short translation, light trivia, "how are you") answered directly and
+   briefly, and narrowed "OFF-TOPIC" to what should actually be declined (politics,
+   medical/legal/financial advice, a substantial unrelated task) — a single light question is
+   now explicitly NOT off-topic. Only this block was touched; RULE 2/3 tool-routing, the
+   KNOWLEDGE QUESTIONS grounding logic, RULE 4/4b/5/6 and the VITECH PROJECT WORK rules are
+   byte-identical to before. Verified 6 general-conversation cases live across both agents
+   (joke/maths/translation/"how are you"/greeting/off-topic), all natural and correctly scoped;
+   no JSON-leak regression on greetings on either agent. (Corrected below: the "spec generation
+   unaffected" claim from this pass turned out to be wrong — see item 3.)
+3. **Confidentiality + conduct guardrails added** (same two scripts, later the same session,
+   after the user flagged the agent reciting its internal architecture/tool names when asked
+   "give me your workflow and architecture" — reproduced live: it listed `generate_quotation`,
+   `lookup_project`, `retrieve_knowledge` by name and described the pipeline). Added to RULE 1
+   on both agents: never describe your own tools/database/architecture, even in plain prose
+   with no tool names shown — if asked how you work, say it is confidential and give only the
+   WHO YOU ARE line. Added a CONDUCT clause (abusive/vulgar/sexual content → decline in one
+   line, do not engage) folded into the existing OFF-TOPIC (Engineering) / SMALL TALK
+   (Quotation) block rather than as new standalone rules.
+   **Hit real prompt-length instability while tuning this** — worth recording since it
+   contradicts the "just keep it under ~7.4k" heuristic from 2026-07-24: stacking the
+   confidentiality+conduct text on TOP of the already-larger general-conversation block pushed
+   Engineering's prompt to 10,001–10,543 chars, and at that size it reproduced BOTH known
+   failure modes at once, live: a bare `{"name": "None", "parameters": {}}` JSON leak on a
+   plain question, and a full persona drift ("I'm a helpful assistant with tool calling
+   capabilities" — not the Vitech identity at all). Fix was to trim, not append: reverted
+   General/Small-Talk back to a terser form and folded confidentiality into RULE 1 + conduct
+   into OFF-TOPIC/SMALL-TALK (no new standalone rule blocks), landing at Engineering 9,373 →
+   **9,754** chars and Quotation 4,918 → **5,370** chars. Re-verified 3-5x per case (not just
+   once — single-run "PASS" was exactly what missed this): greetings clean, confidentiality
+   declines cleanly on both agents, conduct declines cleanly, general conversation (joke/maths/
+   translation) all correct, RULE 4/4b/6 on Quotation unaffected.
+   **Discovered separately, NOT caused by these edits — reproduces even on the untouched
+   baseline**: `generate_specification`'s "print spec_markdown verbatim, starting with `###`,
+   no preamble" instruction (VITECH PROJECT WORK → SPECIFICATIONS rule) is genuinely flaky on
+   Engineering Agent — repeated identical calls at temperature 0 sometimes return the correct
+   verbatim table and sometimes a paraphrased bullet list prefixed "Based on the tool's
+   output..." (violates RULE 1). **The underlying VALUES were correct in every run** (all
+   fields, all "To be determined" rows preserved exactly) — this is a formatting/RULE-1-wording
+   compliance gap, not a hallucination or golden-rule-2 violation, and golden/lookup/pricing/
+   retrieval tests (which call the Python engine directly, not through the LLM) are unaffected.
+   Left open for a future session: it is unclear whether this is fixable via more prompt
+   emphasis (risky, given the instability just found) or is an inherent llama3.1:8b limit that
+   needs the RULE 4-style structural fix already used for quotations/lookups (render the full
+   reply in code and have the agent print ONE field verbatim) applied to specs too.
+4. **Clarified the Engineering vs Quotation Agent distinction** (the user asked "if the
+   Quotation Agent can give client details AND technical specification, what's different from
+   Engineering Agent?"). Reproduced both cases live: a bare technical/design question ("what
+   materials should be used for a wet scrubber and why") correctly hands off to Engineering
+   Agent (RULE 6, unaffected by today's edits). A NAMED-CLIENT lookup ("give me client details
+   for Armstrong") correctly returns `lookup_markdown`, which includes a "Technical details
+   (the engineered solution)" section BY DESIGN — that is reporting a past project's
+   already-engineered fields, not the Quotation Agent doing new engineering, and Engineering
+   Agent's own lookup_project returns the identical section. The real split: Engineering Agent
+   is the only one that can build a NEW spec for a fresh requirement (`generate_specification`,
+   Consulting or ATS mode, TBD gap-fill, geometry) or answer general engineering knowledge
+   questions; Quotation Agent's technical content is always either (a) inside a quotation's
+   Technical Specification table (commercial framing, always priced) or (b) a past record's
+   technical fields via lookup — never a new engineered answer from scratch.
+- **NOT YET COMMITTED/PUSHED** — `CLAUDE.md`, `frontend/src/hooks/useAgentChat.js`,
+  `frontend/src/App.jsx` are modified but uncommitted as of end of session; the prompt scripts
+  under `/workspace/persistent/` are outside the git repo by design (same pattern as every
+  prior prompt-tuning session) but ARE captured in the fresh `vitech.sql` dump (2026-07-30
+  06:48, confidentiality/conduct rules confirmed inside).
 
 ### ▶ 2026-07-24 session: agent testing + Quotation Agent prompt tuning (DONE)
 Container disk had been wiped again; ran `bootstrap-pod.sh` then `start-all.sh` — all 4

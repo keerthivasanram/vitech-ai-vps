@@ -199,7 +199,7 @@ export default function App() {
 
           {chatView && (
             <RightSidebar
-              conversations={chat.conversations}
+              conversations={chat.conversations.filter((c) => c.view === view)}
               activeId={chat.sessionId}
               onOpenConversation={openConvo}
               onDeleteConversation={chat.deleteConversation}
