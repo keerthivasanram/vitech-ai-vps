@@ -64,15 +64,26 @@ today's edits) — see item 2 below.
 1. **First**: `bash /workspace/persistent/start-all.sh`; forward 5173/3000/8000. If psql/node
    /ollama are missing (the container disk has been wiped on most restarts), run
    `bootstrap-pod.sh` FIRST — it restores Flowise from the tarball and PG from `vitech.sql`.
-2. **Investigate the spec_markdown verbatim flakiness** (found 2026-07-30, Engineering Agent).
-   Repeated identical `generate_specification` calls at temperature 0 sometimes print the
-   correct verbatim `###`-headed table and sometimes a paraphrased bullet list prefixed "Based
-   on the tool's output..." — values are always correct (no hallucination), it is a RULE 1 /
-   SPECIFICATIONS-rule compliance gap. More prompt emphasis is risky (see the instability note
-   above); the more promising fix is probably the same structural move already used for
-   quotations/lookups (RULE 4/4b: render the whole reply in code, agent just echoes one field)
-   applied to specs — i.e. have `/api/tools/spec` return something the agent is structurally
-   less able to paraphrase, rather than relying on prompt wording alone.
+2. **Fix the spec_markdown verbatim flakiness — DEFERRED, do this FIRST next session** (found
+   2026-07-30, Engineering Agent; work started but not finished — the code-side `spec_markdown`
+   field already exists, `app/main.py:259 _spec_markdown()`, set into the response at line 384,
+   so this is prompt-only, no backend change needed). Repeated identical
+   `generate_specification` calls at temperature 0 sometimes print the correct verbatim
+   `###`-headed table and sometimes a paraphrased bullet list prefixed "Based on the tool's
+   output..." — values are always correct (no hallucination), it is a RULE 1 /
+   SPECIFICATIONS-rule compliance gap. Planned fix (the SAME pattern that fixed the identical
+   symptom on Quotation Agent 2026-07-24 — "missing quotation on first ask" — see that entry):
+   the instruction currently lives buried as the 6th of 8 bullets under "VITECH PROJECT WORK"
+   in `agent-harden-prompt.py`'s `SYS` string; promote it to a dedicated top-level rule (e.g.
+   "RULE 7") right after the routing rules, with a concrete pattern-match cue (the literal
+   `###` a spec starts with) and an explicit self-check ("if your reply doesn't start with
+   ###, stop and paste the field instead") — mirroring RULE 4 on the Quotation Agent exactly.
+   To stay within the length budget that caused instability today (see above), DELETE the
+   original SPECIFICATIONS bullet from VITECH PROJECT WORK once the new rule covers it, rather
+   than keeping both. Retest 3-5x per case (single-run PASS is not enough, per today's lesson),
+   covering: the sentinel case (`spec for a paint booth 5m x 3m x 4m` — must start with `###`
+   every time), plus a full regression sweep (greetings/persona, confidentiality, conduct,
+   general conversation, quote/lookup/list_projects routing) before calling it done.
 3. **Verify the frontend chat-history fix in an actual browser**: switch Engineering →
    Quotation → Engineering mid-conversation (the Engineering transcript must still be there,
    not blank), and open a Chat History item belonging to the OTHER agent from the one you're
