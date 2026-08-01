@@ -295,6 +295,28 @@ standard arrives; **E1** a validation gate reporting "customer-ready vs engineer
 **Seven client inputs are listed at the end of the plan doc — chase them alongside the ones
 already outstanding.**
 
+### ▶ NEXT SESSION — spec-quality work remaining (2 of 10 review defects + the gate)
+Eight of the client's ten review defects are closed (see the 2026-08-01 standards entry).
+What is left, in order:
+1. **Phase C1 — field-level retrieval before TBD** (closes review defect #6, dry scrubber).
+   When `apply_template` is about to emit a TBD, first query history for THAT field scoped to a
+   comparable design (nearest airflow for a scrubber, nearest floor area for a booth). Populate
+   with the source offer attributed when the match is strong; otherwise keep the TBD. Seam:
+   `app/spec_template.py::_tbd_row` is where the decision is made, and `app/retriever.py`
+   already has the scoped-search primitives.
+2. **Phase E1 — validation gate + release status** (the reviewer's own list). `check_historical()`
+   (±20% tolerance) is ALREADY WRITTEN in `design_standards.py` but is **not yet wired into
+   `analysis.py::cross_validate`**. Wire it, then add the release-status ladder the client
+   specified — Engineering Draft / Customer Review Draft / Customer Ready / Released Design —
+   computed from: no contradictory values, no size-dependent value reused across a large size
+   gap, no TBD outside the customer-input set, every populated field carrying a source tag.
+   Constants for it are in `design_standards.py` (`STATUS_*`, `HISTORICAL_TOLERANCE`).
+3. **Phase A4 — scale-or-refuse reused values.** Still open: a size-dependent historical value is
+   copied verbatim regardless of the size gap (the 7x illumination case). Mark catalog fields
+   size-dependent, then scale via a rule or demote to TBD rather than asserting.
+4. Apply the same standards treatment to the other categories (powder coating plant, dust
+   collector) once the client sends their two remaining calculation documents.
+
 ### ▶ TOMORROW — start here (as of 2026-08-01, end of session; pod running)
 State: pod rebuilt from a wiped container disk (`bootstrap-pod.sh` then `start-all.sh`), all 4
 services verified 200, golden/lookup/pricing/retrieval ALL PASS throughout. Both carry-over items
