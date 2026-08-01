@@ -22,3 +22,7 @@ Thumbs.db
 
 # local tooling
 .claude/
+
+# Backup bundle: contains the Flowise encryption key and the deploy SSH key.
+# Download it, then delete it. It must NEVER be committed.
+vitech-critical-backup-*.tar.gz
