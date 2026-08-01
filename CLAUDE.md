@@ -42,53 +42,55 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
-### ▶ TOMORROW — start here (as of 2026-07-30, end of session; pod running)
+### ▶ TOMORROW — start here (as of 2026-08-01, end of session; pod running)
 State: pod rebuilt from a wiped container disk (`bootstrap-pod.sh` then `start-all.sh`), all 4
-services verified 200. Golden / lookup / pricing / retrieval ALL PASS. **Frontend chat-history
-bugs fixed** — per-agent session slots so switching Engineering ↔ Quotation no longer wipes the
-other agent's live conversation, Chat History panel scoped per agent (no more mingled list), and
-the 20-conversation cap is now per-agent instead of shared (see the 2026-07-30 entry); verified
-via `npm run build` only — **not yet clicked through in a live browser on the pod**, do that
-first. **Both agent prompts tuned for natural general conversation, confidentiality and
-conduct** (a joke / simple maths / a translation / "how are you" answered directly instead of
-refused; internal architecture/tool names are now refused as confidential; abusive/vulgar/adult
-content is declined in one line) — verified live 3-5x per case, RULE-critical routing
-(spec/quote/lookup/RULE 6 handoff) regression-tested clean, PG dumped 2026-07-30 06:48 with the
-tuned prompts inside. **Hit and worked through real prompt-length instability along the way —
-see the 2026-07-30 entry before touching either prompt again**, the safe pattern is fold new
-guardrails into existing rules (RULE 1 / OFF-TOPIC / SMALL TALK), never append a new standalone
-rule block, and always retest 3-5x (single-run PASS missed a real regression this session). Not
-yet committed/pushed — do that too. **New open item**: `generate_specification`'s verbatim-
-spec_markdown output is flaky on Engineering Agent (confirmed pre-existing, unrelated to
-today's edits) — see item 2 below.
+services verified 200, golden/lookup/pricing/retrieval ALL PASS throughout. Both carry-over items
+from 2026-07-30 are now CLOSED — see the 2026-08-01 entry below for full detail: (1) the
+spec_markdown verbatim flakiness is FIXED (verified 15/15 across multiple rounds, no regression)
+and PG-backed-up; (2) the frontend chat-history fix is VERIFIED in an actual live browser
+(Playwright), all 4 checks pass. **Two NEW pre-existing bugs surfaced** while regression-testing
+today's fix (confirmed on the untouched baseline prompt too, so NOT caused by today's edit) —
+see items 2 and 3 below; both need their own investigation session.
 1. **First**: `bash /workspace/persistent/start-all.sh`; forward 5173/3000/8000. If psql/node
    /ollama are missing (the container disk has been wiped on most restarts), run
    `bootstrap-pod.sh` FIRST — it restores Flowise from the tarball and PG from `vitech.sql`.
-2. **Fix the spec_markdown verbatim flakiness — DEFERRED, do this FIRST next session** (found
-   2026-07-30, Engineering Agent; work started but not finished — the code-side `spec_markdown`
-   field already exists, `app/main.py:259 _spec_markdown()`, set into the response at line 384,
-   so this is prompt-only, no backend change needed). Repeated identical
-   `generate_specification` calls at temperature 0 sometimes print the correct verbatim
-   `###`-headed table and sometimes a paraphrased bullet list prefixed "Based on the tool's
-   output..." — values are always correct (no hallucination), it is a RULE 1 /
-   SPECIFICATIONS-rule compliance gap. Planned fix (the SAME pattern that fixed the identical
-   symptom on Quotation Agent 2026-07-24 — "missing quotation on first ask" — see that entry):
-   the instruction currently lives buried as the 6th of 8 bullets under "VITECH PROJECT WORK"
-   in `agent-harden-prompt.py`'s `SYS` string; promote it to a dedicated top-level rule (e.g.
-   "RULE 7") right after the routing rules, with a concrete pattern-match cue (the literal
-   `###` a spec starts with) and an explicit self-check ("if your reply doesn't start with
-   ###, stop and paste the field instead") — mirroring RULE 4 on the Quotation Agent exactly.
-   To stay within the length budget that caused instability today (see above), DELETE the
-   original SPECIFICATIONS bullet from VITECH PROJECT WORK once the new rule covers it, rather
-   than keeping both. Retest 3-5x per case (single-run PASS is not enough, per today's lesson),
-   covering: the sentinel case (`spec for a paint booth 5m x 3m x 4m` — must start with `###`
-   every time), plus a full regression sweep (greetings/persona, confidentiality, conduct,
-   general conversation, quote/lookup/list_projects routing) before calling it done.
-3. **Verify the frontend chat-history fix in an actual browser**: switch Engineering →
-   Quotation → Engineering mid-conversation (the Engineering transcript must still be there,
-   not blank), and open a Chat History item belonging to the OTHER agent from the one you're
-   on (must switch view + restore that transcript, not reset to a new chat). See the
-   2026-07-30 entry for the root cause if something still looks off.
+2. **NEW: Engineering Agent leaks tool-call-shaped JSON on some general-conversation asks**
+   (found 2026-08-01, confirmed PRE-EXISTING — reproduces on the untouched baseline prompt, not
+   introduced by today's spec_markdown fix). "hi, who are you?" and "tell me a joke" sometimes
+   return literal JSON like `{"name": "answer", "parameters": {...}}` or
+   `{"name": "WHO YOU ARE", "parameters": {}}` instead of plain prose — a RULE 1 violation
+   ("never write a tool name or JSON like {\"name\": ...}") that RULE 1 already explicitly
+   forbids, yet it still happens. Neither "answer" nor "WHO YOU ARE" is a real tool — this looks
+   like the Tool Agent scaffold itself occasionally wrapping a plain reply in a fake tool-call
+   shape. Rate is non-trivial (seen on both baseline and edited prompts, roughly 1-in-5 to
+   1-in-15 depending on test batch — see the note below on why single-batch rates aren't
+   reliable). Mirrors the 2026-07-24 Quotation Agent "leaked `greet` tool-call JSON" fix in
+   symptom but NOT in trigger (that one was compound greetings only, `hi, who are you?` was
+   explicitly verified clean 3/3 on the Quotation Agent) — the Engineering Agent needs its own
+   diagnosis. **Gotcha found while chasing this**: rapid-fire consecutive prediction calls
+   against the SAME live Flowise process (dozens within a few minutes, even across many
+   different fresh `chatId`s) appear to progressively destabilize output — a baseline prompt
+   that tested 11/11 clean on this exact question later tested 15/15 FAILING in the same
+   process lifetime, and recovered after simply restarting Flowise
+   (`kill <pid>; bash /workspace/persistent/flowise-start.sh`). This is distinct from the
+   documented per-chatId BufferMemory-poisoning gotcha (new chat rotates chatId; this persisted
+   across chatIds). **Lesson for next session**: don't trust a single test batch's pass/fail
+   rate, especially late in a long testing session — restart Flowise before a clean diagnostic
+   run, and compare matched sample sizes (edited vs. baseline) in the same process lifetime
+   before concluding a prompt change caused a regression.
+3. **NEW: Engineering Agent's `generate_quotation` path doesn't print `quotation_markdown`
+   verbatim** (found 2026-08-01, confirmed PRE-EXISTING on the untouched baseline too). Asking
+   the Engineering Agent "quote wet scrubber 800 cfm 750mm tower 4 nos" correctly calls
+   `generate_quotation` (right tool, right ₹25,50,000 price, verified via `usedTools` in the raw
+   Flowise response) but then paraphrases its own narrative instead of printing the tool's
+   ready-made `quotation_markdown` field verbatim the way the Quotation Agent's RULE 4 does — on
+   one run it even mislabeled its hand-assembled output "**ENGINEERING SPECIFICATION**" (copying
+   the spec template's look) instead of the quotation's own "### VITECH ENVIRO SYSTEMS PVT.
+   LTD." heading. The Engineering Agent's prompt has never had a RULE-4-equivalent for its own
+   `generate_quotation` tool (only the "PRICES: print ..._display strings verbatim" bullet,
+   which is narrower). Fix would mirror RULE 4 on the Quotation Agent, but apply the
+   in-place-fold lesson from item 2026-08-01 below rather than a new standalone rule block, and
+   retest 3-5x + a Flowise restart between batches (see item 2's gotcha).
 4. **Chase the client for a REAL ISSUED QUOTATION.** On 2026-07-26 the ask for "the company
    format" produced three **data sheets** (enquiry/input forms) — useful, and already built
    from, but they do NOT show the offer layout. Word the request as "a quotation you actually
@@ -115,6 +117,63 @@ today's edits) — see item 2 below.
    upgrades (B1 reranker, D1 Qdrant+BGE-M3, D2 DeepSeek R1); B0 / B0b still open below.
 9. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
    the container disk — the dump on the volume is its only lifeline), and push any commits.
+
+### ▶ 2026-08-01 session: spec_markdown verbatim fix landed + frontend chat-history fix verified live (DONE)
+Container disk had been wiped again → `bootstrap-pod.sh` then `start-all.sh`; all 4 services 200,
+DB restored 2 chatflows + 5 tools, golden/lookup/pricing/retrieval ALL PASS throughout.
+1. **spec_markdown verbatim flakiness FIXED** (Engineering Agent, `agent-harden-prompt.py`,
+   applied live + PG-backed-up). **Correction to the 2026-07-30 plan**: `spec_markdown` does
+   NOT start with `###` as assumed — it starts with `**ENGINEERING SPECIFICATION**` (verified
+   both by reading `app/main.py::_spec_markdown()` and by calling `/api/tools/spec` directly).
+   **The planned fix (a new standalone "RULE 3" mirroring the Quotation Agent's RULE 4) was
+   tried first and EMPIRICALLY REJECTED**: it fixed the spec case 5/5, but broke a previously
+   clean case — "hi, who are you?" started leaking tool-call JSON 5/5, even after trimming the
+   new rule down to LESS total prompt length than the last known-stable version (9707 vs. 9754
+   chars). That proves char-count alone isn't the safe metric here — inserting a new top-level
+   "RULE" between RULE 2 and SMALL TALK destabilized unrelated routing regardless of length.
+   Confirmed by reverting to the untouched original prompt and re-testing: clean. **Actual fix
+   applied**: folded the same marker + self-check wording INTO the existing SPECIFICATIONS
+   bullet under VITECH PROJECT WORK, in place — no new rule number, no repositioning, everything
+   before that bullet byte-identical to the 2026-07-30 baseline. This fixed the sentinel case
+   (`spec for a paint booth 5m x 3m x 4m`) 15/15 clean across multiple rounds with no new
+   regression on greetings/confidentiality/conduct/routing. Net prompt length 9754 → 9894 chars.
+   **Reconfirms the existing lesson** ("fold new guardrails into existing rules, never append a
+   standalone rule block") — worth remembering that this holds even when the new rule is
+   *shorter* than a previously-stable version; position/structure, not just character count, is
+   what destabilizes this model.
+2. **Frontend chat-history fix VERIFIED in an actual live browser** (queued since 2026-07-30,
+   previously only `npm run build`-checked). Playwright + Chromium were not set up on this pod —
+   installed fresh via `npx playwright install chromium` + `install-deps chromium` from
+   `/opt/flowise-app` (its `node_modules` already had `playwright` as a Flowise dependency); the
+   browser + system libs land on the CONTAINER DISK, so this will need reinstalling next time the
+   container disk is wiped (not added to `bootstrap-pod.sh` — a small one-command addition if
+   browser verification becomes routine). Login needed `admin` / `vitech@123` (the local dev
+   account in `frontend/src/auth/AuthProvider.jsx` — there is no real auth backend yet, see
+   `E1` below). All 4 checks from the 2026-07-30 queue item PASS: (a) switching Engineering →
+   Quotation → Engineering mid-conversation leaves each agent's own transcript exactly as it was,
+   not blank/reset; (b) the Chat History panel is correctly scoped per agent — Quotation's panel
+   never lists an Engineering conversation and vice versa; (c) clicking a saved history item
+   restores that exact transcript (not a new blank chat) — verified by starting a fresh "New
+   Chat" (confirmed blank hero-card state) then clicking the earlier item back open; (d) zero
+   browser console errors across the whole flow. Screenshots + driver scripts left in the
+   session scratchpad, not committed (throwaway verification tooling, not app code).
+3. **Two NEW pre-existing bugs found** while regression-testing item 1 above (confirmed on the
+   UNTOUCHED baseline prompt too via careful A/B testing, so neither is caused by today's edit)
+   — see TOMORROW items 2 and 3 for full detail: (a) Engineering Agent occasionally leaks
+   tool-call-shaped JSON (a fake `"answer"` or `"WHO YOU ARE"` pseudo-tool) on general-
+   conversation asks like "who are you" / "tell me a joke"; (b) Engineering Agent's
+   `generate_quotation` calls the right tool with the right price but doesn't print
+   `quotation_markdown` verbatim like the Quotation Agent does — it paraphrases instead. Neither
+   is fixed this session (scope was the spec_markdown flakiness specifically); both are queued.
+   Also surfaced a **process-level Flowise instability** distinct from the documented per-chatId
+   BufferMemory gotcha: heavy rapid-fire testing within one Flowise process lifetime seems to
+   degrade output reliability even across fresh chatIds, recovering after a plain restart — see
+   TOMORROW item 2 for the lesson (don't trust a single long test batch; restart between batches;
+   compare matched sample sizes).
+4. PG backed up 2026-08-01 (spec_markdown fix confirmed inside via grep). This CLAUDE.md update
+   is the only repo change this session (the frontend fix + its own CLAUDE.md entry were already
+   committed 2026-07-30 — working tree was clean at session start); `agent-harden-prompt.py`
+   stays outside the git repo by the established convention.
 
 ### ▶ 2026-07-30 session: frontend chat-history bugs fixed + agent conversation/confidentiality tuning (DONE)
 Container disk had been wiped again → `bootstrap-pod.sh` then `start-all.sh`; all 4 services
