@@ -23,6 +23,7 @@ TBD_VALUE = "To be determined"
 #   standard — a standard selection / reused categorical value
 #   text     — descriptive
 _KIND_NEED = {
+    "customer_decision": "Customer to confirm the required option.",
     "geometry": "Needs a dimensional calculation (engineering rule) or the client dimension.",
     "computed": "Needs an engineering calculation (formula + standard).",
     "standard": "Needs a standard selection or a historical match.",
@@ -35,11 +36,15 @@ def _norm(s):
 
 
 def _tbd_row(field):
+    # A field the CUSTOMER must decide is not an engineering gap — it is a
+    # question. Tagging it separately lets the agent ask instead of printing a
+    # blank the reader mistakes for missing engineering (client review #10).
+    decision = field.get("kind") == "customer_decision"
     return {
         "label": field["label"],
-        "value": TBD_VALUE,
-        "origin": "tbd",
-        "origin_label": origin_label("tbd"),
+        "value": ("To be confirmed with the customer" if decision else TBD_VALUE),
+        "origin": "customer_decision" if decision else "tbd",
+        "origin_label": origin_label("customer_decision" if decision else "tbd"),
         "source": None,
         "reason": _KIND_NEED.get(field.get("kind"), _KIND_NEED["text"]),
         "kind": field.get("kind"),

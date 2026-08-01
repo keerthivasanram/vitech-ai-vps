@@ -118,6 +118,10 @@ ORIGIN_LABELS = {
     "consistent": "Historical consensus",
     "reused": "Reused from nearest design",
     "tbd": "To be determined (needs engineering input)",
+    # Provenance tags from the client's standards package.
+    "standard": "Engineering Standard",
+    "advisory": "Advisory Recommendation",
+    "customer_decision": "Customer Decision Required",
     # legacy
     "kept": "Reused from nearest design",
     "adapted": "Scaled from nearest design",
@@ -135,6 +139,8 @@ DECISION_TYPES = {
     "kept": "Reused",
     "adapted": "Recommended",
     "given": "From Requirement",
+    "standard": "Engineering Standard",
+    "advisory": "Advisory Recommendation",
 }
 
 # Canonical order for the Decision Origin table (rows shown even when count is 0,
@@ -229,7 +235,12 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         # engine supersedes the historical blower fields as well as the airflow
         # ones — a reused blower spec must not contradict the selected model.
         "rule_covers": ["airflow_m3h", "filters", "filter_type", "material",
-                        "blower_cfm", "blower_qty", "blower_motor_hp", "blower_drive"],
+                        "blower_cfm", "blower_qty", "blower_motor_hp", "blower_drive",
+                        # now selected from the client's standards package, so the
+                        # historical value must NOT also be emitted (it produced a
+                        # duplicate row, once computed and once copied)
+                        "booth_type", "illumination", "paper_filter", "exhaust_duct",
+                        "control_panel", "sprinkler_fire_protection"],
         "rule_value_map": {"Exhaust airflow": "airflow_m3h",
                            "Filters": "filters", "Construction material": "material",
                            "Blower airflow (CFM)": "blower_cfm",
@@ -287,7 +298,6 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             {"label": "Blower drive", "kind": "computed"},
             {"label": "Enclosure sheet weight", "kind": "computed"},
             {"label": "Blower MOC", "kind": "standard"},
-            {"label": "Filters", "kind": "standard"},
             {"label": "Paint arresting filter", "kind": "standard"},
             {"label": "Air intake filter", "kind": "standard"},
             {"label": "Dry scrubber", "kind": "standard"},
@@ -295,7 +305,7 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             {"label": "Illumination", "kind": "standard"},
             {"label": "Electrical fittings & motors", "kind": "standard"},
             {"label": "Fire extinguishing system", "kind": "standard"},
-            {"label": "Material handling for painting", "kind": "standard"},
+            {"label": "Material handling for painting", "kind": "customer_decision"},
             {"label": "Control panel", "kind": "standard"},
             {"label": "Finish", "kind": "standard"},
         ],

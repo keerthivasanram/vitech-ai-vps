@@ -69,8 +69,14 @@ def generate_spec(profile, category, params, chosen, offers, policy=ATS):
         for v in computed.values:
             rule = _match_rule(v.label, rules_by_name)
             if rule:
-                items.append(_item(v.label, v.value, "rule", _short_std(rule.standard),
-                                   f"Calculated: {rule.formula} ({rule.standard})."))
+                # Keep the value's own provenance when it carries one (advisory /
+                # standard / customer_decision from the client's standards
+                # package); only default to "rule" for a plain calculation.
+                origin = v.origin if v.origin in ("advisory", "standard",
+                                                  "customer_decision") else "rule"
+                verb = {"advisory": "Recommended", "standard": "Per standard"}.get(origin, "Calculated")
+                items.append(_item(v.label, v.value, origin, _short_std(rule.standard),
+                                   f"{verb}: {rule.formula} ({rule.standard})."))
             else:
                 items.append(_item(v.label, v.value, "given", "requirement",
                                    "Derived from the client requirement."))

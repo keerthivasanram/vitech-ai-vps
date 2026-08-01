@@ -457,15 +457,15 @@
     ]
   },
   "paint booth 10 x 6 powder": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 10\n- ✓ Width m: 6\n- ✓ Height m: 4\n- ✓ Paint type: powder\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 10\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** dry type side down draft, non-pressurized, 0.6 m/s cross velocity — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Dimensions:** 10 x 6 x 4 m — Derived from the client requirement.\n- **Construction:** base frame ISMC / panels MS 1.2mm — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Construction material:** GI — Calculated: powder process -> GI / dry filtration (ATS material-selection standard).\n- **Exhaust airflow:** 38880 m3/h — Calculated: face area 6x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Inlet air volume:** 34990 m3/h — Calculated: exhaust 38880 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-25-25000 — Calculated: duty 22884 CFM -> smallest CLP-4-25-25000 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 25000 — Calculated: CLP-4-25-25000 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-25-25000 to cover 22884 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 25 — Calculated: CLP-4-25-25000 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-25-25000 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 2952 kg — Calculated: 5-side surface area 188.0 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** MS — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Filters:** 36 (dry) — Calculated: ceil(floor area 60 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Paint arresting filter:** paper with synthetic, 1.4H x 7.0W both sides — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Air intake filter:** 10 micron velcro type — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** To be determined — Needs a standard selection or a historical match.\n- **Illumination:** 20w x 10 LED weatherproof — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Electrical fittings & motors:** To be determined — Needs a standard selection or a historical match.\n- **Fire extinguishing system:** To be determined — Needs a standard selection or a historical match.\n- **Material handling for painting:** To be determined — Needs a standard selection or a historical match.\n- **Control panel:** To be determined — Needs a standard selection or a historical match.\n- **Finish:** primer + final coats — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paint process:** powder — Derived from the client requirement.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-SYNERGY-PB-209R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 48% (12/25 decisions)\n- Validation: 100%\n\n**Overall confidence: 87% (High).** 6 specification fields still to be determined - needs engineering input.\n\n_Provenance: 25 decisions — 7 reused from historical offer, 2 client requirement, 10 engineering rule, 6 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: SynergyFZE _R3_230823.pdf_",
-    "spec_writeup_sha": "04c674272276a9057baefa83e8499c02de3017627bfe712dd5f2fd7044587848",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 10\n- ✓ Width m: 6\n- ✓ Height m: 4\n- ✓ Paint type: powder\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 16\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** Powder Coating Booth — Calculated: canonical booth type; design face velocity 0.55 m/s (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Dimensions:** 10 x 6 x 4 m — Derived from the client requirement.\n- **Construction:** base frame ISMC / panels MS 1.2mm — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Construction material:** Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval. — Recommended: material matrix: standard -> structure MS, panels MS (Vitech material selection matrix (advisory)).\n- **Exhaust airflow:** 47520 m3/h — Calculated: face area 6x4 = 24 m2 x design velocity 0.55 m/s (Powder Coating Booth) x 3600 (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Inlet air volume:** 42770 m3/h — Calculated: exhaust 47520 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-30-30500 — Calculated: duty 27969 CFM -> smallest CLP-4-30-30500 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 30500 — Calculated: CLP-4-30-30500 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-30-30500 to cover 27969 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 30 — Calculated: CLP-4-30-30500 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-30-30500 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 2952 kg — Calculated: 5-side surface area 188.0 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** MS — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paint arresting filter:** 37 nos 600 x 600 x 50 mm — Calculated: required area 13.2 m2 = 47520 m3/h / (3600 x 1 m/s media velocity), / 0.36 m2 per filter (Vitech filter standard (media velocity 0.8-1.2 m/s)).\n- **Air intake filter:** 10 micron velcro type — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** 1000 mm dia, GI, 16.8 m/s transport velocity — Calculated: area 0.66 m2 = 47520 m3/h / (20 m/s x 3600), dia = sqrt(4A/pi) = 917 mm -> standard 1000 mm (Vitech duct standard (transport velocity)).\n- **Illumination:** 11 nos 40 W weatherproof LED (750 lux) — Calculated: 60 m2 x 750 lux = 45000 lm, / 4400 lm per fixture (Vitech lighting standard (lux-based selection)).\n- **Electrical fittings & motors:** 26.2 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay — Calculated: 30 HP x 0.746 = 22.4 kW + 0.4 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Fire extinguishing system:** Explosion venting, Spark detection, ABC extinguishers — Per standard: powder process -> Powder booth practice (recommended) (Fire protection by paint process (NFPA 33 for solvent)).\n- **Material handling for painting:** To be confirmed with the customer — Customer to confirm the required option.\n- **Control panel:** Star Delta MCC, 26.2 kW — Calculated: 30 HP x 0.746 = 22.4 kW + 0.4 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Finish:** primer + final coats — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paint process:** powder — Derived from the client requirement.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-SYNERGY-PB-209R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 79% (19/24 decisions)\n- Validation: 100%\n\n**Overall confidence: 95% (High).** 1 specification field still to be determined - needs engineering input.\n\n_Provenance: 24 decisions — 14 engineering rule, 2 client requirement, 4 reused from historical offer, 4 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: SynergyFZE _R3_230823.pdf_",
+    "spec_writeup_sha": "a3a020dcb3407d77107293c1b52bc0f05c9c9ea445a0f871de016fddc77cf7f3",
     "nearest_match": "OFF-SYNERGY-PB-209R3",
-    "confidence_pct": 87,
+    "confidence_pct": 95,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 10
+        "count": 14
       },
       {
         "type": "Inferred",
@@ -477,20 +477,28 @@
       },
       {
         "type": "Reused",
-        "count": 13
+        "count": 6
       },
       {
         "type": "From Requirement",
         "count": 2
+      },
+      {
+        "type": "Advisory Recommendation",
+        "count": 1
+      },
+      {
+        "type": "Engineering Standard",
+        "count": 1
       }
     ],
-    "n_ledger": 25,
+    "n_ledger": 24,
     "n_validation": 0,
     "technical": [
       [
         "Type of paint booth",
-        "dry type side down draft, non-pressurized, 0.6 m/s cross velocity",
-        "kept"
+        "Powder Coating Booth",
+        "rule"
       ],
       [
         "Dimensions",
@@ -504,27 +512,27 @@
       ],
       [
         "Construction material",
-        "GI",
-        "rule"
+        "Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval.",
+        "advisory"
       ],
       [
         "Exhaust airflow",
-        "38880 m3/h",
+        "47520 m3/h",
         "rule"
       ],
       [
         "Inlet air volume",
-        "34990 m3/h",
+        "42770 m3/h",
         "rule"
       ],
       [
         "Exhaust blower",
-        "CLP-4-25-25000",
+        "CLP-4-30-30500",
         "rule"
       ],
       [
         "Blower airflow (CFM)",
-        "25000",
+        "30500",
         "rule"
       ],
       [
@@ -534,7 +542,7 @@
       ],
       [
         "Exhaust blower motor (HP)",
-        "25",
+        "30",
         "rule"
       ],
       [
@@ -553,14 +561,9 @@
         "kept"
       ],
       [
-        "Filters",
-        "36 (dry)",
-        "rule"
-      ],
-      [
         "Paint arresting filter",
-        "paper with synthetic, 1.4H x 7.0W both sides",
-        "kept"
+        "37 nos 600 x 600 x 50 mm",
+        "rule"
       ],
       [
         "Air intake filter",
@@ -574,33 +577,33 @@
       ],
       [
         "Exhaust ducts",
-        "To be determined",
-        "tbd"
+        "1000 mm dia, GI, 16.8 m/s transport velocity",
+        "rule"
       ],
       [
         "Illumination",
-        "20w x 10 LED weatherproof",
-        "kept"
+        "11 nos 40 W weatherproof LED (750 lux)",
+        "rule"
       ],
       [
         "Electrical fittings & motors",
-        "To be determined",
-        "tbd"
+        "26.2 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay",
+        "rule"
       ],
       [
         "Fire extinguishing system",
-        "To be determined",
-        "tbd"
+        "Explosion venting, Spark detection, ABC extinguishers",
+        "standard"
       ],
       [
         "Material handling for painting",
-        "To be determined",
-        "tbd"
+        "To be confirmed with the customer",
+        "customer_decision"
       ],
       [
         "Control panel",
-        "To be determined",
-        "tbd"
+        "Star Delta MCC, 26.2 kW",
+        "rule"
       ],
       [
         "Finish",
@@ -615,15 +618,15 @@
     ]
   },
   "paint booth 3 x 3 liquid": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 3\n- ✓ Width m: 3\n- ✓ Height m: 2.35\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 10\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** dry type cross draft — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Dimensions:** 3 x 3 x 2.35 m — Derived from the client requirement.\n- **Construction:** MS 1.2mm, MS structure — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Construction material:** MS — Calculated: liquid process -> MS / dry filtration (ATS material-selection standard).\n- **Exhaust airflow:** 11420 m3/h — Calculated: face area 3x2.35 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Inlet air volume:** 10280 m3/h — Calculated: exhaust 11420 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-10-9000 — Calculated: duty 6722 CFM -> smallest CLP-4-10-9000 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 9000 — Calculated: CLP-4-10-9000 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-10-9000 to cover 6722 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 10 — Calculated: CLP-4-10-9000 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-10-9000 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 584 kg — Calculated: 5-side surface area 37.2 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** To be determined — Needs a standard selection or a historical match.\n- **Filters:** 6 (dry) — Calculated: ceil(floor area 9 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Paint arresting filter:** 700 x 1500mm - 4 nos (two layers folded perforated) — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Air intake filter:** To be determined — Needs a standard selection or a historical match.\n- **Dry scrubber:** 1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Exhaust ducts:** GI 22g 550x550 - 10m — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Illumination:** 18w x 2 tube light - 4 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Electrical fittings & motors:** To be determined — Needs a standard selection or a historical match.\n- **Fire extinguishing system:** To be determined — Needs a standard selection or a historical match.\n- **Material handling for painting:** To be determined — Needs a standard selection or a historical match.\n- **Control panel:** To be determined — Needs a standard selection or a historical match.\n- **Finish:** casing powder coated — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Paint process:** liquid — Derived from the client requirement.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-DMN-PB-180624R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 48% (12/25 decisions)\n- Validation: 100%\n\n**Overall confidence: 87% (High).** 6 specification fields still to be determined - needs engineering input.\n\n_Provenance: 25 decisions — 7 reused from historical offer, 2 client requirement, 10 engineering rule, 6 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: DMN Paint booth Dry -R3 280924.pdf_",
-    "spec_writeup_sha": "18aac4ace528dc0006bee40a845ab66e71dc73446b54079166a72bd497b6c016",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 3\n- ✓ Width m: 3\n- ✓ Height m: 2.35\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 16\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** Dry Filter Cross Draft — Calculated: canonical booth type; design face velocity 0.45 m/s (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Dimensions:** 3 x 3 x 2.35 m — Derived from the client requirement.\n- **Construction:** MS 1.2mm, MS structure — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Construction material:** Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval. — Recommended: material matrix: standard -> structure MS, panels MS (Vitech material selection matrix (advisory)).\n- **Exhaust airflow:** 11420 m3/h — Calculated: face area 3x2.35 = 7.05 m2 x design velocity 0.45 m/s (Dry Filter Cross Draft) x 3600 (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Inlet air volume:** 10280 m3/h — Calculated: exhaust 11420 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-10-9000 — Calculated: duty 6722 CFM -> smallest CLP-4-10-9000 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 9000 — Calculated: CLP-4-10-9000 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-10-9000 to cover 6722 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 10 — Calculated: CLP-4-10-9000 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-10-9000 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 584 kg — Calculated: 5-side surface area 37.2 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** To be determined — Needs a standard selection or a historical match.\n- **Paint arresting filter:** 9 nos 600 x 600 x 50 mm — Calculated: required area 3.2 m2 = 11421 m3/h / (3600 x 1 m/s media velocity), / 0.36 m2 per filter (Vitech filter standard (media velocity 0.8-1.2 m/s)).\n- **Air intake filter:** To be determined — Needs a standard selection or a historical match.\n- **Dry scrubber:** 1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Exhaust ducts:** 500 mm dia, GI, 16.2 m/s transport velocity — Calculated: area 0.18 m2 = 11421 m3/h / (18 m/s x 3600), dia = sqrt(4A/pi) = 474 mm -> standard 500 mm (Vitech duct standard (transport velocity)).\n- **Illumination:** 2 nos 40 W weatherproof LED (750 lux) — Calculated: 9 m2 x 750 lux = 6750 lm, / 4400 lm per fixture (Vitech lighting standard (lux-based selection)).\n- **Electrical fittings & motors:** 8.7 kW MCC panel, DOL starter; MCC panel, Main isolator, Emergency stop, Overload relay — Calculated: 10 HP x 0.746 = 7.5 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Fire extinguishing system:** Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown — Per standard: solvent process -> NFPA 33 (mandatory) (Fire protection by paint process (NFPA 33 for solvent)).\n- **Material handling for painting:** To be confirmed with the customer — Customer to confirm the required option.\n- **Control panel:** DOL MCC, 8.7 kW — Calculated: 10 HP x 0.746 = 7.5 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Finish:** casing powder coated — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Paint process:** liquid — Derived from the client requirement.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-DMN-PB-180624R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 79% (19/24 decisions)\n- Validation: 100%\n\n**Overall confidence: 95% (High).** 2 specification fields still to be determined - needs engineering input.\n\n_Provenance: 24 decisions — 14 engineering rule, 2 client requirement, 3 reused from historical offer, 5 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: DMN Paint booth Dry -R3 280924.pdf_",
+    "spec_writeup_sha": "63dbfc8eb50fb2736cdbeefcad462b94cc90b65bd71711e506fc649738362351",
     "nearest_match": "OFF-DMN-PB-180624R3",
-    "confidence_pct": 87,
+    "confidence_pct": 95,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 10
+        "count": 14
       },
       {
         "type": "Inferred",
@@ -635,20 +638,28 @@
       },
       {
         "type": "Reused",
-        "count": 13
+        "count": 6
       },
       {
         "type": "From Requirement",
         "count": 2
+      },
+      {
+        "type": "Advisory Recommendation",
+        "count": 1
+      },
+      {
+        "type": "Engineering Standard",
+        "count": 1
       }
     ],
-    "n_ledger": 25,
+    "n_ledger": 24,
     "n_validation": 0,
     "technical": [
       [
         "Type of paint booth",
-        "dry type cross draft",
-        "kept"
+        "Dry Filter Cross Draft",
+        "rule"
       ],
       [
         "Dimensions",
@@ -662,8 +673,8 @@
       ],
       [
         "Construction material",
-        "MS",
-        "rule"
+        "Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval.",
+        "advisory"
       ],
       [
         "Exhaust airflow",
@@ -711,14 +722,9 @@
         "tbd"
       ],
       [
-        "Filters",
-        "6 (dry)",
-        "rule"
-      ],
-      [
         "Paint arresting filter",
-        "700 x 1500mm - 4 nos (two layers folded perforated)",
-        "kept"
+        "9 nos 600 x 600 x 50 mm",
+        "rule"
       ],
       [
         "Air intake filter",
@@ -732,33 +738,33 @@
       ],
       [
         "Exhaust ducts",
-        "GI 22g 550x550 - 10m",
-        "kept"
+        "500 mm dia, GI, 16.2 m/s transport velocity",
+        "rule"
       ],
       [
         "Illumination",
-        "18w x 2 tube light - 4 nos",
-        "kept"
+        "2 nos 40 W weatherproof LED (750 lux)",
+        "rule"
       ],
       [
         "Electrical fittings & motors",
-        "To be determined",
-        "tbd"
+        "8.7 kW MCC panel, DOL starter; MCC panel, Main isolator, Emergency stop, Overload relay",
+        "rule"
       ],
       [
         "Fire extinguishing system",
-        "To be determined",
-        "tbd"
+        "Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown",
+        "standard"
       ],
       [
         "Material handling for painting",
-        "To be determined",
-        "tbd"
+        "To be confirmed with the customer",
+        "customer_decision"
       ],
       [
         "Control panel",
-        "To be determined",
-        "tbd"
+        "DOL MCC, 8.7 kW",
+        "rule"
       ],
       [
         "Finish",
@@ -773,15 +779,15 @@
     ]
   },
   "paint booth 5 x 3 x 4 liquid": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 5\n- ✓ Width m: 3\n- ✓ Height m: 4\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 10\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Dimensions:** 5 x 3 x 4 m — Derived from the client requirement.\n- **Construction:** panels MS 1.6mm / supports MS tubes — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Construction material:** MS — Calculated: liquid process -> MS / dry filtration (ATS material-selection standard).\n- **Exhaust airflow:** 19440 m3/h — Calculated: face area 3x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Inlet air volume:** 17500 m3/h — Calculated: exhaust 19440 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-15-14500 — Calculated: duty 11442 CFM -> smallest CLP-4-15-14500 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 14500 — Calculated: CLP-4-15-14500 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-15-14500 to cover 11442 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 15 — Calculated: CLP-4-15-14500 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-15-14500 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 1240 kg — Calculated: 5-side surface area 79.0 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** To be determined — Needs a standard selection or a historical match.\n- **Filters:** 9 (dry) — Calculated: ceil(floor area 15 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Paint arresting filter:** To be determined — Needs a standard selection or a historical match.\n- **Air intake filter:** To be determined — Needs a standard selection or a historical match.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** GI 22swg 10m — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Illumination:** flame proof LED 700-800 LUX — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Electrical fittings & motors:** To be determined — Needs a standard selection or a historical match.\n- **Fire extinguishing system:** To be determined — Needs a standard selection or a historical match.\n- **Material handling for painting:** To be determined — Needs a standard selection or a historical match.\n- **Control panel:** To be determined — Needs a standard selection or a historical match.\n- **Finish:** MS finish paint — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Paint process:** liquid — Derived from the client requirement.\n- **Paint arresting:** paper filter system — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Activated carbon chamber:** 2 sets/booth (cartridge, frame type) — Reused from historical offer OFF-CRI-PB-082406R4.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-CRI-PB-082406R4** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 44% (12/27 decisions)\n- Validation: 100%\n\n**Overall confidence: 86% (High).** 8 specification fields still to be determined - needs engineering input.\n\n_Provenance: 27 decisions — 7 reused from historical offer, 2 client requirement, 10 engineering rule, 8 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: CRI PUMP PB 10.10.24-R4.pdf_",
-    "spec_writeup_sha": "1aa000df3462df62986252744640477e95bc11485d79a8e1283b44b2d6d674e7",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 5\n- ✓ Width m: 3\n- ✓ Height m: 4\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 16\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** Dry Filter Cross Draft — Calculated: canonical booth type; design face velocity 0.45 m/s (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Dimensions:** 5 x 3 x 4 m — Derived from the client requirement.\n- **Construction:** panels MS 1.6mm / supports MS tubes — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Construction material:** Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval. — Recommended: material matrix: standard -> structure MS, panels MS (Vitech material selection matrix (advisory)).\n- **Exhaust airflow:** 19440 m3/h — Calculated: face area 3x4 = 12 m2 x design velocity 0.45 m/s (Dry Filter Cross Draft) x 3600 (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Inlet air volume:** 17500 m3/h — Calculated: exhaust 19440 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-15-14500 — Calculated: duty 11442 CFM -> smallest CLP-4-15-14500 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 14500 — Calculated: CLP-4-15-14500 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-15-14500 to cover 11442 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 15 — Calculated: CLP-4-15-14500 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-15-14500 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 1240 kg — Calculated: 5-side surface area 79.0 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** To be determined — Needs a standard selection or a historical match.\n- **Paint arresting filter:** 16 nos 600 x 600 x 50 mm — Calculated: required area 5.4 m2 = 19440 m3/h / (3600 x 1 m/s media velocity), / 0.36 m2 per filter (Vitech filter standard (media velocity 0.8-1.2 m/s)).\n- **Air intake filter:** To be determined — Needs a standard selection or a historical match.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** 700 mm dia, GI, 14.0 m/s transport velocity — Calculated: area 0.30 m2 = 19440 m3/h / (18 m/s x 3600), dia = sqrt(4A/pi) = 618 mm -> standard 700 mm (Vitech duct standard (transport velocity)).\n- **Illumination:** 3 nos 40 W weatherproof LED (750 lux) — Calculated: 15 m2 x 750 lux = 11250 lm, / 4400 lm per fixture (Vitech lighting standard (lux-based selection)).\n- **Electrical fittings & motors:** 13.0 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay — Calculated: 15 HP x 0.746 = 11.2 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Fire extinguishing system:** Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown — Per standard: solvent process -> NFPA 33 (mandatory) (Fire protection by paint process (NFPA 33 for solvent)).\n- **Material handling for painting:** To be confirmed with the customer — Customer to confirm the required option.\n- **Control panel:** Star Delta MCC, 13.0 kW — Calculated: 15 HP x 0.746 = 11.2 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Finish:** MS finish paint — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Paint process:** liquid — Derived from the client requirement.\n- **Paint arresting:** paper filter system — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Activated carbon chamber:** 2 sets/booth (cartridge, frame type) — Reused from historical offer OFF-CRI-PB-082406R4.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-CRI-PB-082406R4** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 73% (19/26 decisions)\n- Validation: 100%\n\n**Overall confidence: 93% (High).** 3 specification fields still to be determined - needs engineering input.\n\n_Provenance: 26 decisions — 14 engineering rule, 2 client requirement, 4 reused from historical offer, 6 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: CRI PUMP PB 10.10.24-R4.pdf_",
+    "spec_writeup_sha": "79fd2c3a1da4a1ce0d600935fa1217f17033da3df48aefd931b9eb52f73aeef1",
     "nearest_match": "OFF-CRI-PB-082406R4",
-    "confidence_pct": 86,
+    "confidence_pct": 93,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 10
+        "count": 14
       },
       {
         "type": "Inferred",
@@ -793,20 +799,28 @@
       },
       {
         "type": "Reused",
-        "count": 15
+        "count": 8
       },
       {
         "type": "From Requirement",
         "count": 2
+      },
+      {
+        "type": "Advisory Recommendation",
+        "count": 1
+      },
+      {
+        "type": "Engineering Standard",
+        "count": 1
       }
     ],
-    "n_ledger": 27,
+    "n_ledger": 26,
     "n_validation": 0,
     "technical": [
       [
         "Type of paint booth",
-        "dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4)",
-        "kept"
+        "Dry Filter Cross Draft",
+        "rule"
       ],
       [
         "Dimensions",
@@ -820,8 +834,8 @@
       ],
       [
         "Construction material",
-        "MS",
-        "rule"
+        "Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval.",
+        "advisory"
       ],
       [
         "Exhaust airflow",
@@ -869,14 +883,9 @@
         "tbd"
       ],
       [
-        "Filters",
-        "9 (dry)",
-        "rule"
-      ],
-      [
         "Paint arresting filter",
-        "To be determined",
-        "tbd"
+        "16 nos 600 x 600 x 50 mm",
+        "rule"
       ],
       [
         "Air intake filter",
@@ -890,33 +899,33 @@
       ],
       [
         "Exhaust ducts",
-        "GI 22swg 10m",
-        "kept"
+        "700 mm dia, GI, 14.0 m/s transport velocity",
+        "rule"
       ],
       [
         "Illumination",
-        "flame proof LED 700-800 LUX",
-        "kept"
+        "3 nos 40 W weatherproof LED (750 lux)",
+        "rule"
       ],
       [
         "Electrical fittings & motors",
-        "To be determined",
-        "tbd"
+        "13.0 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay",
+        "rule"
       ],
       [
         "Fire extinguishing system",
-        "To be determined",
-        "tbd"
+        "Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown",
+        "standard"
       ],
       [
         "Material handling for painting",
-        "To be determined",
-        "tbd"
+        "To be confirmed with the customer",
+        "customer_decision"
       ],
       [
         "Control panel",
-        "To be determined",
-        "tbd"
+        "Star Delta MCC, 13.0 kW",
+        "rule"
       ],
       [
         "Finish",

@@ -229,6 +229,34 @@ buffing_booth, flash_off_zone, paint_drying_oven) have working formulas in
 `paint_shop_service` but are **not yet wired as catalog categories** (no `classify.py` keywords,
 no profile, no `spec_template`) — that is the natural next increment and is purely additive.
 
+### ▶ 2026-08-01 (standards) — CLIENT STANDARDS PACKAGE IMPLEMENTED (8 of 10 review defects closed)
+The client supplied the full engineering-standards package; it is now executable in
+**`app/engineering/design_standards.py`** (DATA then SELECTION functions). Six suites green;
+goldens recaptured — **only the 3 paint_booth cases moved**, all wet-scrubber + knowledge cases
+byte-identical.
+**On the reviewed spec (`paint booth 10x10x10 water based side draft`): confidence 87% -> 94%,
+TBD fields 6 -> 1 (+1 customer question), zero duplicate rows.**
+- **#1 booth vocabulary** — 7 canonical types + synonyms; "side down draft" resolves to Dry
+  Filter Side Draft and is flagged as non-standard archive wording.
+- **#2 velocity contradiction GONE** — face velocity now comes FROM the booth type, so the
+  velocity stated and the velocity that computed the airflow are the same number by construction.
+- **#3 material is ADVISORY** — "Recommended GI panels on MS structure ... subject to customer
+  approval", origin `advisory`, never asserted.
+- **#4 filters** from media velocity (1.0 m/s) + filter area: 125 nos 600x600 (was 60 from the
+  `FILTERS_PER_M2 = 0.6` placeholder, now deleted).
+- **#5 illumination** lux-based: 18 nos 40 W @ 750 lux (was "20w x 10" copied verbatim from a
+  **7x smaller** booth).
+- **#7 duct** 1800 mm dia @ 17.7 m/s from transport velocity. **#8 electrical** 103.8 kW MCC,
+  Soft Starter/VFD from connected load + 15% spare. **#9 fire** by paint process (NFPA 33 for
+  solvent). **#10 material handling** is now a `customer_decision` question, not a blank.
+- **New provenance tags** (`standard`, `advisory`, `customer_decision`) in `schema.Origin` +
+  `catalog.ORIGIN_LABELS`; the planner keeps a value's own tag instead of forcing "rule".
+- **Gotcha:** adding a computed field means adding its historical key to `rule_covers`, or the
+  spec emits the row TWICE (once computed, once reused) — hit on booth_type/illumination/filter.
+- **STILL OPEN:** #6 dry scrubber (needs Phase C1 field-level retrieval) and Phase E1 validation
+  gate / release status. `check_historical()` (±20%) exists but is not yet wired into
+  `cross_validate`.
+
 ### ▶ CLIENT SPEC REVIEW 8.3/10 — READ `docs/spec-quality-plan.md` BEFORE SPEC WORK
 The client engineering-reviewed a generated paint-booth spec (2026-08-01) and scored it
 **8.3/10 — "a good engineering draft, NOT ready for customer release"**. Airflow and blower

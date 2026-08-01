@@ -16,7 +16,9 @@ Intent = Literal["specification", "comparison", "concept", "search", "quotation"
 #   recommended — generic inferred value
 #   tbd         — a spec-template field with no client value, rule, or historical
 #                 match yet: an explicit gap for engineering input (NEVER guessed)
-Origin = Literal["given", "kept", "adapted", "rule", "existing", "recommended", "tbd"]
+Origin = Literal["given", "kept", "adapted", "rule", "existing", "recommended", "tbd",
+                 # client standards package provenance tags
+                 "standard", "advisory", "customer_decision"]
 
 
 class QueryUnderstanding(BaseModel):
