@@ -338,6 +338,18 @@ correctly on the FIRST ask. Six suites green.
 whether the precise path is gated behind a classification, and whether the DETERMINISTIC parser
 understands the user's phrasing — `understand()` passing does not mean `_fallback()` passes.
 
+### ▶ MIGRATION SAFETY — `docs/migration-safety-plan.md` (execute this to move off the pod)
+The zero-data-loss plan, written to be executed top to bottom with a verification on every step.
+**Nothing is deleted from the pod until the new server passes acceptance (§5), so rollback is
+always available (§8).** Key points: the **three-copy rule** (GitHub + downloaded tarball + new
+server; the pod does not count); of 10.2 GB only ~5 MB is irreplaceable; the agents live in
+Postgres, which is the one thing not in git.
+**`ops/verify-agents.sh` (NEW)** is what makes GitHub a trustworthy backup — it pulls each LIVE
+prompt out of Postgres and diffs it against `ops/flowise/*.py`. If someone tunes a prompt on the
+server without mirroring it into git, a rebuild would silently produce older behaviour and
+nothing would flag it. **Currently all three match** (9894 / 5370 / 3102 chars). Run it before
+migrating and after restoring. It exits non-zero on mismatch, so it can gate a deploy.
+
 ### ▶ LOCAL PRODUCTION MOVE — `docs/production-deployment.md` + `docker-compose.prod.yml`
 Decided 2026-08-01: move off the RunPod pod to a **local server**. **Phase 1 = office LAN**,
 **Phase 2 = LAN + remote staff over VPN**. Hardware will be high-spec with an NVIDIA GPU, so
