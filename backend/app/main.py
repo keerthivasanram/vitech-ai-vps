@@ -426,24 +426,12 @@ def drawing_catalog():
     from .drawing import sheet
     from .drawing.symbols import SYMBOLS
 
-    def fields(profile, keys):
-        out = []
-        for key, label in profile.get(keys) or []:
-            unit = ("m" if key.endswith("_m") else
-                    "mm" if key.endswith("_mm") else
-                    "CFM" if key.endswith("_cfm") else
-                    "m3/h" if key.endswith("_cmh") else "")
-            out.append({
-                "key": key, "label": label, "unit": unit,
-                "type": "number" if (unit or key in ("qty",)) else "text",
-                "required": keys == "required_inputs",
-            })
-        return out
+    from .drawing import fields as fieldspec
 
     cats = []
     for key, profile in CATEGORY_PROFILES.items():
-        req = fields(profile, "required_inputs")
-        opt = fields(profile, "optional_inputs")
+        req = fieldspec.describe(profile, "required_inputs")
+        opt = fieldspec.describe(profile, "optional_inputs")
         cats.append({
             "key": key,
             "label": profile.get("label") or key.replace("_", " ").title(),
@@ -498,14 +486,8 @@ def drawing_render(payload: dict = Body(...)):
     # round-trip through natural language silently loses values whose phrasing
     # the extractor does not recognise. Same resolver as the chat path, so the
     # drawing can never disagree with the spec; only the input route differs.
-    params: dict = {}
-    for key, val in (values or {}).items():
-        if val in (None, ""):
-            continue
-        try:
-            params[key] = float(val) if str(val).replace(".", "", 1).lstrip("-").isdigit() else val
-        except (TypeError, ValueError):
-            params[key] = val
+    from .drawing.fields import coerce as coerce_fields
+    params = coerce_fields(values)
 
     question = " ".join([str(profile.get("label") or category).lower()]
                         + [f"{k}={v}" for k, v in params.items()])

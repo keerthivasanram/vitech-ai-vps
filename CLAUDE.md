@@ -42,6 +42,27 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-01 (fixes) — studio 500 + console flood fixed, focus mode added
+Found by the user reviewing the app live; all three verified in a real browser, six suites green.
+- **500 on Generate drawing — FIXED.** `/api/drawing/render` coerced ANY numeric-looking value
+  to a float, so a TEXT field given digits (paint process "10") reached the material engine as
+  `10.0` and crashed it: `'float' object has no attribute 'lower'`. Root cause was two
+  definitions of "is this field numeric?" — the catalog endpoint typed fields from the key's
+  unit suffix while render guessed from the value. **New `app/drawing/fields.py` is the single
+  contract** (`unit_for` / `is_number` / `describe` / `coerce`) used by BOTH endpoints, so they
+  cannot drift again. A numeric field holding junk is now dropped rather than passed through as
+  text, and blanks are omitted so they surface as TBD instead of zero.
+- **Console flood — FIXED.** The canvas used React's `onWheel` prop with `preventDefault()`;
+  React attaches wheel handlers **passively**, so every wheel notch logged "Unable to
+  preventDefault inside passive event listener". The listener is now registered natively with
+  `{ passive: false }` via a ref — the only way to zoom the sheet without scrolling the page.
+  Verified: 0 such errors after 12 wheel events.
+- **Focus mode ADDED** (studio canvas toolbar, expand/shrink icon, **Esc** to exit). Hides the
+  sidebar and top header and gives the sheet the whole window. Driven by a `studio-focus` class
+  on `<body>` so the studio owns the behaviour instead of lifting layout state into `App.jsx`.
+  **Gotcha:** the header's class is `.topheader`, NOT `.top-header` — the first CSS attempt
+  silently left it on screen.
+
 ### ▶ 2026-08-01 (final) — DRAWING AGENT LIVE + paint-shop categories wired (commit d4b7d5d)
 Everything buildable from the data on hand is now done. **THREE agents are live**; PG backed up
 2026-08-01 08:38 with all three inside. All **six** suites green.

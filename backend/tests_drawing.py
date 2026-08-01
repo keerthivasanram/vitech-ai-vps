@@ -165,6 +165,28 @@ derived_drawing = build_drawing({
 check(len(derived_drawing["views"]) == 3 and derived_drawing["scale"] != "NTS",
       "a derived envelope produces a real scaled drawing, not an NTS blank")
 
+# --- The input-field contract (studio form <-> render endpoint) ------------
+from app.drawing import fields as fieldspec
+
+check(fieldspec.is_number("length_m") and fieldspec.is_number("air_volume_cfm")
+      and fieldspec.is_number("qty") and fieldspec.is_number("ach"),
+      "dimensional and count inputs are typed as numbers")
+check(not fieldspec.is_number("paint_type") and not fieldspec.is_number("draft_type"),
+      "descriptive inputs are typed as text")
+
+# The 500 this replaced: a text field holding digits was coerced to a float and
+# reached the material engine, which called .lower() on it.
+coerced = fieldspec.coerce({"length_m": "10", "width_m": "10", "height_m": "10",
+                            "paint_type": "10"})
+check(coerced["length_m"] == 10.0 and isinstance(coerced["length_m"], float),
+      "a numeric field is coerced to a float")
+check(coerced["paint_type"] == "10" and isinstance(coerced["paint_type"], str),
+      "a TEXT field holding digits stays a string (the 500-error regression)")
+check(fieldspec.coerce({"length_m": "abc"}) == {},
+      "an unparseable number is dropped, not passed through as text")
+check(fieldspec.coerce({"length_m": "", "width_m": None, "qty": "  "}) == {},
+      "blank inputs are omitted so they surface as TBD, not as zero")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} DRAWING TEST FAIL")

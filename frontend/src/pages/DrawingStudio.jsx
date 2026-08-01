@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, Bot, Download, Layers, ListTree, Loader2, Maximize2, Minus,
-  PenTool, Plus, RotateCcw, Ruler, Send, User,
+  AlertTriangle, Bot, Download, Expand, Layers, ListTree, Loader2, Maximize2,
+  Minus, PenTool, Plus, RotateCcw, Ruler, Send, Shrink, User,
 } from "lucide-react";
 import { Button } from "../common/Button";
 import { agentUrl } from "../lib/constants";
@@ -44,6 +44,24 @@ export function DrawingStudio() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef(null);
+  const canvasRef = useRef(null);
+
+  // Focus mode: hide the app shell (sidebar + header) and give the sheet the
+  // whole window. Driven by a body class so the studio stays self-contained
+  // instead of lifting layout state into App.
+  const [focus, setFocus] = useState(false);
+  useEffect(() => {
+    document.body.classList.toggle("studio-focus", focus);
+    return () => document.body.classList.remove("studio-focus");
+  }, [focus]);
+
+  // Leave focus mode on Escape, the shortcut people reach for by reflex.
+  useEffect(() => {
+    if (!focus) return undefined;
+    const onKey = (e) => e.key === "Escape" && setFocus(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focus]);
 
   // --- chat: the Drawing Agent drives the canvas -------------------------
   const [chat, setChat] = useState([]);
@@ -167,9 +185,20 @@ export function DrawingStudio() {
       return next;
     });
 
-  const onWheel = useCallback((e) => {
-    e.preventDefault();
-    setZoom((z) => Math.min(6, Math.max(0.3, z * (e.deltaY < 0 ? 1.1 : 0.9))));
+  // React attaches wheel handlers PASSIVELY, so calling preventDefault inside
+  // an onWheel prop is ignored and logs "Unable to preventDefault inside passive
+  // event listener" on every notch of the wheel. Registering the listener
+  // ourselves with passive:false is the only way to stop the page scrolling
+  // while zooming the sheet.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      setZoom((z) => Math.min(6, Math.max(0.3, z * (e.deltaY < 0 ? 1.1 : 0.9))));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
   }, []);
   const onDown = (e) => { drag.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }; };
   const onMove = (e) => {
@@ -366,7 +395,7 @@ export function DrawingStudio() {
       </aside>
 
       {/* canvas */}
-      <div className="studio-canvas" onWheel={onWheel} onMouseDown={onDown}
+      <div ref={canvasRef} className="studio-canvas" onMouseDown={onDown}
            onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
         <div className="studio-canvas-toolbar">
           <button type="button" onClick={() => setZoom((z) => Math.min(6, z * 1.15))} aria-label="Zoom in"><Plus size={15} /></button>
@@ -374,6 +403,11 @@ export function DrawingStudio() {
           <button type="button" onClick={reset} aria-label="Reset view"><RotateCcw size={14} /></button>
           <button type="button" onClick={reset} aria-label="Fit"><Maximize2 size={14} /></button>
           <span className="studio-zoom">{Math.round(zoom * 100)}%</span>
+          <button type="button" onClick={() => setFocus((f) => !f)}
+                  title={focus ? "Exit focus mode (Esc)" : "Focus mode — hide everything but the studio"}
+                  aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>
+            {focus ? <Shrink size={15} /> : <Expand size={15} />}
+          </button>
         </div>
 
         {layerCss && <style>{layerCss}</style>}
