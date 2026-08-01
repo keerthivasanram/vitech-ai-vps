@@ -1138,7 +1138,35 @@
   border: none; background: transparent; color: var(--text-secondary); cursor: pointer; border-radius: 8px;
 }
 .studio-canvas-toolbar button:hover { background: var(--card-sunken); color: var(--text); }
-.studio-zoom { font-size: 11.5px; font-weight: 700; color: var(--text-muted); padding: 0 6px; font-variant-numeric: tabular-nums; }
+.studio-zoom {
+  font-size: 11.5px; font-weight: 700; color: var(--text-secondary);
+  padding: 0 8px; height: 30px; min-width: 52px;
+  border: none; background: transparent; cursor: pointer; border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.studio-zoom:hover { background: var(--card-sunken); color: var(--text); }
+.studio-tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 3px; flex: none; }
+.studio-canvas-toolbar button.is-on { background: var(--primary); color: #fff; }
+.studio-canvas-toolbar button.is-on:hover { background: var(--primary); filter: brightness(1.06); }
+
+/* Status bar — the sheet's facts, always legible without reading the drawing. */
+.studio-statusbar {
+  /* Sits above the command dock, which occupies the bottom of the canvas in
+     the normal layout; in expanded view the dock is a right rail so the bar
+     drops back to the canvas floor. */
+  position: absolute; left: 14px; bottom: 68px; z-index: 5;
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 13px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  font-size: 11.5px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums; pointer-events: none; max-width: calc(100% - 28px);
+  overflow: hidden; white-space: nowrap;
+}
+.studio-statusbar b { color: var(--text); font-weight: 650; }
+.studio-statusbar i { width: 1px; height: 12px; background: var(--border); flex: none; }
+.studio-statusbar .is-tbd { color: #b45309; font-weight: 650; }
+:root[data-theme="dark"] .studio-statusbar .is-tbd { color: #fbbf24; }
 .studio-stage {
   position: absolute; inset: 0; display: grid; place-items: center;
   transform-origin: center center; transition: transform 0.06s linear;
@@ -1226,7 +1254,7 @@ body.studio-focus .topheader { display: none !important; }
 body.studio-focus .shell { max-width: none; padding: 0; }
 body.studio-focus .workspace { padding: 0; gap: 0; }
 body.studio-focus .studio {
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 296px minmax(0, 1fr);
   min-height: 100vh;
   height: 100vh;
   gap: 10px;
@@ -1235,9 +1263,42 @@ body.studio-focus .studio {
 body.studio-focus .studio-canvas { border-radius: var(--r-card); }
 /* The sheet gains the space the shell gave up. */
 body.studio-focus .studio-stage svg { max-width: none; }
+
+/* Expanded view: the conversation moves out of the way of the drawing and
+   becomes a proper right-hand rail, so the sheet keeps the full canvas height
+   instead of losing its bottom third to an overlay. */
+.studio-dock.is-rail {
+  left: auto; right: 0; top: 0; bottom: 0; width: 360px;
+  padding: 12px 12px 12px 0;
+  justify-content: flex-end;
+}
+.studio-dock.is-rail .studio-dock-log {
+  flex: 1; max-height: none; border-radius: 14px 14px 0 0; border-bottom: none;
+}
+.studio-dock.is-rail .studio-dock-bar { border-radius: 0 0 14px 14px; }
+/* Reserve the rail's width so the sheet centres in what's left, never under it. */
+body.studio-focus .studio-canvas { padding-right: 360px; }
+body.studio-focus .studio-canvas .studio-stage { right: 360px; }
+body.studio-focus .studio-canvas .studio-empty { right: 360px; padding-bottom: 0; }
+body.studio-focus .studio-statusbar { left: 14px; bottom: 14px; }
+/* The rail already sits beside the sheet, so no bottom lift is needed. */
+body.studio-focus .studio-stage.docked { padding-bottom: 18px; }
+
+@media (max-width: 1180px) {
+  /* Not enough width for three panes — fall back to the bottom dock. */
+  .studio-dock.is-rail { left: 14px; right: 14px; top: auto; bottom: 14px; width: auto; padding: 0; }
+  .studio-dock.is-rail .studio-dock-log { flex: none; max-height: 190px; border-radius: 14px; border-bottom: 1px solid var(--border); }
+  .studio-dock.is-rail .studio-dock-bar { border-radius: 14px; }
+  body.studio-focus .studio-canvas { padding-right: 0; }
+  body.studio-focus .studio-canvas .studio-stage,
+  body.studio-focus .studio-canvas .studio-empty { right: 0; }
+  body.studio-focus .studio-stage.docked { padding-bottom: 230px; }
+.studio-stage:not(.docked) { padding-bottom: 56px; }
+}
 /* Lift the sheet clear of the command dock once a transcript is showing,
    otherwise the dock covers the title block. */
 .studio-stage.docked { padding-bottom: 230px; }
+.studio-stage:not(.docked) { padding-bottom: 56px; }
 .studio-msg-md { min-width: 0; }
 .studio-msg-md p { margin: 0 0 4px; }
 .studio-msg-md p:last-child { margin-bottom: 0; }

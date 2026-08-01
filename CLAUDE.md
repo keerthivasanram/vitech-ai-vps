@@ -42,6 +42,28 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-01 (studio UX) — canvas navigation, right-hand chat rail, status bar
+User feedback after the live review: "mouse is too sensitive", "chat needs to be on the right
+when we click expand", "needs to work properly for enterprise-level design". All verified in a
+real browser at both layouts, six suites green.
+- **Canvas navigation reworked.** Zoom is now **exponential, normalised and cursor-anchored**:
+  the wheel delta is normalised across `deltaMode` (pixels / lines / pages) so a notch means the
+  same on every device and a trackpad's small deltas do not accelerate away, and the point under
+  the cursor stays fixed while the scale changes. **Sensitivity: 15.5% -> 4.0% per notch** — the
+  arithmetic matters, `exp(120 * k)`: the first attempt used k=0.0012 which was *worse* than the
+  10% it replaced (twelve notches reached **563%**); k=0.00033 lands twelve notches at **161%**.
+  Zoom + pan now live in **one `view` state object** — zoom-to-cursor needs the new pan computed
+  from the new zoom, and two separate setState calls read a stale partner value.
+  The `%` badge is a button that resets to 100%.
+- **Chat becomes a RIGHT-HAND RAIL in expanded view** (`.studio-dock.is-rail`), so expanded mode
+  is a three-pane workspace: controls | canvas | conversation. The canvas reserves the rail's
+  width so the sheet centres in what is left instead of hiding underneath it. Below 1180px the
+  rail falls back to the bottom dock. Same markup in both places, positioned entirely by CSS.
+- **Status bar added** — category, scale, sheet size, envelope in mm, view count and TBD count,
+  always legible without reading the drawing. **Gotcha:** it first overlapped the command dock;
+  it now sits at `bottom: 68px` in the normal layout and drops to `14px` in expanded view where
+  the dock is a rail (and back to 68px in the narrow-screen fallback).
+
 ### ▶ 2026-08-01 (fixes) — studio 500 + console flood fixed, focus mode added
 Found by the user reviewing the app live; all three verified in a real browser, six suites green.
 - **500 on Generate drawing — FIXED.** `/api/drawing/render` coerced ANY numeric-looking value

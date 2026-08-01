@@ -7,6 +7,15 @@ import { Button } from "../common/Button";
 import { agentUrl } from "../lib/constants";
 import { Answer } from "../lib/markdown";
 
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 8;
+// Zoom response per pixel of wheel travel. A standard mouse notch is 120 px, so
+// this gives a ~4% step: deliberately gentle, because the previous 10-15% per
+// notch compounded to >300% in a dozen turns and made the sheet impossible to
+// hold steady. Twelve notches now land around 160%.
+const ZOOM_SENSITIVITY = 0.00033;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
 /**
  * Drawing Studio — split controls + live GA canvas.
  *
@@ -41,8 +50,10 @@ export function DrawingStudio() {
   const [error, setError] = useState("");
   const [hidden, setHidden] = useState(() => new Set());
 
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  // One piece of view state: zoom plus translation. Keeping them together is
+  // what makes zoom-to-cursor correct — the new pan depends on the new zoom,
+  // and two separate setState calls would read a stale partner value.
+  const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const drag = useRef(null);
   const canvasRef = useRef(null);
 
@@ -119,7 +130,7 @@ export function DrawingStudio() {
       });
       const d = await res.json();
       if (!d.ok) { setError(d.error || "The drawing could not be generated."); setDrawing(null); }
-      else { setDrawing(d); setHidden(new Set()); setZoom(1); setPan({ x: 0, y: 0 }); }
+      else { setDrawing(d); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }
     } catch {
       setError("Could not reach the drawing engine.");
     } finally {
@@ -168,7 +179,7 @@ export function DrawingStudio() {
         });
         const dr = await r.json();
         if (dr.ok && dr.svg) {
-          setDrawing(dr); setHidden(new Set()); setZoom(1); setPan({ x: 0, y: 0 });
+          setDrawing(dr); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 });
         }
       }
     } catch {
@@ -195,18 +206,41 @@ export function DrawingStudio() {
     if (!el) return undefined;
     const onWheel = (e) => {
       e.preventDefault();
-      setZoom((z) => Math.min(6, Math.max(0.3, z * (e.deltaY < 0 ? 1.1 : 0.9))));
+      // Normalise across input devices: a mouse notch reports pixels, some
+      // report lines or pages, and trackpads stream many small deltas. Without
+      // this a single notch on one device zooms as much as ten on another.
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+      const delta = Math.max(-120, Math.min(120, e.deltaY * unit));
+      // Exponential so each step is proportional, and gentle: a notch is ~6%,
+      // not the 10% that made twelve notches jump to 314%.
+      const step = Math.exp(-delta * ZOOM_SENSITIVITY);
+
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left - rect.width / 2;
+      const cy = e.clientY - rect.top - rect.height / 2;
+
+      setView((v) => {
+        const zoom = clamp(v.zoom * step, MIN_ZOOM, MAX_ZOOM);
+        const k = zoom / v.zoom;
+        // Hold the point under the cursor still while the scale changes.
+        return { zoom, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k };
+      });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
-  const onDown = (e) => { drag.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }; };
+  const onDown = (e) => {
+    if (e.button !== 0) return;
+    drag.current = { x: e.clientX - view.x, y: e.clientY - view.y };
+  };
   const onMove = (e) => {
     if (!drag.current) return;
-    setPan({ x: e.clientX - drag.current.x, y: e.clientY - drag.current.y });
+    setView((v) => ({ ...v, x: e.clientX - drag.current.x, y: e.clientY - drag.current.y }));
   };
   const onUp = () => { drag.current = null; };
-  const reset = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+  const fit = () => setView({ zoom: 1, x: 0, y: 0 });
+  const nudgeZoom = (factor) =>
+    setView((v) => ({ ...v, zoom: clamp(v.zoom * factor, MIN_ZOOM, MAX_ZOOM) }));
 
   const exportSvg = () => {
     if (!drawing?.svg) return;
@@ -398,13 +432,16 @@ export function DrawingStudio() {
       <div ref={canvasRef} className="studio-canvas" onMouseDown={onDown}
            onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
         <div className="studio-canvas-toolbar">
-          <button type="button" onClick={() => setZoom((z) => Math.min(6, z * 1.15))} aria-label="Zoom in"><Plus size={15} /></button>
-          <button type="button" onClick={() => setZoom((z) => Math.max(0.3, z * 0.87))} aria-label="Zoom out"><Minus size={15} /></button>
-          <button type="button" onClick={reset} aria-label="Reset view"><RotateCcw size={14} /></button>
-          <button type="button" onClick={reset} aria-label="Fit"><Maximize2 size={14} /></button>
-          <span className="studio-zoom">{Math.round(zoom * 100)}%</span>
+          <button type="button" onClick={() => nudgeZoom(1 / 1.2)} aria-label="Zoom out" title="Zoom out"><Minus size={15} /></button>
+          <button type="button" className="studio-zoom" onClick={fit}
+                  title="Reset to 100%">{Math.round(view.zoom * 100)}%</button>
+          <button type="button" onClick={() => nudgeZoom(1.2)} aria-label="Zoom in" title="Zoom in"><Plus size={15} /></button>
+          <i className="studio-tb-sep" />
+          <button type="button" onClick={fit} aria-label="Fit to view" title="Fit to view"><Maximize2 size={14} /></button>
+          <i className="studio-tb-sep" />
           <button type="button" onClick={() => setFocus((f) => !f)}
-                  title={focus ? "Exit focus mode (Esc)" : "Focus mode — hide everything but the studio"}
+                  className={focus ? "is-on" : ""}
+                  title={focus ? "Exit expanded view (Esc)" : "Expand — hide the app shell"}
                   aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>
             {focus ? <Shrink size={15} /> : <Expand size={15} />}
           </button>
@@ -412,10 +449,31 @@ export function DrawingStudio() {
 
         {layerCss && <style>{layerCss}</style>}
 
+        {drawing && (
+          <div className="studio-statusbar">
+            <span><b>{drawing.category_label}</b></span>
+            <i />
+            <span>Scale <b>{drawing.scale}</b></span>
+            <i />
+            <span>Sheet <b>{drawing.sheet_size}</b></span>
+            <i />
+            <span>
+              {drawing.envelope_mm?.length
+                ? <>Envelope <b>{drawing.envelope_mm.length} × {drawing.envelope_mm.width} × {drawing.envelope_mm.height}</b> mm</>
+                : <>Envelope <b>not determined</b></>}
+            </span>
+            <i />
+            <span>{drawing.views.length} view{drawing.views.length === 1 ? "" : "s"}</span>
+            {drawing.tbd?.length > 0 && (
+              <><i /><span className="is-tbd">{drawing.tbd.length} TBD</span></>
+            )}
+          </div>
+        )}
+
         {drawing ? (
           <div
             className={`studio-stage${chat.length ? " docked" : ""}`}
-            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+            style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
             dangerouslySetInnerHTML={{ __html: drawing.svg }}
           />
         ) : (
@@ -429,8 +487,10 @@ export function DrawingStudio() {
           </div>
         )}
 
-        {/* Drawing Agent command dock — chat drives the canvas */}
-        <div className="studio-dock">
+        {/* In expanded view the conversation becomes a right-hand rail; in the
+            normal layout it docks along the bottom of the canvas. Same markup,
+            positioned by CSS. */}
+        <div className={`studio-dock${focus ? " is-rail" : ""}`}>
           {chat.length > 0 && (
             <div className="studio-dock-log">
               {chat.map((m, i) => (
