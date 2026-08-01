@@ -29,20 +29,27 @@ the real rate card / margin policy when available; nothing else needs to change)
 import re
 from typing import Any, Optional
 
+from .engineering import rate_card
 from .pricing import (_driver_value, _offer_records, _qty, _round_price,
                       _total, inr_display)
 
 # ── SEED constants (₹, all TUNABLE — refine with the client's real numbers) ──
+# Rates the client HAS now supplied come from `engineering.rate_card` (their own
+# costed BOM of 24.07.2026) and are no longer guesses; the remaining SEED_*
+# values below are still industry defaults awaiting the client's numbers.
 SEED_MATERIAL_RATES = {          # ₹/kg of fabricated sheet (incl. wastage)
     "SS-316": 480.0, "SS-304": 320.0, "SS": 320.0,
-    "MS": 95.0, "PP": 260.0, "GI": 130.0, "default": 150.0,
+    "MS": rate_card.SHEET_MATERIAL_RATE,   # client rate card: ₹85/kg MS sheet & plate
+    "PP": 260.0, "GI": 130.0, "default": 150.0,
 }
-SEED_FABRICATION_RATE = 85.0     # ₹/kg — cutting, forming, welding, finishing labour
+# Client rate card: fabrication labour is ₹45/kg on flat product (the seeded
+# ₹85/kg was nearly double the client's actual cost).
+SEED_FABRICATION_RATE = rate_card.SHEET_LABOUR_RATE
 SEED_STRUCTURE_FACTOR = 0.35     # supports / frame / stiffeners as a fraction of shell wt
 SEED_BOP_PCT = 0.15              # bought-out parts (controls, spray, fasteners) on works cost
 SEED_OVERHEAD_PCT = 0.18         # factory + selling overhead on works cost
 SEED_TARGET_MARGIN_PCT = 0.20    # default gross margin over total cost
-SEED_MOTOR_RATE = 4500.0         # ₹/HP — motor + starter share of bought-outs
+SEED_MOTOR_RATE = rate_card.MOTOR_RATE_PER_HP   # client rate card: ₹3,500/HP
 SEED_PUMP_RATE = 6000.0          # ₹/HP — circulation pump share
 
 MARGIN_BANDS = {                 # gross-margin policy by market positioning
