@@ -1142,39 +1142,44 @@
 .studio-stage {
   position: absolute; inset: 0; display: grid; place-items: center;
   transform-origin: center center; transition: transform 0.06s linear;
-  padding: 26px;
+  padding: 18px;
 }
 .studio-stage .ga-svg { width: 100%; max-width: 940px; height: auto; user-select: none; }
 
-/* GA drawing styling (SVG classes emitted by lib/drawingSvg) */
-.ga-svg { font-family: var(--font-mono); }
-.ga-svg .sheet-border { fill: var(--card); stroke: var(--border-strong); stroke-width: 1.5; }
-.ga-svg .grid line { stroke: rgba(120,130,140,0.14); stroke-width: 0.5; }
-.ga-svg .body { fill: rgba(var(--secondary-rgb), 0.06); stroke: var(--text); stroke-width: 1.6; }
-.ga-svg .hatch { stroke: rgba(var(--secondary-rgb), 0.35); stroke-width: 0.8; }
-.ga-svg .ground { stroke: var(--text-secondary); stroke-width: 1.4; }
-.ga-svg .view-t { fill: var(--text-secondary); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
-.ga-svg .dim line { stroke: var(--primary); stroke-width: 0.9; }
-.ga-svg .dim .dim-line { stroke: var(--primary); stroke-width: 1; }
-.ga-svg .dim .arr { fill: var(--primary); }
-.ga-svg .dim .dim-bg { fill: var(--card); opacity: 0.92; }
-.ga-svg .dim text { fill: var(--text); font-size: 11px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
-.ga-svg .dim.tbd line, .ga-svg .dim.tbd .arr { stroke: #d97706; fill: #d97706; }
-.ga-svg .dim.tbd text { fill: #b45309; }
-.ga-svg .tb { fill: var(--card); stroke: var(--border-strong); stroke-width: 1.2; }
-.ga-svg .tb-div { stroke: var(--border-strong); stroke-width: 1; }
-.ga-svg .tb-co { fill: var(--text); font-size: 17px; font-weight: 800; font-family: Georgia, "Times New Roman", serif; }
-.ga-svg .tb-sub { fill: var(--text-secondary); font-size: 10px; }
-.ga-svg .tb-k { fill: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
-.ga-svg .tb-v { fill: var(--text); font-size: 12px; font-weight: 600; }
-.ga-svg .tb-v.draft { fill: #d97706; }
-.ga-svg .tb-units { fill: var(--text-muted); font-size: 9.5px; }
+/* Backend-engine drawing: the SVG paints in currentColor, so the sheet follows
+   the app theme without the server re-rendering it. Layer visibility is applied
+   by a scoped <style> the studio injects, keyed on data-layer. */
+.studio-stage svg { width: 100%; max-width: 1400px; height: auto; color: var(--text); user-select: none; }
+.studio-stage svg text { fill: currentColor; }
 
-/* layer visibility toggles */
-.studio-stage.hide-envelope [data-layer="envelope"],
-.studio-stage.hide-dimensions [data-layer="dimensions"],
-.studio-stage.hide-titleblock [data-layer="titleblock"],
-.studio-stage.hide-grid [data-layer="grid"] { display: none; }
+.studio-select {
+  width: 100%; height: 36px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: var(--card-sunken);
+  color: var(--text); font-size: 12.5px; outline: none; cursor: pointer;
+}
+.studio-select:focus { border-color: var(--secondary); }
+.studio-grid2 { display: grid; grid-template-columns: 1fr 96px; gap: 8px; align-items: end; }
+.studio-grid2 .studio-label { display: block; margin-bottom: 4px; }
+.studio-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.studio-dim .req { color: var(--primary); font-style: normal; margin-left: 2px; }
+.studio-legend-row { font-size: 12px; color: var(--text-secondary); line-height: 1.45; }
+.studio-legend-row b { color: var(--text); margin-right: 4px; }
+.studio-bom-row { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--text-muted); }
+.studio-bom-row b { color: var(--text-secondary); font-weight: 600; }
+.studio-error {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; color: #b42318;
+  background: rgba(180, 35, 24, 0.08); border-radius: 8px; padding: 7px 9px;
+}
+:root[data-theme="dark"] .studio-error { color: #fca5a5; background: rgba(252,165,165,0.10); }
+.studio-empty {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
+  gap: 8px; text-align: center; padding: 30px; color: var(--text-muted);
+}
+.studio-empty b { color: var(--text-secondary); font-size: 14px; }
+.studio-empty span { font-size: 12.5px; max-width: 320px; line-height: 1.5; }
+.studio-empty svg { color: var(--border-strong); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {
   .studio { grid-template-columns: 1fr; }
