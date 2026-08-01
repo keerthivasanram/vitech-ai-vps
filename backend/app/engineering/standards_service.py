@@ -13,6 +13,14 @@ ATS_FAN_SIZING = "ATS fan-sizing standard"
 ATS_OVERSPRAY_CAPTURE = "ATS overspray-capture standard"
 ATS_MATERIAL_SELECTION = "ATS material-selection standard"
 
+# Paint shop plant — the client's OWN engineering-calculation document
+# (received 2026-08-01). These rules are transcribed from it, not inferred, so
+# they cite the client as the authority rather than an external standard.
+CLIENT_PAINT_SHOP_CALC = "Vitech paint-shop design calculation"
+CLIENT_OVEN_HEAT_LOAD = "Vitech oven heat-load rule (100 ft3 = 12 kW; 1 kW = 860 kCal)"
+MS_SHEET_BASIS = "MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)"
+BLOWER_CHART_SELECTION = "Continental Thermal blower specification chart (direct drive)"
+
 # Wet scrubber
 ATS_SPRAY_COVERAGE = "ATS wet-scrubber spray-coverage standard"
 HYDRAULIC_PUMP_POWER = "Hydraulic pump-power formula"
