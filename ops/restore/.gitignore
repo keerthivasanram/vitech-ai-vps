@@ -1,0 +1,3 @@
+# The DB dump carries live data and is restored by hand on the production
+# server; it is deliberately NOT tracked. Copy vitech.sql here before `up`.
+vitech.sql

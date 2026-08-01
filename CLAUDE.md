@@ -338,6 +338,32 @@ correctly on the FIRST ask. Six suites green.
 whether the precise path is gated behind a classification, and whether the DETERMINISTIC parser
 understands the user's phrasing — `understand()` passing does not mean `_fallback()` passes.
 
+### ▶ LOCAL PRODUCTION MOVE — `docs/production-deployment.md` + `docker-compose.prod.yml`
+Decided 2026-08-01: move off the RunPod pod to a **local server**. **Phase 1 = office LAN**,
+**Phase 2 = LAN + remote staff over VPN**. Hardware will be high-spec with an NVIDIA GPU, so
+**`llama3.1:8b` stays** and every prompt tuning session carries over unchanged (changing the
+model would invalidate all of it and force re-verifying each agent 3-5x per case).
+- **DO NOT deploy the old `docker-compose.yml`** — it is from 2026-07-16 and would fail:
+  `flowiseai/flowise:latest` pulls the BROKEN 3.1.x (`@langchain/core@1.1.20`, missing
+  `./utils/uuid`); it runs a separate `chroma` service the backend no longer uses (embedded via
+  `CHROMA_DIR`) which also steals host port 8000; Ollama's GPU block is commented out; it lacks
+  `HTTP_SECURITY_CHECK=false`, without which Flowise's SSRF deny-list blocks the Custom Tools
+  from reaching the backend; and it publishes every service.
+- **`docker-compose.prod.yml` (NEW)** fixes all of the above: Flowise pinned **3.0.13**, no
+  chroma service, GPU passthrough enabled, SSRF settings, healthchecks, `${VAR:?}` on every
+  credential so it refuses to start on a default password, and **only the frontend publishes a
+  port** (nginx already proxies `/api` -> backend and `/flowise` -> flowise). Postgres and Redis
+  bind to 127.0.0.1 only. **Written but NOT executed — there is no Docker on the pod**, so run
+  `docker compose -f docker-compose.prod.yml config` on the target server first.
+- **The agents live in Postgres**: a fresh `pgdata` volume has NONE and the app looks broken in
+  a non-obvious way. Restore `vitech.sql` (drop it in `ops/restore/`, which is gitignored) or
+  rebuild from `ops/flowise/*.py`. If a rebuild mints new chatflow ids, set
+  `VITE_ENGINEERING_AGENT_ID` / `VITE_QUOTATION_AGENT_ID` / `VITE_DRAWING_AGENT_ID`.
+- **BLOCKER FOR PHASE 2 (VPN):** authentication is **frontend-only** —
+  `frontend/src/auth/AuthProvider.jsx` validates against a hard-coded list IN THE BROWSER, with
+  no auth backend (queue item E1). Anyone who reaches the page can read the JS and sign in.
+  Tolerable on a trusted LAN, NOT over a VPN. Also set `API_KEY` and put HTTPS in front.
+
 ### ▶ NEXT SESSION — Drawing Agent plan + BACKUP/RESTORE position
 **Drawing Agent work plan: `docs/drawing-agent-plan.md` §13.** Ordered: (1) more category
 glyphs in `symbols.py` — oven, dust collector, powder coating, conveyor; each is ONE function
