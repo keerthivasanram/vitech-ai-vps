@@ -229,6 +229,44 @@ buffing_booth, flash_off_zone, paint_drying_oven) have working formulas in
 `paint_shop_service` but are **not yet wired as catalog categories** (no `classify.py` keywords,
 no profile, no `spec_template`) — that is the natural next increment and is purely additive.
 
+### ▶ CLIENT SPEC REVIEW 8.3/10 — READ `docs/spec-quality-plan.md` BEFORE SPEC WORK
+The client engineering-reviewed a generated paint-booth spec (2026-08-01) and scored it
+**8.3/10 — "a good engineering draft, NOT ready for customer release"**. Airflow and blower
+selection rated **excellent** (5/5); component selection 2/5, engineering consistency 3/5,
+customer-ready quality 3/5. **Full findings, root-cause evidence and the phased plan are in
+`docs/spec-quality-plan.md`** — read it before touching the spec engine.
+
+**The single root cause** (traced to code + data, not guessed): the engine has only three ways
+to produce a field — an engineering rule, a VERBATIM copy from the nearest offer, or a template
+TBD. There is no component-selection layer, no cross-validation layer, no standards inference,
+and it never re-queries history for a field the template blanked. Two concrete proofs:
+- **One reused string caused two of the ten defects.** Offer `OFF-SYNERGY-PB-209R3` stores
+  `booth_type = "dry type side down draft, non-pressurized, 0.6 m/s cross velocity"` — one blob
+  packing filtration + draft + pressurisation + design velocity. So the spec printed a
+  non-standard booth type (which is what the client's OWN archive says — a data-quality issue as
+  much as ours) AND asserted 0.6 m/s while `FACE_VELOCITY = 0.45` actually computed the airflow.
+  Nothing reconciles them because the velocity sits in prose no code parses. **This is exactly
+  the B0b item logged below**, now with a reproducible instance.
+- **Reuse is verbatim and UNSCALED.** The 10x10x10 m booth (100 m² face) reused fields from a
+  **7.5 x 4.0 x 3.5 m** booth (14 m² face — a **7x** gap), and from a `liquid` booth when the
+  requirement said `water-based`. `illumination = "20w x 10 LED"` was sized for the small booth
+  and restated as fact for the large one.
+- **TBD became the answer, not the last resort.** `dry_scrubber` / `exhaust_duct` /
+  `control_panel` are `None` in the source offer, so the template blanked them and stopped —
+  even though duct size follows from the 162,000 m³/h we already computed, panel scope follows
+  from the 2x60 HP load, and fire protection follows from the paint type. The TBD guardrail
+  correctly stops hallucination; it must not stop engineering.
+
+**Plan (phases in `docs/spec-quality-plan.md`):** **A** stop self-contradiction (decompose
+compound fields, booth-type vocabulary, `cross_validate` reconciliation, scale-or-refuse reused
+values) — **needs no client data, do this first**; **C1** field-level retrieval before TBD;
+**D1** customer-decision fields become questions not blanks; **B** a component-selection package
+(filters by media velocity, lighting by lux, duct by transport velocity, electrical by connected
+load, fire by paint type, material advisory not asserted) — each item lands as its client
+standard arrives; **E1** a validation gate reporting "customer-ready vs engineering draft".
+**Seven client inputs are listed at the end of the plan doc — chase them alongside the ones
+already outstanding.**
+
 ### ▶ TOMORROW — start here (as of 2026-08-01, end of session; pod running)
 State: pod rebuilt from a wiped container disk (`bootstrap-pod.sh` then `start-all.sh`), all 4
 services verified 200, golden/lookup/pricing/retrieval ALL PASS throughout. Both carry-over items
