@@ -338,6 +338,32 @@ correctly on the FIRST ask. Six suites green.
 whether the precise path is gated behind a classification, and whether the DETERMINISTIC parser
 understands the user's phrasing — `understand()` passing does not mean `_fallback()` passes.
 
+### ▶ NEXT SESSION — Drawing Agent plan + BACKUP/RESTORE position
+**Drawing Agent work plan: `docs/drawing-agent-plan.md` §13.** Ordered: (1) more category
+glyphs in `symbols.py` — oven, dust collector, powder coating, conveyor; each is ONE function
+plus a registry entry, everything else is inherited; (2) more derived envelopes in
+`envelope.py` (dust_collector, ducting) — same one-function pattern; (3) P2 exports, DXF
+(decide `ezdxf` vs hand-rolled — the primitives are only lines/text/circles so hand-rolling is
+viable) and PDF; (4) BLOCKED on the client: component setting-out rules, until which glyph
+positions stay schematic and undimensioned.
+
+**BACKUP POSITION — what actually survives what.** `/workspace` is the persistent volume: it
+survives a pod STOP but not a volume TERMINATE. Of the 10.2 GB there, only about **5 MB is
+irreplaceable** — Ollama models (9.2 G) re-download, `flowise-app.tar.gz` (1.0 G) rebuilds from
+npm, and `chroma/` (6 M) re-ingests from the 33 offers.
+- **NOW IN GIT: `ops/flowise/`** — all five agent build scripts (the SOURCE OF TRUTH for all
+  three agent prompts) plus `bootstrap-pod.sh` / `start-all.sh` / `pg-backup.sh` etc. They were
+  previously only on the volume. They contain no secrets (credentials come from `.env` at
+  runtime). With these in git, all three agents can be rebuilt from scratch after a total
+  volume loss — see `ops/flowise/README.md` for the restore order.
+- **NOT in git, must be downloaded manually:** a **1.5 MB** tarball is written to
+  `/workspace/vitech-critical-backup-<date>.tar.gz` containing `postgres-backups/vitech.sql`
+  (the live tuned agents), `flowise/secrets/` (the encryption key Flowise credentials are tied
+  to — losing it invalidates stored credentials) and `ssh/` (the deploy key; regenerable, just
+  re-add the pubkey to GitHub). Recreate it any time with the command in that README.
+  **Download it before terminating the volume** (VS Code: right-click the file in the Explorer
+  → Download).
+
 ### ▶ NEXT SESSION — spec-quality work remaining (2 of 10 review defects + the gate)
 Eight of the client's ten review defects are closed (see the 2026-08-01 standards entry).
 What is left, in order:

@@ -218,3 +218,59 @@ Promote `drawing` to a **live split view** (chat | canvas), not a RoadmapPage:
 4. **Component setting-out rules from the client** (§10.4) — until they arrive,
    glyphs stay schematic and undimensioned, and every sheet says so in a
    standing note.
+
+---
+
+## 13. NEXT SESSION — Drawing Agent work plan
+
+P0/P1 are done: engine, three endpoints, studio UI and the Flowise chatflow are
+live. This is the ordered plan for the next block of work. **Items 1-3 need no
+client input**; item 4 is blocked on the client.
+
+### 1. More category glyphs — highest value, lowest risk
+`app/drawing/symbols.py` currently covers `paint_booth` and `wet_scrubber`; every
+other category draws its envelope with an empty legend. Each new one is **a
+single function plus a registry entry** — sheet, views, title block, scaling,
+export and the studio all come for free.
+
+Order by how often they are quoted: **hot_air_oven** (chamber, door, heater bank,
+conveyor opening) → **dust_collector** (hopper, bag/cartridge array, fan, airlock)
+→ **powder_coating_plant** → **conveyor**.
+
+Follow the rules the existing glyphs set: real COUNTS from the spec (use `_nos`,
+never a bare integer match — a LUX rating is not a luminaire count), positions
+schematic and undimensioned, balloons offset clear of dimension lines and view
+captions, and every glyph returns its legend rows.
+
+### 2. More derived envelopes
+`app/drawing/envelope.py` teaches a category how to compose an envelope when the
+requirement never states L×W×H. `wet_scrubber` is done (tower diameter = footprint,
+computed tower height = height). Add **dust_collector** and **ducting** the same
+way — one function in `_DERIVERS`. Keep the two guards that make it safe: only
+client-given or rule-computed values may feed an envelope (never a REUSED
+historical value, which belongs to a different machine), and a partial envelope
+is refused outright rather than drawn.
+
+### 3. P2 exports — DXF and PDF
+The SVG stays the source of truth. **DXF**: decide on `ezdxf` (pure-Python,
+acceptable) versus a minimal hand-rolled writer — lines/text/circles are all the
+current primitives emit, so hand-rolling is viable and dependency-free. **PDF**:
+either render the SVG, or re-emit through `fpdf2` vector calls to match the
+existing `quotation_pdf` / `specification_pdf` stationery. The studio's
+`PDF / DXF` button is already in place and disabled.
+
+### 4. Component setting-out rules — BLOCKED on the client
+Until Vitech supplies real setting-out rules, glyph positions stay schematic and
+every sheet carries the standing note saying so. When they arrive, a glyph can
+graduate from proportional placement to dimensioned geometry — and only then may
+component positions carry dimension lines.
+
+### Standing rules for any drawing work
+- **Screenshot the output; do not trust the SVG source.** Both bugs found during
+  the build — invisible text, and a LUX rating read as a luminaire count — looked
+  perfectly correct in the markup.
+- Run `tests_drawing.py` after any `app/drawing/` change; add a check per new
+  glyph (counts honoured, legend returned, no fabricated dimension).
+- Keep `generate_drawing`'s tool function stripping `svg` before returning. A
+  ~16 KB sheet in an 8B context wrecks the reply, and the canvas renders the
+  drawing anyway.
