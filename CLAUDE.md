@@ -295,6 +295,20 @@ standard arrives; **E1** a validation gate reporting "customer-ready vs engineer
 **Seven client inputs are listed at the end of the plan doc — chase them alongside the ones
 already outstanding.**
 
+### ▶ 2026-08-01 (studio redesign) — premium CAD workspace
+`DrawingStudio.jsx` rebuilt as a three-column engineering shell and all its styling moved to a
+new **`frontend/src/styles/studio.css`** (`ds-` prefix). The 263 lines of old `.studio-*` rules
+are DELETED from `pages.css` — grep there returns 0. React + Vite + vanilla CSS only, no UI
+library. Layout: top toolbar (identity, live scale/sheet/TBD chips, export, expand) / left
+parameter panel with grouped sections (Quick start, Equipment, Geometry, Title block, Layers,
+Legend, TBD, BOM) / **viewport as the primary surface** with a floating tool cluster and status
+strip / right AI assistant rail with avatars, typing indicator and suggestion chips. The sheet
+renders as lit white "paper" on a dark dotted CAD field with a drop shadow, in both themes.
+Studio-local tokens sit on `.ds` so the workspace can be tuned without touching global
+variables. Verified in a browser: 3-column grid, form generate, 8 layer toggles, assistant chat,
+light + dark, expanded mode, **0 console errors**. Functionality unchanged — the canvas still
+renders only backend-generated SVG.
+
 ### ▶ NEXT SESSION — spec-quality work remaining (2 of 10 review defects + the gate)
 Eight of the client's ten review defects are closed (see the 2026-08-01 standards entry).
 What is left, in order:

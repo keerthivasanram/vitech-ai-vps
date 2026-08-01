@@ -1,39 +1,42 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, Bot, Download, Expand, Layers, ListTree, Loader2, Maximize2,
-  Minus, PenTool, Plus, RotateCcw, Ruler, Send, Shrink, User,
+  AlertTriangle, Box, Bot, Download, Expand, FileText, Layers, Maximize2,
+  Minus, Package, PenTool, Plus, Ruler, Send, Shrink, Sparkles, User, Wrench,
 } from "lucide-react";
-import { Button } from "../common/Button";
 import { agentUrl } from "../lib/constants";
 import { Answer } from "../lib/markdown";
 
+/**
+ * Drawing Studio — a CAD workspace, not a form.
+ *
+ * Three columns: parameters, the drawing viewport (the primary surface), and
+ * the AI assistant. The drawing itself always comes from the BACKEND engine —
+ * `/api/drawing/render` for the form, `/api/tools/drawing` for the agent — so
+ * nothing about the geometry is computed in the browser. This file collects
+ * inputs, renders the returned SVG and owns view state only.
+ *
+ * The form is DATA-DRIVEN from `GET /api/drawing/catalog`: categories, their
+ * input fields, drawing types and sheet sizes all come from the backend, so a
+ * category added server-side appears here with no change to this file.
+ */
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 8;
-// Zoom response per pixel of wheel travel. A standard mouse notch is 120 px, so
-// this gives a ~4% step: deliberately gentle, because the previous 10-15% per
-// notch compounded to >300% in a dozen turns and made the sheet impossible to
-// hold steady. Twelve notches now land around 160%.
+// Zoom response per pixel of wheel travel. A mouse notch is 120 px, so this is
+// a ~4% step: deliberately gentle, because a 10-15% step compounded past 300%
+// in a dozen turns and made the sheet impossible to hold steady.
 const ZOOM_SENSITIVITY = 0.00033;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-/**
- * Drawing Studio — split controls + live GA canvas.
- *
- * The drawing comes from the BACKEND engine (`POST /api/drawing/render`), the
- * same deterministic geometry the Drawing Agent's `generate_drawing` tool
- * returns. Nothing about the drawing is computed in the browser: this file
- * collects inputs, renders the returned SVG and handles view state only.
- *
- * The form is DATA-DRIVEN from `GET /api/drawing/catalog` — equipment
- * categories, their input fields, drawing types and sheet sizes all come from
- * the backend catalog, so adding a category server-side makes it selectable
- * here with no change to this file.
- */
 const PRESETS = [
-  { label: "Paint booth 5 x 3 x 4 m", category: "paint_booth",
+  { label: "Paint booth", hint: "5 × 3 × 4 m, liquid", category: "paint_booth",
     values: { length_m: 5, width_m: 3, height_m: 4, paint_type: "liquid" } },
-  { label: "Wet scrubber 800 CFM", category: "wet_scrubber",
+  { label: "Wet scrubber", hint: "800 CFM, 750 mm tower", category: "wet_scrubber",
     values: { air_volume_cfm: 800, tower_diameter_mm: 750, qty: 1 } },
+];
+
+const SUGGESTIONS = [
+  "draw a paint booth 6m x 4m x 3m",
+  "wet scrubber 800 cfm 750 mm tower",
 ];
 
 export function DrawingStudio() {
@@ -50,23 +53,23 @@ export function DrawingStudio() {
   const [error, setError] = useState("");
   const [hidden, setHidden] = useState(() => new Set());
 
-  // One piece of view state: zoom plus translation. Keeping them together is
-  // what makes zoom-to-cursor correct — the new pan depends on the new zoom,
-  // and two separate setState calls would read a stale partner value.
+  // Zoom and translation live together: zoom-to-cursor computes the new pan
+  // from the new zoom, and two separate setState calls read a stale partner.
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const drag = useRef(null);
-  const canvasRef = useRef(null);
+  const viewportRef = useRef(null);
 
-  // Focus mode: hide the app shell (sidebar + header) and give the sheet the
-  // whole window. Driven by a body class so the studio stays self-contained
-  // instead of lifting layout state into App.
+  const [chat, setChat] = useState([]);
+  const [ask, setAsk] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const chatId = useRef(`studio-${Math.random().toString(36).slice(2, 10)}`);
+  const logEnd = useRef(null);
+
   const [focus, setFocus] = useState(false);
   useEffect(() => {
     document.body.classList.toggle("studio-focus", focus);
     return () => document.body.classList.remove("studio-focus");
   }, [focus]);
-
-  // Leave focus mode on Escape, the shortcut people reach for by reflex.
   useEffect(() => {
     if (!focus) return undefined;
     const onKey = (e) => e.key === "Escape" && setFocus(false);
@@ -74,18 +77,9 @@ export function DrawingStudio() {
     return () => window.removeEventListener("keydown", onKey);
   }, [focus]);
 
-  // --- chat: the Drawing Agent drives the canvas -------------------------
-  const [chat, setChat] = useState([]);
-  const [ask, setAsk] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const chatId = useRef(`studio-${Math.random().toString(36).slice(2, 10)}`);
-  const transcriptEnd = useRef(null);
+  useEffect(() => { logEnd.current?.scrollIntoView({ block: "end", behavior: "smooth" }); },
+    [chat, thinking]);
 
-  useEffect(() => {
-    transcriptEnd.current?.scrollIntoView({ block: "end" });
-  }, [chat, thinking]);
-
-  // Load the catalog once; it defines every choice the form offers.
   useEffect(() => {
     let alive = true;
     fetch("/api/drawing/catalog")
@@ -94,354 +88,298 @@ export function DrawingStudio() {
         if (!alive) return;
         setCatalog(d);
         setSheetSize(d.default_sheet || "A3");
-        const first = d.categories?.[0];
-        if (first) {
-          setCategory(first.key);
-          setValues({});
-        }
+        if (d.categories?.[0]) { setCategory(d.categories[0].key); setValues({}); }
       })
-      .catch(() => alive && setError("Could not load the drawing catalog. Is the backend running?"));
+      .catch(() => alive && setError("Could not load the equipment catalog. Is the backend running?"));
     return () => { alive = false; };
   }, []);
 
   const activeCategory = useMemo(
-    () => catalog?.categories?.find((c) => c.key === category) || null,
-    [catalog, category],
-  );
+    () => catalog?.categories?.find((c) => c.key === category) || null, [catalog, category]);
 
-  const missingRequired = useMemo(() => {
-    if (!activeCategory) return [];
-    return activeCategory.fields
-      .filter((f) => f.required && (values[f.key] === undefined || values[f.key] === ""))
-      .map((f) => f.label);
-  }, [activeCategory, values]);
+  const missingRequired = useMemo(() => (activeCategory?.fields || [])
+    .filter((f) => f.required && !String(values[f.key] ?? "").trim())
+    .map((f) => f.label), [activeCategory, values]);
 
   const generate = useCallback(async () => {
     if (!category) return;
     setBusy(true); setError("");
     try {
       const res = await fetch("/api/drawing/render", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category, values, sheet_size: sheetSize,
-          drawing_type: drawingType, client, ref,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, values, sheet_size: sheetSize, drawing_type: drawingType, client, ref }),
       });
       const d = await res.json();
       if (!d.ok) { setError(d.error || "The drawing could not be generated."); setDrawing(null); }
       else { setDrawing(d); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }
-    } catch {
-      setError("Could not reach the drawing engine.");
-    } finally {
-      setBusy(false);
-    }
+    } catch { setError("Could not reach the drawing engine."); }
+    finally { setBusy(false); }
   }, [category, values, sheetSize, drawingType, client, ref]);
 
-  const applyPreset = (p) => {
-    setCategory(p.category);
-    setValues(p.values);
-    setDrawing(null);
-  };
-
   /**
-   * Send a message to the Drawing Agent.
-   *
-   * The agent replies in prose; it never carries the drawing, because the tool
-   * strips the SVG before the model sees it (vector data would swamp an 8B
-   * context). So when the agent reports that it drew something, the canvas is
-   * refreshed from the SAME requirement through the deterministic endpoint —
-   * agent and canvas therefore cannot disagree.
+   * The agent replies in prose and never carries the drawing — the tool strips
+   * the SVG before the model sees it, because vector data would swamp an 8B
+   * context. So when it reports drawing something, the viewport is refreshed
+   * from the SAME requirement through the deterministic endpoint; agent and
+   * canvas therefore cannot disagree.
    */
-  const sendChat = useCallback(async () => {
-    const text = ask.trim();
-    if (!text || thinking) return;
+  const sendChat = useCallback(async (text) => {
+    const q = (text ?? ask).trim();
+    if (!q || thinking) return;
     setAsk("");
-    setChat((c) => [...c, { role: "user", text }]);
+    setChat((c) => [...c, { role: "user", text: q }]);
     setThinking(true);
     try {
       const res = await fetch(agentUrl("drawing"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text, chatId: chatId.current }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, chatId: chatId.current }),
       });
       const d = await res.json();
-      const reply = d.text || d.answer || "(no reply)";
       const drew = (d.usedTools || []).find((u) => u.tool === "generate_drawing");
-      setChat((c) => [...c, { role: "agent", text: reply, drew: !!drew }]);
-
+      setChat((c) => [...c, { role: "agent", text: d.text || d.answer || "(no reply)" }]);
       if (drew) {
-        const requirement = drew.toolInput?.question || text;
         const r = await fetch("/api/tools/drawing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: requirement, sheet_size: sheetSize }),
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: drew.toolInput?.question || q, sheet_size: sheetSize }),
         });
         const dr = await r.json();
-        if (dr.ok && dr.svg) {
-          setDrawing(dr); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 });
-        }
+        if (dr.ok && dr.svg) { setDrawing(dr); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }
       }
-    } catch {
-      setChat((c) => [...c, { role: "agent", text: "Could not reach the Drawing Agent." }]);
-    } finally {
-      setThinking(false);
-    }
+    } catch { setChat((c) => [...c, { role: "agent", text: "Could not reach the Drawing Agent." }]); }
+    finally { setThinking(false); }
   }, [ask, thinking, sheetSize]);
 
-  const toggleLayer = (id) =>
-    setHidden((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-
-  // React attaches wheel handlers PASSIVELY, so calling preventDefault inside
-  // an onWheel prop is ignored and logs "Unable to preventDefault inside passive
-  // event listener" on every notch of the wheel. Registering the listener
-  // ourselves with passive:false is the only way to stop the page scrolling
-  // while zooming the sheet.
+  // React attaches wheel handlers PASSIVELY, so preventDefault inside an onWheel
+  // prop is ignored and floods the console. Registering it natively with
+  // passive:false is the only way to zoom without also scrolling the page.
   useEffect(() => {
-    const el = canvasRef.current;
+    const el = viewportRef.current;
     if (!el) return undefined;
     const onWheel = (e) => {
       e.preventDefault();
-      // Normalise across input devices: a mouse notch reports pixels, some
-      // report lines or pages, and trackpads stream many small deltas. Without
-      // this a single notch on one device zooms as much as ten on another.
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
-      const delta = Math.max(-120, Math.min(120, e.deltaY * unit));
-      // Exponential so each step is proportional, and gentle: a notch is ~6%,
-      // not the 10% that made twelve notches jump to 314%.
+      const delta = clamp(e.deltaY * unit, -120, 120);
       const step = Math.exp(-delta * ZOOM_SENSITIVITY);
-
       const rect = el.getBoundingClientRect();
       const cx = e.clientX - rect.left - rect.width / 2;
       const cy = e.clientY - rect.top - rect.height / 2;
-
       setView((v) => {
         const zoom = clamp(v.zoom * step, MIN_ZOOM, MAX_ZOOM);
         const k = zoom / v.zoom;
-        // Hold the point under the cursor still while the scale changes.
         return { zoom, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k };
       });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
-  const onDown = (e) => {
-    if (e.button !== 0) return;
-    drag.current = { x: e.clientX - view.x, y: e.clientY - view.y };
-  };
-  const onMove = (e) => {
-    if (!drag.current) return;
-    setView((v) => ({ ...v, x: e.clientX - drag.current.x, y: e.clientY - drag.current.y }));
-  };
+
+  const onDown = (e) => { if (e.button === 0) drag.current = { x: e.clientX - view.x, y: e.clientY - view.y }; };
+  const onMove = (e) => { if (drag.current) setView((v) => ({ ...v, x: e.clientX - drag.current.x, y: e.clientY - drag.current.y })); };
   const onUp = () => { drag.current = null; };
   const fit = () => setView({ zoom: 1, x: 0, y: 0 });
-  const nudgeZoom = (factor) =>
-    setView((v) => ({ ...v, zoom: clamp(v.zoom * factor, MIN_ZOOM, MAX_ZOOM) }));
+  const nudge = (f) => setView((v) => ({ ...v, zoom: clamp(v.zoom * f, MIN_ZOOM, MAX_ZOOM) }));
+
+  const toggleLayer = (id) => setHidden((p) => {
+    const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
 
   const exportSvg = () => {
     if (!drawing?.svg) return;
-    const blob = new Blob([drawing.svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(new Blob([drawing.svg], { type: "image/svg+xml" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = `${(drawing.category_label || "drawing").replace(/\s+/g, "-").toLowerCase()}-GA.svg`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.click(); URL.revokeObjectURL(url);
   };
 
-  // Layer visibility is applied as a scoped stylesheet rather than fixed CSS
-  // classes, so any layer the backend adds later toggles without a UI change.
-  const layerCss = [...hidden]
-    .map((id) => `.studio-stage [data-layer="${id}"]{display:none}`)
-    .join("");
+  // Applied as a scoped stylesheet so a layer the backend adds later toggles
+  // without any change here.
+  const layerCss = [...hidden].map((id) => `.ds-stage [data-layer="${id}"]{display:none}`).join("");
+  const env = drawing?.envelope_mm;
 
   return (
-    <div className="studio">
-      <aside className="studio-side">
-        <div className="studio-side-head">
-          <span className="studio-badge"><PenTool size={13} strokeWidth={2} /> Drawing Studio</span>
-          {drawing && <span className="studio-preview-tag">{drawing.scale}</span>}
-        </div>
-
-        {!catalog && !error && (
-          <p className="studio-note"><Loader2 size={13} className="spin" /> Loading equipment catalog…</p>
+    <div className="ds">
+      {/* ---------------- top toolbar ---------------- */}
+      <header className="ds-bar">
+        <span className="ds-bar-brand"><PenTool size={16} strokeWidth={2} /> Drawing Studio</span>
+        <span className="ds-bar-sub">Deterministic 2D general arrangement</span>
+        <div className="ds-bar-spacer" />
+        {drawing && (
+          <div className="ds-bar-group">
+            <span className="ds-chip is-live">{drawing.scale}</span>
+            <span className="ds-chip">{drawing.sheet_size}</span>
+            {drawing.tbd?.length > 0 && <span className="ds-chip is-warn">{drawing.tbd.length} TBD</span>}
+          </div>
         )}
-
-        <div className="studio-chips">
-          {PRESETS.map((p) => (
-            <button key={p.label} type="button" className="studio-chip" onClick={() => applyPreset(p)}>
-              {p.label}
-            </button>
-          ))}
+        <div className="ds-bar-group">
+          <button type="button" className="ds-btn" onClick={exportSvg} disabled={!drawing}>
+            <Download size={14} strokeWidth={2} /> Export SVG
+          </button>
+          <button type="button" className="ds-btn is-icon" onClick={() => setFocus((f) => !f)}
+                  title={focus ? "Exit expanded view (Esc)" : "Expand workspace"}
+                  aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>
+            {focus ? <Shrink size={15} /> : <Expand size={15} />}
+          </button>
         </div>
+      </header>
 
-        {/* ---- what to draw ---- */}
-        <label className="studio-label">Equipment category</label>
-        <select
-          className="studio-select"
-          value={category}
-          onChange={(e) => { setCategory(e.target.value); setValues({}); setDrawing(null); }}
-        >
-          {catalog?.categories?.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.label}{c.has_symbols ? "  •  detailed" : ""}
-            </option>
-          ))}
-        </select>
+      {/* ---------------- parameters ---------------- */}
+      <aside className="ds-panel ds-params">
+        <div className="ds-panel-head"><Wrench size={14} strokeWidth={2} /><h3>Parameters</h3></div>
 
-        <div className="studio-grid2">
-          <div>
-            <label className="studio-label">Drawing type</label>
-            <select className="studio-select" value={drawingType}
-                    onChange={(e) => setDrawingType(e.target.value)}>
-              {catalog?.drawing_types?.map((t) => (
-                <option key={t.key} value={t.key}>{t.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="studio-label">Sheet</label>
-            <select className="studio-select" value={sheetSize}
-                    onChange={(e) => setSheetSize(e.target.value)}>
-              {catalog?.sheet_sizes?.map((s) => (
-                <option key={s.key} value={s.key}>{s.key}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* ---- inputs, rendered from the catalog ---- */}
-        {activeCategory && (
-          <div className="studio-section">
-            <span className="studio-section-h"><Ruler size={13} strokeWidth={2} /> Inputs</span>
-            <div className="studio-fields">
-              {activeCategory.fields.map((f) => (
-                <label key={f.key} className="studio-dim">
-                  <span>
-                    {f.label}{f.unit ? ` (${f.unit})` : ""}
-                    {f.required && <em className="req">*</em>}
-                  </span>
-                  <input
-                    type={f.type === "number" ? "number" : "text"}
-                    value={values[f.key] ?? ""}
-                    placeholder={f.required ? "required" : "optional"}
-                    onChange={(e) =>
-                      setValues((p) => ({ ...p, [f.key]: e.target.value }))}
-                  />
-                </label>
+        <div className="ds-panel-body">
+          <section className="ds-group">
+            <div className="ds-group-h"><Sparkles size={12} strokeWidth={2} /> Quick start</div>
+            <div className="ds-presets">
+              {PRESETS.map((p) => (
+                <button key={p.label} type="button" className="ds-preset"
+                        onClick={() => { setCategory(p.category); setValues(p.values); setDrawing(null); }}>
+                  <Box size={15} strokeWidth={1.9} />
+                  <span>{p.label}<small>{p.hint}</small></span>
+                </button>
               ))}
             </div>
-          </div>
-        )}
+          </section>
 
-        {/* ---- title block ---- */}
-        <div className="studio-section">
-          <span className="studio-section-h"><ListTree size={13} strokeWidth={2} /> Title block</span>
-          <div className="studio-fields">
-            <label className="studio-dim">
-              <span>Client</span>
-              <input value={client} placeholder="(to be completed)"
-                     onChange={(e) => setClient(e.target.value)} />
+          <section className="ds-group">
+            <div className="ds-group-h"><Package size={12} strokeWidth={2} /> Equipment</div>
+            <label className="ds-field">
+              <span>Category</span>
+              <select className="ds-select" value={category}
+                      onChange={(e) => { setCategory(e.target.value); setValues({}); setDrawing(null); }}>
+                {catalog?.categories?.map((c) => (
+                  <option key={c.key} value={c.key}>{c.label}{c.has_symbols ? " — detailed" : ""}</option>
+                ))}
+              </select>
             </label>
-            <label className="studio-dim">
-              <span>Drawing no.</span>
-              <input value={ref} placeholder="auto"
-                     onChange={(e) => setRef(e.target.value)} />
-            </label>
-          </div>
-        </div>
-
-        <Button variant="primary" size="sm" icon={busy ? Loader2 : Send}
-                onClick={generate} disabled={busy || !category}>
-          {busy ? "Generating…" : "Generate drawing"}
-        </Button>
-        {missingRequired.length > 0 && !drawing && (
-          <p className="studio-note">
-            Required inputs still empty: {missingRequired.join(", ")}. The sheet will
-            schedule anything undetermined rather than guess it.
-          </p>
-        )}
-        {error && <p className="studio-error"><AlertTriangle size={13} /> {error}</p>}
-
-        {/* ---- layers ---- */}
-        {drawing?.layers?.length > 0 && (
-          <div className="studio-section">
-            <span className="studio-section-h"><Layers size={13} strokeWidth={2} /> Layers</span>
-            {drawing.layers.map((l) => (
-              <label key={l.id} className="studio-toggle">
-                <input type="checkbox" checked={!hidden.has(l.id)}
-                       onChange={() => toggleLayer(l.id)} />
-                <span>{l.label}</span>
+            <div className="ds-grid2">
+              <label className="ds-field">
+                <span>Drawing type</span>
+                <select className="ds-select" value={drawingType} onChange={(e) => setDrawingType(e.target.value)}>
+                  {catalog?.drawing_types?.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                </select>
               </label>
-            ))}
-          </div>
-        )}
+              <label className="ds-field">
+                <span>Sheet</span>
+                <select className="ds-select" value={sheetSize} onChange={(e) => setSheetSize(e.target.value)}>
+                  {catalog?.sheet_sizes?.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
+                </select>
+              </label>
+            </div>
+          </section>
 
-        {/* ---- legend ---- */}
-        {drawing?.legend?.length > 0 && (
-          <div className="studio-section">
-            <span className="studio-section-h">Legend</span>
-            {drawing.legend.map((l) => (
-              <span key={l.tag} className="studio-legend-row">
-                <b>{l.tag}.</b> {l.description}
-              </span>
-            ))}
-          </div>
-        )}
+          {activeCategory && (
+            <section className="ds-group">
+              <div className="ds-group-h">
+                <Ruler size={12} strokeWidth={2} /> Geometry &amp; process
+                <span className="ds-count">{activeCategory.fields.length}</span>
+              </div>
+              <div className="ds-grid2">
+                {activeCategory.fields.map((f) => (
+                  <label key={f.key} className="ds-field">
+                    <span>{f.label}{f.unit ? ` (${f.unit})` : ""}{f.required && <em className="req">*</em>}</span>
+                    <input className="ds-input" type={f.type === "number" ? "number" : "text"}
+                           value={values[f.key] ?? ""} placeholder={f.required ? "required" : "optional"}
+                           onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))} />
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* ---- honest gaps ---- */}
-        {drawing?.tbd?.length > 0 && (
-          <div className="studio-section studio-tbd">
-            <span className="studio-section-h">
-              <AlertTriangle size={13} strokeWidth={2} /> To be determined ({drawing.tbd.length})
-            </span>
-            {drawing.tbd.map((t) => <span key={t} className="studio-tbd-row">{t}</span>)}
-          </div>
-        )}
+          <section className="ds-group">
+            <div className="ds-group-h"><FileText size={12} strokeWidth={2} /> Title block</div>
+            <div className="ds-grid2">
+              <label className="ds-field"><span>Client</span>
+                <input className="ds-input" value={client} placeholder="(to be completed)"
+                       onChange={(e) => setClient(e.target.value)} /></label>
+              <label className="ds-field"><span>Drawing no.</span>
+                <input className="ds-input" value={ref} placeholder="auto"
+                       onChange={(e) => setRef(e.target.value)} /></label>
+            </div>
+          </section>
 
-        {/* ---- bill of material ---- */}
-        {drawing?.bom?.length > 0 && (
-          <div className="studio-section">
-            <span className="studio-section-h">Bill of material</span>
-            {drawing.bom.map((b) => (
-              <span key={b.item} className="studio-bom-row">
-                <b>{b.item}</b><span>{b.spec}</span>
-              </span>
-            ))}
-          </div>
-        )}
+          {error && <div className="ds-alert"><AlertTriangle size={14} /> <span>{error}</span></div>}
 
-        <div className="studio-actions">
-          <Button variant="primary" size="sm" icon={Download}
-                  onClick={exportSvg} disabled={!drawing}>Export SVG</Button>
-          <Button variant="ghost" size="sm" disabled
-                  title="DXF and PDF export arrive in the next phase">PDF / DXF</Button>
+          {drawing?.layers?.length > 0 && (
+            <section className="ds-group">
+              <div className="ds-group-h"><Layers size={12} strokeWidth={2} /> Layers</div>
+              {drawing.layers.map((l) => (
+                <label key={l.id} className="ds-toggle">
+                  <input type="checkbox" checked={!hidden.has(l.id)} onChange={() => toggleLayer(l.id)} />
+                  <span>{l.label}</span>
+                </label>
+              ))}
+            </section>
+          )}
+
+          {drawing?.legend?.length > 0 && (
+            <section className="ds-group">
+              <div className="ds-group-h">Legend</div>
+              <div className="ds-list">
+                {drawing.legend.map((l) => (
+                  <div key={l.tag} className="ds-row">
+                    <span className="ds-tag">{l.tag}</span><span>{l.description}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {drawing?.tbd?.length > 0 && (
+            <section className="ds-group">
+              <div className="ds-group-h"><AlertTriangle size={12} strokeWidth={2} /> To be determined
+                <span className="ds-count">{drawing.tbd.length}</span></div>
+              <div className="ds-list">
+                {drawing.tbd.map((t) => <div key={t} className="ds-row is-tbd">— <span>{t}</span></div>)}
+              </div>
+            </section>
+          )}
+
+          {drawing?.bom?.length > 0 && (
+            <section className="ds-group">
+              <div className="ds-group-h">Bill of material<span className="ds-count">{drawing.bom.length}</span></div>
+              <div className="ds-list">
+                {drawing.bom.map((b) => (
+                  <div key={b.item} className="ds-row"><b>{b.item}</b><span>{b.spec}</span></div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <p className="ds-note">
+            Geometry is generated deterministically by the engineering engine.
+            Component positions are schematic; anything not yet engineered is
+            listed above and on the sheet, never guessed.
+          </p>
         </div>
-        <p className="studio-note">
-          Geometry is generated deterministically by the backend engine from the
-          engineering specification. Component positions are schematic; anything
-          not yet engineered is listed above and on the sheet, never guessed.
-        </p>
+
+        <div className="ds-panel-foot">
+          {busy && <div className="ds-progress" style={{ marginBottom: 9 }}><i /></div>}
+          <button type="button" className="ds-btn is-primary is-block" onClick={generate} disabled={busy || !category}>
+            <Send size={14} strokeWidth={2} /> {busy ? "Generating…" : "Generate drawing"}
+          </button>
+          {missingRequired.length > 0 && !drawing && (
+            <p className="ds-note" style={{ marginTop: 8 }}>
+              {missingRequired.join(", ")} still empty — the sheet will schedule
+              anything undetermined rather than guess it.
+            </p>
+          )}
+        </div>
       </aside>
 
-      {/* canvas */}
-      <div ref={canvasRef} className="studio-canvas" onMouseDown={onDown}
-           onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
-        <div className="studio-canvas-toolbar">
-          <button type="button" onClick={() => nudgeZoom(1 / 1.2)} aria-label="Zoom out" title="Zoom out"><Minus size={15} /></button>
-          <button type="button" className="studio-zoom" onClick={fit}
-                  title="Reset to 100%">{Math.round(view.zoom * 100)}%</button>
-          <button type="button" onClick={() => nudgeZoom(1.2)} aria-label="Zoom in" title="Zoom in"><Plus size={15} /></button>
-          <i className="studio-tb-sep" />
-          <button type="button" onClick={fit} aria-label="Fit to view" title="Fit to view"><Maximize2 size={14} /></button>
-          <i className="studio-tb-sep" />
-          <button type="button" onClick={() => setFocus((f) => !f)}
-                  className={focus ? "is-on" : ""}
-                  title={focus ? "Exit expanded view (Esc)" : "Expand — hide the app shell"}
+      {/* ---------------- viewport ---------------- */}
+      <section className="ds-viewport" ref={viewportRef}
+               onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
+        <div className="ds-tools">
+          <button type="button" onClick={() => nudge(1 / 1.2)} title="Zoom out" aria-label="Zoom out"><Minus size={15} /></button>
+          <button type="button" className="ds-zoom" onClick={fit} title="Reset to 100%">{Math.round(view.zoom * 100)}%</button>
+          <button type="button" onClick={() => nudge(1.2)} title="Zoom in" aria-label="Zoom in"><Plus size={15} /></button>
+          <i className="sep" />
+          <button type="button" onClick={fit} title="Fit to view" aria-label="Fit to view"><Maximize2 size={14} /></button>
+          <i className="sep" />
+          <button type="button" className={focus ? "is-on" : ""} onClick={() => setFocus((f) => !f)}
+                  title={focus ? "Exit expanded view (Esc)" : "Expand workspace"}
                   aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>
             {focus ? <Shrink size={15} /> : <Expand size={15} />}
           </button>
@@ -449,86 +387,92 @@ export function DrawingStudio() {
 
         {layerCss && <style>{layerCss}</style>}
 
-        {drawing && (
-          <div className="studio-statusbar">
-            <span><b>{drawing.category_label}</b></span>
-            <i />
-            <span>Scale <b>{drawing.scale}</b></span>
-            <i />
-            <span>Sheet <b>{drawing.sheet_size}</b></span>
-            <i />
-            <span>
-              {drawing.envelope_mm?.length
-                ? <>Envelope <b>{drawing.envelope_mm.length} × {drawing.envelope_mm.width} × {drawing.envelope_mm.height}</b> mm</>
-                : <>Envelope <b>not determined</b></>}
-            </span>
-            <i />
-            <span>{drawing.views.length} view{drawing.views.length === 1 ? "" : "s"}</span>
-            {drawing.tbd?.length > 0 && (
-              <><i /><span className="is-tbd">{drawing.tbd.length} TBD</span></>
-            )}
-          </div>
-        )}
-
         {drawing ? (
-          <div
-            className={`studio-stage${chat.length ? " docked" : ""}`}
-            style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
-            dangerouslySetInnerHTML={{ __html: drawing.svg }}
-          />
+          <>
+            <div className="ds-stage"
+                 style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
+                 dangerouslySetInnerHTML={{ __html: drawing.svg }} />
+            <div className="ds-status">
+              <b>{drawing.category_label}</b><i className="sep" />
+              <span>Scale <b>{drawing.scale}</b></span><i className="sep" />
+              <span>Sheet <b>{drawing.sheet_size}</b></span><i className="sep" />
+              <span>{env?.length
+                ? <>Envelope <b>{env.length} × {env.width} × {env.height}</b> mm</>
+                : <>Envelope <b>not determined</b></>}</span>
+              <i className="sep" />
+              <span>{drawing.views.length} view{drawing.views.length === 1 ? "" : "s"}</span>
+              {drawing.tbd?.length > 0 && <><i className="sep" /><span className="warn">{drawing.tbd.length} TBD</span></>}
+            </div>
+          </>
         ) : (
-          <div className="studio-empty">
-            <PenTool size={30} strokeWidth={1.4} />
-            <b>No drawing yet</b>
-            <span>
-              Pick an equipment category and dimensions on the left, or just ask
-              below — "draw a paint booth 5m x 3m x 4m".
-            </span>
+          <div className="ds-empty">
+            <div className="ds-empty-icon"><PenTool size={26} strokeWidth={1.6} /></div>
+            <h4>No drawing yet</h4>
+            <p>
+              Set the equipment and its dimensions on the left, or just ask the
+              assistant — try <kbd>draw a paint booth 5m x 3m x 4m</kbd>.
+            </p>
           </div>
         )}
+      </section>
 
-        {/* In expanded view the conversation becomes a right-hand rail; in the
-            normal layout it docks along the bottom of the canvas. Same markup,
-            positioned by CSS. */}
-        <div className={`studio-dock${focus ? " is-rail" : ""}`}>
-          {chat.length > 0 && (
-            <div className="studio-dock-log">
-              {chat.map((m, i) => (
-                <div key={i} className={`studio-msg ${m.role}`}>
-                  {m.role === "user"
-                    ? <User size={13} strokeWidth={2} />
-                    : <Bot size={13} strokeWidth={2} />}
-                  {m.role === "user"
-                    ? <span>{m.text}</span>
-                    : <div className="studio-msg-md"><Answer text={m.text} /></div>}
-                </div>
-              ))}
-              {thinking && (
-                <div className="studio-msg agent">
-                  <Bot size={13} strokeWidth={2} />
-                  <span className="studio-thinking">
-                    <Loader2 size={12} className="spin" /> drawing…
-                  </span>
-                </div>
-              )}
-              <div ref={transcriptEnd} />
+      {/* ---------------- AI assistant ---------------- */}
+      <aside className="ds-panel ds-ai">
+        <div className="ds-panel-head">
+          <Bot size={14} strokeWidth={2} /><h3>Drawing Assistant</h3>
+          <div className="ds-bar-spacer" />
+          {thinking && <span className="ds-chip is-live">working</span>}
+        </div>
+
+        <div className="ds-ai-log">
+          {chat.length === 0 && !thinking && (
+            <div className="ds-msg agent">
+              <span className="ds-msg-av"><Bot size={13} strokeWidth={2} /></span>
+              <div className="ds-msg-body">
+                <p>Describe the equipment and I'll draw its general arrangement. Dimensions,
+                   scale and bill of material come from the engineering engine, so nothing
+                   here is estimated.</p>
+              </div>
             </div>
           )}
-          <div className="studio-dock-bar">
-            <Bot size={15} strokeWidth={1.9} />
-            <input
-              value={ask}
-              placeholder="Ask the Drawing Agent — e.g. draw a wet scrubber 800 cfm 750 mm tower"
-              onChange={(e) => setAsk(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendChat()}
-            />
-            <button type="button" onClick={sendChat}
-                    disabled={thinking || !ask.trim()} aria-label="Send to Drawing Agent">
-              <Send size={15} strokeWidth={1.9} />
+          {chat.map((m, i) => (
+            <div key={i} className={`ds-msg ${m.role}`}>
+              <span className="ds-msg-av">
+                {m.role === "user" ? <User size={13} strokeWidth={2} /> : <Bot size={13} strokeWidth={2} />}
+              </span>
+              <div className="ds-msg-body">
+                {m.role === "user" ? <p>{m.text}</p> : <Answer text={m.text} />}
+              </div>
+            </div>
+          ))}
+          {thinking && (
+            <div className="ds-msg agent">
+              <span className="ds-msg-av"><Bot size={13} strokeWidth={2} /></span>
+              <div className="ds-msg-body"><span className="ds-typing"><span /><span /><span /></span></div>
+            </div>
+          )}
+          <div ref={logEnd} />
+        </div>
+
+        <div className="ds-composer">
+          {chat.length === 0 && (
+            <div className="ds-suggest">
+              {SUGGESTIONS.map((s) => (
+                <button key={s} type="button" onClick={() => sendChat(s)}>{s}</button>
+              ))}
+            </div>
+          )}
+          <div className="ds-composer-in">
+            <input value={ask} placeholder="Ask the Drawing Assistant…"
+                   onChange={(e) => setAsk(e.target.value)}
+                   onKeyDown={(e) => e.key === "Enter" && sendChat()} />
+            <button type="button" className="ds-send" onClick={() => sendChat()}
+                    disabled={thinking || !ask.trim()} aria-label="Send">
+              <Send size={14} strokeWidth={2} />
             </button>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

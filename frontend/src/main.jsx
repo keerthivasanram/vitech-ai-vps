@@ -8,6 +8,7 @@ import "./styles/variables.css";
 import "./styles/animations.css";
 import "./styles/App.css";
 import "./styles/pages.css";
+import "./styles/studio.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
