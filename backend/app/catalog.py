@@ -13,13 +13,100 @@ Each profile declares:
 from typing import Any, Callable, Optional
 
 from .rules import compute_spec, compute_wet_scrubber
-from .schema import ComputedSpec
+from .schema import ComputedSpec, RuleResult, SpecValue
 
 
 def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
     return compute_spec(params.get("length_m"), params.get("width_m"),
                         params.get("height_m"), params.get("paint_type"),
                         params.get("booth_type"))
+
+
+def _paint_shop_rules(unit: str) -> Callable[[dict[str, Any]], ComputedSpec]:
+    """Rule engine for one paint-shop line unit, from the client's calculation
+    document (see `engineering/paint_shop_service`).
+
+    The service returns a trail of (name, value, formula, standard) rows — every
+    one of them a computed engineering value — which maps straight onto the
+    ComputedSpec the resolver expects. Only rows the client's formulas actually
+    produced appear; a value needing an input nobody supplied (e.g. the oven's
+    ACH) simply is not in the trail, and the spec template turns it into a TBD.
+    """
+    def run(params: dict[str, Any]) -> ComputedSpec:
+        from .engineering.paint_shop_service import (compute_paint_shop_unit,
+                                                     normalise_draft)
+        L = params.get("length_m")
+        W = params.get("width_m")
+        H = params.get("height_m")
+        calc = compute_paint_shop_unit(
+            unit, L, W, H,
+            draft=normalise_draft(params.get("draft_type") or params.get("booth_type")),
+            ach=params.get("ach"),
+        )
+        spec = ComputedSpec(length_m=L, width_m=W, height_m=H)
+        if L is not None and W is not None and H is not None:
+            spec.values.append(SpecValue(
+                label="Dimensions", value=f"{L:g} x {W:g} x {H:g} m", origin="rule"))
+        for name, value, formula, standard in calc.trail:
+            spec.rules.append(RuleResult(name=name, value=value,
+                                         formula=formula, standard=standard))
+            spec.values.append(SpecValue(label=name, value=value, origin="rule"))
+        return spec
+    return run
+
+
+# The output fields a paint-shop enclosure spec must cover. Shared by the four
+# line units — they differ in their inlet-air rule, not in what they report.
+_PAINT_SHOP_TEMPLATE = [
+    {"label": "Dimensions", "kind": "geometry"},
+    {"label": "Exhaust air volume", "kind": "computed"},
+    {"label": "Inlet air volume", "kind": "computed"},
+    {"label": "Enclosure surface area", "kind": "computed"},
+    {"label": "Enclosure sheet weight", "kind": "computed"},
+    {"label": "Construction", "kind": "standard"},
+    {"label": "Illumination", "kind": "standard"},
+    {"label": "Control panel", "kind": "standard"},
+    {"label": "Finish", "kind": "standard"},
+]
+
+_PAINT_SHOP_LABELS = {
+    "exhaust_air_m3h": "Exhaust air volume",
+    "inlet_air_m3h": "Inlet air volume",
+    "surface_area_m2": "Enclosure surface area",
+    "sheet_weight_kg": "Enclosure sheet weight",
+    "construction": "Construction",
+    "illumination": "Illumination",
+    "control_panel": "Control panel",
+    "finish": "Finish",
+}
+
+
+def _paint_shop_profile(key: str, label: str, extra_template=()) -> dict[str, Any]:
+    """One paint-shop line unit's catalog profile. They share their inputs and
+    their output shape; `_paint_shop_rules` carries the per-unit differences."""
+    return {
+        "label": label,
+        "scale_driver": None,
+        "driver_label": "Dimensions",
+        "diff_unit": "floor area",
+        "dimension_keys": ["length_m", "width_m", "height_m"],
+        "process_keys": [],
+        "required_inputs": [("length_m", "Length"), ("width_m", "Width"),
+                            ("height_m", "Height")],
+        "optional_inputs": [("draft_type", "Draft type"), ("qty", "Quantity")]
+                           + ([("ach", "Air changes per hour")]
+                              if key == "paint_drying_oven" else []),
+        "expected_inputs": [("length_m", "Length"), ("width_m", "Width"),
+                            ("height_m", "Height")],
+        "scalable": [],
+        "from_given": {},
+        "rules": _paint_shop_rules(key),
+        "rule_covers": ["exhaust_air_m3h", "inlet_air_m3h", "surface_area_m2",
+                        "sheet_weight_kg"],
+        "rule_value_map": {},
+        "field_labels": dict(_PAINT_SHOP_LABELS),
+        "spec_template": _PAINT_SHOP_TEMPLATE + list(extra_template),
+    }
 
 
 # Engineering-oriented labels for value provenance (shown to users).
@@ -464,6 +551,18 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [], "field_labels": {},
     },
+    # --- paint-shop line units (client calculation doc, 2026-08-01) --------
+    # Their formulas live in engineering/paint_shop_service; the profiles differ
+    # only in the inlet-air rule that service applies per unit.
+    "cleaning_room": _paint_shop_profile("cleaning_room", "Cleaning Room"),
+    "buffing_booth": _paint_shop_profile("buffing_booth", "Buffing Booth"),
+    "flash_off_zone": _paint_shop_profile("flash_off_zone", "Flash Off Zone"),
+    "paint_drying_oven": _paint_shop_profile(
+        "paint_drying_oven", "Paint Drying Oven",
+        extra_template=[{"label": "Heat load", "kind": "computed"},
+                        {"label": "Heat load (kCal)", "kind": "computed"},
+                        {"label": "Heating mode", "kind": "standard"},
+                        {"label": "Insulation", "kind": "standard"}]),
     "ducting": {
         "label": "Ducting",
         "scale_driver": None, "driver_label": "Airflow", "diff_unit": "airflow",

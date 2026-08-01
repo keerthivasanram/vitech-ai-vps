@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, Download, Layers, ListTree, Loader2, Maximize2, Minus,
-  PenTool, Plus, RotateCcw, Ruler, Send,
+  AlertTriangle, Bot, Download, Layers, ListTree, Loader2, Maximize2, Minus,
+  PenTool, Plus, RotateCcw, Ruler, Send, User,
 } from "lucide-react";
 import { Button } from "../common/Button";
+import { agentUrl } from "../lib/constants";
+import { Answer } from "../lib/markdown";
 
 /**
  * Drawing Studio — split controls + live GA canvas.
@@ -42,6 +44,17 @@ export function DrawingStudio() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef(null);
+
+  // --- chat: the Drawing Agent drives the canvas -------------------------
+  const [chat, setChat] = useState([]);
+  const [ask, setAsk] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const chatId = useRef(`studio-${Math.random().toString(36).slice(2, 10)}`);
+  const transcriptEnd = useRef(null);
+
+  useEffect(() => {
+    transcriptEnd.current?.scrollIntoView({ block: "end" });
+  }, [chat, thinking]);
 
   // Load the catalog once; it defines every choice the form offers.
   useEffect(() => {
@@ -101,6 +114,51 @@ export function DrawingStudio() {
     setValues(p.values);
     setDrawing(null);
   };
+
+  /**
+   * Send a message to the Drawing Agent.
+   *
+   * The agent replies in prose; it never carries the drawing, because the tool
+   * strips the SVG before the model sees it (vector data would swamp an 8B
+   * context). So when the agent reports that it drew something, the canvas is
+   * refreshed from the SAME requirement through the deterministic endpoint —
+   * agent and canvas therefore cannot disagree.
+   */
+  const sendChat = useCallback(async () => {
+    const text = ask.trim();
+    if (!text || thinking) return;
+    setAsk("");
+    setChat((c) => [...c, { role: "user", text }]);
+    setThinking(true);
+    try {
+      const res = await fetch(agentUrl("drawing"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, chatId: chatId.current }),
+      });
+      const d = await res.json();
+      const reply = d.text || d.answer || "(no reply)";
+      const drew = (d.usedTools || []).find((u) => u.tool === "generate_drawing");
+      setChat((c) => [...c, { role: "agent", text: reply, drew: !!drew }]);
+
+      if (drew) {
+        const requirement = drew.toolInput?.question || text;
+        const r = await fetch("/api/tools/drawing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: requirement, sheet_size: sheetSize }),
+        });
+        const dr = await r.json();
+        if (dr.ok && dr.svg) {
+          setDrawing(dr); setHidden(new Set()); setZoom(1); setPan({ x: 0, y: 0 });
+        }
+      }
+    } catch {
+      setChat((c) => [...c, { role: "agent", text: "Could not reach the Drawing Agent." }]);
+    } finally {
+      setThinking(false);
+    }
+  }, [ask, thinking, sheetSize]);
 
   const toggleLayer = (id) =>
     setHidden((prev) => {
@@ -322,7 +380,7 @@ export function DrawingStudio() {
 
         {drawing ? (
           <div
-            className="studio-stage"
+            className={`studio-stage${chat.length ? " docked" : ""}`}
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
             dangerouslySetInnerHTML={{ __html: drawing.svg }}
           />
@@ -330,9 +388,52 @@ export function DrawingStudio() {
           <div className="studio-empty">
             <PenTool size={30} strokeWidth={1.4} />
             <b>No drawing yet</b>
-            <span>Pick an equipment category, enter its dimensions and generate the general arrangement.</span>
+            <span>
+              Pick an equipment category and dimensions on the left, or just ask
+              below — "draw a paint booth 5m x 3m x 4m".
+            </span>
           </div>
         )}
+
+        {/* Drawing Agent command dock — chat drives the canvas */}
+        <div className="studio-dock">
+          {chat.length > 0 && (
+            <div className="studio-dock-log">
+              {chat.map((m, i) => (
+                <div key={i} className={`studio-msg ${m.role}`}>
+                  {m.role === "user"
+                    ? <User size={13} strokeWidth={2} />
+                    : <Bot size={13} strokeWidth={2} />}
+                  {m.role === "user"
+                    ? <span>{m.text}</span>
+                    : <div className="studio-msg-md"><Answer text={m.text} /></div>}
+                </div>
+              ))}
+              {thinking && (
+                <div className="studio-msg agent">
+                  <Bot size={13} strokeWidth={2} />
+                  <span className="studio-thinking">
+                    <Loader2 size={12} className="spin" /> drawing…
+                  </span>
+                </div>
+              )}
+              <div ref={transcriptEnd} />
+            </div>
+          )}
+          <div className="studio-dock-bar">
+            <Bot size={15} strokeWidth={1.9} />
+            <input
+              value={ask}
+              placeholder="Ask the Drawing Agent — e.g. draw a wet scrubber 800 cfm 750 mm tower"
+              onChange={(e) => setAsk(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendChat()}
+            />
+            <button type="button" onClick={sendChat}
+                    disabled={thinking || !ask.trim()} aria-label="Send to Drawing Agent">
+              <Send size={15} strokeWidth={1.9} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

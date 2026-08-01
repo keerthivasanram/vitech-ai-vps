@@ -134,6 +134,37 @@ check("<svg" not in a["drawing_markdown"] and "<path" not in a["drawing_markdown
       "the agent summary never contains raw SVG")
 check("DRAFT" in a["drawing_markdown"], "the agent summary states the draft status")
 
+# --- Derived envelopes (categories that never state L x W x H) -------------
+from app.drawing.envelope import derive_envelope
+
+SCRUBBER_ROWS = [
+    {"label": "Tower diameter (mm)", "value": "750", "origin": "given"},
+    {"label": "Tower height (m)", "value": "4", "origin": "rule"},
+]
+env = derive_envelope("wet_scrubber", SCRUBBER_ROWS)
+check(env == {"length": 750, "width": 750, "height": 4000},
+      f"wet scrubber envelope derives from tower diameter + computed height ({env})")
+check(derive_envelope("paint_booth", SCRUBBER_ROWS) is None,
+      "a category with no deriver returns None rather than borrowing another's rule")
+check(derive_envelope("wet_scrubber", [SCRUBBER_ROWS[0]]) is None,
+      "a PARTIAL envelope is refused - never a guessed extent on a dimensioned view")
+check(derive_envelope("wet_scrubber", [
+        {"label": "Tower diameter (mm)", "value": "750", "origin": "reused"},
+        {"label": "Tower height (m)", "value": "4", "origin": "rule"}]) is None,
+      "a REUSED historical value cannot become this machine's drawn size")
+check(derive_envelope("wet_scrubber", [
+        {"label": "Tower diameter (mm)", "value": "750", "origin": "From Requirement"},
+        {"label": "Tower height (m)", "value": "4", "origin": "Calculated (Engineering Rule)"}])
+      == {"length": 750, "width": 750, "height": 4000},
+      "display-form origins are accepted too (the tool response labels them)")
+
+derived_drawing = build_drawing({
+    "category": "wet_scrubber", "category_label": "Wet Scrubber",
+    "geometry": {"envelope_mm": env, "ready": True},
+    "technical_details": [{"label": "Spray nozzles (nos)", "value": "19"}]})
+check(len(derived_drawing["views"]) == 3 and derived_drawing["scale"] != "NTS",
+      "a derived envelope produces a real scaled drawing, not an NTS blank")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} DRAWING TEST FAIL")

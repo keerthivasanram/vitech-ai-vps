@@ -1178,6 +1178,51 @@
 .studio-empty b { color: var(--text-secondary); font-size: 14px; }
 .studio-empty span { font-size: 12.5px; max-width: 320px; line-height: 1.5; }
 .studio-empty svg { color: var(--border-strong); }
+
+/* Drawing Agent command dock — sits over the canvas, chat drives the drawing. */
+.studio-dock {
+  position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 4;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.studio-dock-log {
+  pointer-events: auto;
+  max-height: 190px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 7px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; box-shadow: var(--shadow-sm); padding: 11px 13px;
+}
+.studio-msg { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
+.studio-msg svg { flex: none; margin-top: 3px; color: var(--text-muted); }
+.studio-msg.user { color: var(--text-secondary); }
+.studio-msg.user svg { color: var(--primary); }
+.studio-msg span { white-space: pre-wrap; }
+.studio-thinking { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); }
+.studio-dock-bar {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 9px;
+  background: var(--card); border: 1px solid var(--border-strong);
+  border-radius: 14px; box-shadow: var(--shadow-sm); padding: 8px 10px;
+}
+.studio-dock-bar > svg { flex: none; color: var(--primary); }
+.studio-dock-bar input {
+  flex: 1; border: none; outline: none; background: transparent;
+  color: var(--text); font-size: 13px;
+}
+.studio-dock-bar button {
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  border: none; border-radius: 9px; background: var(--primary); color: #fff; cursor: pointer;
+}
+.studio-dock-bar button:disabled { opacity: 0.45; cursor: default; }
+.studio-canvas .studio-empty { padding-bottom: 110px; }
+/* Lift the sheet clear of the command dock once a transcript is showing,
+   otherwise the dock covers the title block. */
+.studio-stage.docked { padding-bottom: 230px; }
+.studio-msg-md { min-width: 0; }
+.studio-msg-md p { margin: 0 0 4px; }
+.studio-msg-md p:last-child { margin-bottom: 0; }
+.studio-msg-md ul { margin: 2px 0 4px; padding-left: 16px; }
+.studio-msg-md strong { color: var(--text); }
+.studio-msg-md em { color: var(--text-muted); font-style: italic; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

@@ -331,13 +331,25 @@ def _spec_geometry(a: dict) -> dict:
     env = {"length": L, "width": W, "height": H}
     have = [x for x in (L, W, H) if x is not None]
     src = "given" if len(have) == 3 else ("partial" if have else "tbd")
+
+    # Some categories never state L x W x H — a wet scrubber is specified by
+    # airflow and tower diameter, with its height computed by the rule engine.
+    # Compose the envelope from those already-resolved numbers so the drawing
+    # engine has something true to draw. Only complete envelopes are accepted,
+    # and only from client-given or rule-computed values.
+    if len(have) < 3:
+        from .drawing.envelope import derive_envelope
+        derived = derive_envelope(a.get("category"), a.get("technical_details") or [])
+        if derived:
+            env, src = derived, "derived"
     fields = [
         {"label": t.get("label"), "value": t.get("value"),
          "status": "tbd" if t.get("origin") == "tbd" else "resolved"}
         for t in (a.get("technical_details") or []) if t.get("kind") == "geometry"
     ]
+    ready = all(env.get(k) is not None for k in ("length", "width", "height"))
     return {"envelope_mm": env, "envelope_source": src,
-            "ready": len(have) == 3, "fields": fields}
+            "ready": ready, "fields": fields}
 
 
 @app.post("/api/tools/spec", operation_id="generate_specification")

@@ -18,6 +18,23 @@ _SIGNALS: dict[str, list[tuple[str, int]]] = {
         (r"paint\s*booth", 3), (r"powder\s*coat\w*", 3), (r"spray\s*booth", 3),
         (r"coating\s*booth", 2), (r"painting\s*booth", 2), (r"\bbooth\b", 1),
     ],
+    # --- paint-shop line units (client calculation doc, 2026-08-01) --------
+    # These sit BEFORE the generic booth/oven words in intent: each names its own
+    # unit explicitly, so the specific phrase must outscore "booth" / "oven".
+    "cleaning_room": [
+        (r"cleaning\s*(room|booth|station)", 4), (r"\bdegreasing\s*room\b", 3),
+    ],
+    "buffing_booth": [
+        (r"buffing\s*(booth|room|station)", 4), (r"\bbuffing\b", 3),
+        (r"polishing\s*booth", 3),
+    ],
+    "flash_off_zone": [
+        (r"flash[\s-]*off\s*(zone|area|tunnel|room)", 4), (r"flash[\s-]*off", 3),
+    ],
+    "paint_drying_oven": [
+        (r"paint\s*drying\s*(oven|room)", 4), (r"drying\s*oven", 3),
+        (r"drying\s*room", 3),
+    ],
     "hot_air_oven": [
         (r"hot\s*air\s*oven|bake\s*oven|baking\s*oven|curing\s*oven|batch\s*oven|"
          r"conveyor\s*oven|paint\s*oven|powder\s*curing\s*oven", 3),

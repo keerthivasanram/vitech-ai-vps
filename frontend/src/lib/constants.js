@@ -1,14 +1,17 @@
 /* Static app configuration: agent ids, navigation, per-view copy. */
 
-// The two live Flowise chatflows. Override the ids via .env if they change.
+// The three live Flowise chatflows. Override the ids via .env if they change.
 export const ENGINEERING_AGENT_ID =
   import.meta.env.VITE_ENGINEERING_AGENT_ID || "c4bfba16-aeb0-4c1b-840e-21b474639a8d";
 export const QUOTATION_AGENT_ID =
   import.meta.env.VITE_QUOTATION_AGENT_ID || "6fa5a302-2d73-4191-bbea-ce98e4af2f1f";
+export const DRAWING_AGENT_ID =
+  import.meta.env.VITE_DRAWING_AGENT_ID || "f486d388-d032-44bb-acb5-db9dad3b950d";
 
 export const AGENT_IDS = {
   engineering: ENGINEERING_AGENT_ID,
   quotation: QUOTATION_AGENT_ID,
+  drawing: DRAWING_AGENT_ID,
 };
 
 export const agentUrl = (view) =>
@@ -17,7 +20,7 @@ export const agentUrl = (view) =>
 export const isChatView = (v) => v === "engineering" || v === "quotation";
 
 // Tools whose numbers come from the deterministic engine (not the model).
-export const DETERMINISTIC_TOOLS = ["generate_quotation", "generate_specification"];
+export const DETERMINISTIC_TOOLS = ["generate_quotation", "generate_specification", "generate_drawing"];
 
 // Views that render the CollectionPage (a knowledge-base collection detail).
 export const COLLECTION_KEYS = [
