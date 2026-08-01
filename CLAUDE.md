@@ -42,6 +42,39 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-01 (final) — DRAWING AGENT LIVE + paint-shop categories wired (commit d4b7d5d)
+Everything buildable from the data on hand is now done. **THREE agents are live**; PG backed up
+2026-08-01 08:38 with all three inside. All **six** suites green.
+- **Flowise "Drawing Agent" BUILT** — `/workspace/persistent/drawing-agent-build.py` (clone the
+  Engineering Agent, same pattern as the Quotation Agent). Chatflow id
+  **`f486d388-d032-44bb-acb5-db9dad3b950d`**; tools `generate_drawing` (new tool row) +
+  `generate_specification` + `lookup_project` + `list_projects`; prompt **3,102 chars**.
+  **CRITICAL DESIGN POINT — the tool function DELETES `svg` before returning.**
+  `/api/tools/drawing` emits a ~16 KB sheet; giving that to llama3.1:8b swamps its context with
+  vector data it cannot use. The CANVAS renders the drawing; the model gets the summary, scale,
+  TBD schedule and BOM. If you ever rebuild that tool row, keep the `delete data.svg;` line.
+  Verified 3/3 per case: correct tool, `drawing_markdown` verbatim, no vector leak; plus
+  greetings / identity / confidentiality / spec-routing / list-routing all clean, and a bare
+  "draw it" correctly ASKS instead of inventing.
+- **Studio chat dock** — the agent decides, then the canvas is refreshed from the SAME
+  requirement via the deterministic endpoint, so agent and canvas cannot disagree.
+- **`app/drawing/envelope.py` (NEW)** — a wet scrubber never states L x W x H (it is specified by
+  airflow + tower diameter, height computed by the rule engine), so every chat-driven scrubber
+  drew as an unscaled, viewless sheet. The envelope is now composed from already-resolved
+  numbers: tower diameter = footprint, computed tower height = height. **Only client-given or
+  rule-computed values qualify** — a REUSED historical value is not a dimension of THIS machine —
+  and a partial envelope is refused outright. Add a category by adding one function to `_DERIVERS`.
+- **FOUR paint-shop categories live end to end**: `cleaning_room`, `buffing_booth`,
+  `flash_off_zone`, `paint_drying_oven` — classify keywords, catalog profiles wired to the
+  client's formulas via `_paint_shop_rules`, and spec templates. **Draft type flows through**:
+  down draft -> plan area, side draft -> side face, cross draft -> end face, unstated -> the
+  legacy default (verified 18 / 24 / 12 / 12 m² on a 6x3x4). The oven computes surface area and
+  sheet weight but reports exhaust as **TBD until an ACH is supplied** — the honest-gap contract
+  working as designed. The studio form picks all 14 categories up automatically (it is
+  catalog-driven), including the oven's extra `ach` field.
+- **Login for a live check** (`frontend/src/auth/AuthProvider.jsx`, no auth backend yet):
+  `admin` / `vitech@123` or `sales` / `vitech@123`. Forward 5173 / 3000 / 8000.
+
 ### ▶ 2026-08-01 (later still) — DRAWING AGENT: engine + studio BUILT (P0 + most of P1)
 Committed c46fd05 (backend) + da36ca2 (studio). `tests_drawing.py` (37 checks) added; all
 **six** suites green (golden / engineering / drawing / lookup / pricing / retrieval).
@@ -225,15 +258,14 @@ see items 2 and 3 below; both need their own investigation session.
 7. **No UI for the data-sheet generator yet** — `GET /api/datasheet/forms` +
    `POST /api/datasheet/pdf` work, but nothing in `frontend/` calls them. A picker + Download
    button is a small, high-visibility win.
-8. **Build the Flowise "Drawing Agent" chatflow** — the drawing ENGINE, its three endpoints and
-   the Drawing Studio UI are all built and tested (2026-08-01, see that entry); the only missing
-   piece is the chatflow itself, so the studio currently works from its form rather than chat.
-   Clone the Engineering Agent via a new `drawing-agent-build.py`, attach `generate_drawing` +
-   `generate_specification` + `lookup_project` + `list_projects`, keep the prompt SHORT and fold
-   rules into existing ones (never append a standalone rule block — see the 2026-08-01 lesson),
-   retest 3-5x with a Flowise restart between batches. Then P2 (DXF/PDF export) and more
-   category glyphs in `symbols.py`. Otherwise: platform upgrades (B1 reranker, D1 Qdrant+BGE-M3,
-   D2 DeepSeek R1); B0 / B0b still open below.
+8. **Drawing Agent is DONE (2026-08-01)** — engine, endpoints, studio UI and the Flowise
+   chatflow are all live. What is left there, in value order: **(a) more category glyphs** in
+   `app/drawing/symbols.py` — oven, dust collector, powder coating plant, conveyor; each is one
+   function, everything else is inherited; **(b) more derived envelopes** in
+   `app/drawing/envelope.py` for categories that do not state L x W x H (dust collector,
+   ducting) — same one-function pattern; **(c) P2 exports**, DXF (decide on `ezdxf`) and PDF
+   (the SVG stays the source of truth). Otherwise: platform upgrades (B1 reranker,
+   D1 Qdrant+BGE-M3, D2 DeepSeek R1); B0 / B0b still open below.
 9. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
    the container disk — the dump on the volume is its only lifeline), and push any commits.
 
@@ -621,8 +653,9 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   relevant agent; Rules → lists the 10 rule-backed equipment types). Sidebar has per-item
   icons + live/soon status dots (Priority 4).
 - **Flowise**: pinned + patched `3.0.13` at `/opt/flowise-app`, Postgres-backed, with
-  **TWO** chatflows built and verified end-to-end: **Engineering Agent** and
-  **Quotation Agent**.
+  **THREE** chatflows built and verified end-to-end: **Engineering Agent**,
+  **Quotation Agent** and **Drawing Agent** (`f486d388-d032-44bb-acb5-db9dad3b950d`,
+  built 2026-08-01 by `/workspace/persistent/drawing-agent-build.py`).
 - **Data**: 33 real Vitech offers in `backend/data/offers/*.json` (hand-extracted).
   Record schema: `{id, category, client, vendor, ref, date, source_file,
   given_data{}, technical_details{}, price_schedule{}}`.
