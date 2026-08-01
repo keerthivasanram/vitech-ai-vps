@@ -42,6 +42,76 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-01 (later) — CLIENT ENGINEERING CALCULATIONS LANDED (queue item 6 UNBLOCKED)
+The client delivered three things at once. All are now executable engineering, committed
+(854b042, 86373cf), with `tests_engineering.py` (45 checks) guarding them and all five suites
+green. **What arrived:**
+1. **Engineering-calculation document** ("New Microsoft Word Document.pdf") — the doc that had
+   blocked queue item 6 since 2026-07-30. Covers **Paint shop Plant only**; powder coating and
+   pollution-control equipment are explicitly "will give later" (chase them).
+2. **Vendor blower chart** (Continental Thermal Engineers, DIRECT DRIVE) — 203 models across
+   21 pressure classes.
+3. **A real costed BOM** — Vitech's own paint spray booth cost sheet dated 24.07.2026.
+
+**What was built:**
+- **`app/engineering/blower_service.py`** — the chart as data + catalogue-only selection. It
+  returns a REAL model or None, never an interpolated machine. **Validated against the client's
+  own BOM**: their booth line reads 'CLP-4" WC-10 HP-9000Cfm-Direct Drive' and `select_booth_
+  blower(9000)` reproduces `CLP-4-10-9000` exactly. That assertion is the anchor test — keep it.
+  **Design note worth not re-litigating**: booth selection pins the **CLP-4 pressure class**
+  (the family the client actually builds) rather than a flat static-pressure floor, because
+  static pressure *within* a series is the FAN CURVE — it falls from 95 mmwc at 1600 CFM to 54
+  at 61000. A fixed floor pushed larger booths out of CLP-4 into costlier high-pressure series
+  and broke monotonic scaling. `select_booth_blower_set()` splits across N machines when a duty
+  exceeds the largest model.
+- **`app/engineering/paint_shop_service.py`** — the client's formulas transcribed literally:
+  exhaust = area x velocity (area chosen by draft direction: down=plan LxW, cross=end WxH,
+  side=side LxH), inlet air +10% for rooms/zones and −10% for booths (nil for side draft, so
+  booths stay under suction), 5-side surface area with the floor excluded, oven heat load
+  100 ft3 = 12 kW then kW x 860 = kCal. **The two values the document does NOT give are not
+  invented**: face velocity falls back to the existing NFPA 33 constant (0.45 m/s), and with no
+  ACH the oven exhaust is simply not returned so the caller shows a TBD. **When the draft type
+  is unstated the legacy default (WxH) is preserved** — that is what kept the goldens honest.
+- **Booth spec now emits catalogue-backed rows**: exhaust blower model, its rated CFM, motor HP,
+  drive, plus inlet air volume and enclosure sheet weight. This **replaced the invented
+  `FAN_CAPACITY = 13000 m3/h per fan` constant** with real vendor data (and removed the
+  "Exhaust fans" row; `rule_covers`/`rule_value_map`/`spec_template` updated to match).
+  **Gotcha hit and fixed**: `engineering_planner._match_rule` matches a value label to a rule by
+  SUBSTRING, so "Exhaust blower (nos)" matched the "Exhaust blower" rule but "Blower airflow
+  (CFM)" did not — and the fallback silently stamps origin **"given"**, i.e. it would have
+  attributed vendor catalogue data to the customer. Every emitted value now carries its OWN
+  RuleResult with formula + standard. A test asserts only "Dimensions"/"Paint process" lack one.
+- **`app/engineering/rate_card.py`** — the client's real rates: MS sheet/plate Rs 85/kg + Rs 45/kg
+  fabrication, sections Rs 75/kg + Rs 50/kg, painting Rs 35/sq.ft, motors Rs 3,500/HP, and 21
+  named bought-outs at unit price. Three are wired into `pricing_intelligence`, closing that
+  part of the standing CLIENT ACTION. The seeded fabrication rate had been Rs 85/kg against an
+  actual **Rs 45/kg** (nearly double) and motors Rs 4,500/HP against **Rs 3,500/HP**.
+- **Goldens recaptured** (documented, as on 2026-07-26): **only the 3 paint_booth cases move**
+  (confidence 81->86%, TBD fields 10->8, rule-backed decisions 4->8); all 4 wet-scrubber and all
+  3 knowledge cases byte-identical — that is the proof the change is scoped to the booth path.
+
+**THE KEY UNFINISHED FINDING — read before touching cost-plus.** With the real rates in, the
+cost-plus vs history divergence on a paint booth got *worse* (−41% -> −57%). The rates were not
+the problem. Breaking down the client's own BOM shows why:
+  structural steel 696 kg -> Rs 93,968 (16.5%) | **bought-outs Rs 4,34,876 (76.5%)** | painting Rs 39,690 (7%)
+Bought-outs *dominate* a booth (blower 65k, control panel 95k, field wiring 1.15L, LED 38k, view
+glass 24k...), and our model represents them as **a flat 15% allowance on works cost**. That —
+not the rates — is the divergence, exactly as this file predicted ("cost-plus diverges for
+bought-out-heavy gear"). Separately, **two parts of the system now disagree on booth weight**:
+the engineering engine computes **1,240 kg** from the client's own formula, the pricing model
+guesses **3,645 kg** (SEED 180 kg/m2 x 1.35), and the client's actual BOM shows **696 kg**.
+**Deliberately NOT half-fixed**: correcting the weight alone makes the divergence worse, and a
+proper booth BOM cost model **cannot be validated** because the supplied BOM image has its first
+row cut off (visible lines sum to Rs 5,68,534 vs a stated Rs 6,49,264 — Rs 80,730 unexplained).
+**So: ask the client for the COMPLETE cost sheet**, then build a booth BOM cost model off
+`rate_card` + the engineering outputs (sheet weight, blower model, motor HP, filter area,
+painting area) and validate it against their total before trusting it.
+
+**Still to do from this delivery:** the four remaining paint-shop units (cleaning_room,
+buffing_booth, flash_off_zone, paint_drying_oven) have working formulas in
+`paint_shop_service` but are **not yet wired as catalog categories** (no `classify.py` keywords,
+no profile, no `spec_template`) — that is the natural next increment and is purely additive.
+
 ### ▶ TOMORROW — start here (as of 2026-08-01, end of session; pod running)
 State: pod rebuilt from a wiped container disk (`bootstrap-pod.sh` then `start-all.sh`), all 4
 services verified 200, golden/lookup/pricing/retrieval ALL PASS throughout. Both carry-over items
@@ -100,16 +170,17 @@ see items 2 and 3 below; both need their own investigation session.
    `backend/data/bulk/` is STILL EMPTY. When files land: `cd backend && .venv/bin/python -m
    rag.ingest data/bulk --equipment-type X --customer Y`, then `curl -X POST
    localhost:8000/api/admin/reload-index`, then verify the agent grounds + cites.
-6. **Engineering calculations per category — BLOCKED, client is delaying delivery (noted
-   2026-07-30).** The client committed to sending their engineering-calculation doc (formulas
-   per equipment type) but as of 2026-07-30 it still has not arrived — this is now the #1
-   blocker for turning the `spec_template` TBD rows into computed values. **Nothing to build
-   yet**; when the file lands (chat upload or `backend/data/bulk/`), the wiring is already
-   scoped: the new `spec_template`s (paint_booth, dust_collector, powder_coating_plant) resolve
-   what rules/history cover and honestly show the rest as TBD. Wiring each category's formulas
-   into `engineering/formula_service.py` (+ `field_rules`/`rules` in its catalog profile) turns
-   those TBDs into computed values. This is the client-input slot; **template labels must match
-   what the engine emits** (see the gotcha). Chase the client again if this is still open.
+6. **Engineering calculations — PAINT SHOP DELIVERED 2026-08-01 (see the entry above); two
+   categories still owed by the client.** The calculation doc covers **Paint shop Plant only**;
+   it states plainly that **Powder coating plant** and **Pollution control Equipment's** will
+   follow. **Chase those two.** Also still owed: (a) the **COMPLETE costed BOM** — the supplied
+   image has its first row cut off, which is what blocks a validated booth cost model (see the
+   KEY UNFINISHED FINDING above); (b) confirmation of the two constants the calc doc omits —
+   **face velocity** (we default to the NFPA 33 0.45 m/s already in the engine) and the **ACH**
+   for a drying room / oven (no default at all today, so oven exhaust stays TBD by design).
+   When the remaining docs land the pattern is established: transcribe into a service under
+   `app/engineering/`, cite it in `standards_service`, wire into the catalog profile, and guard
+   it in `tests_engineering.py`. **Template labels must match what the engine emits** (gotcha).
 7. **No UI for the data-sheet generator yet** — `GET /api/datasheet/forms` +
    `POST /api/datasheet/pdf` work, but nothing in `frontend/` calls them. A picker + Download
    button is a small, high-visibility win.
@@ -604,8 +675,25 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
   per-doc cap), `permissions.py` (`Principal`/role filter, allow-all default + restricted-
   category hook), `citations.py` (one per source, numbered), `response_formatter.py`
   (budgeted numbered context). `/api/tools/retrieve` now returns `citations` + `context`.
+- **Blower selection** (`app/engineering/blower_service.py`, added 2026-08-01): the client's
+  vendor chart (Continental Thermal, direct drive — 203 models / 21 pressure classes) as data.
+  `select_booth_blower(cfm)` returns a REAL catalogue model or None (never an interpolated
+  machine), pinned to the **CLP-4 pressure class** Vitech actually builds booths around;
+  `select_booth_blower_set` splits across N machines beyond the largest model. Reproduces the
+  client's own costed BOM line exactly (9000 CFM -> `CLP-4-10-9000`, 10 HP) — that is the anchor
+  test. This supersedes the old invented "13000 m3/h per fan" constant.
+- **Paint-shop calculations** (`app/engineering/paint_shop_service.py`, added 2026-08-01):
+  the client's own design document, transcribed literally — exhaust = area x velocity with the
+  area chosen by draft direction, inlet air +10% (rooms/zones) / −10% (booths) / nil (side
+  draft), 5-side surface area (floor excluded) -> sheet weight, and the oven's 100 ft3 = 12 kW
+  heat load. Values the document omits are NOT invented (see the CLIENT-CONFIRMATION slots).
+- **Rate card** (`app/engineering/rate_card.py`, added 2026-08-01): Vitech's real ₹/kg, ₹/HP,
+  ₹/sq.ft and bought-out unit prices from their costed BOM; feeds `pricing_intelligence`'s
+  cost-plus model in place of the seeded industry defaults.
 - **Golden tests**: `backend/tests_golden.py` (10 cases, byte-identical) — **run before and
-  after any engine change**, must stay ALL PASS. **Retrieval tests**: `backend/tests_retrieval.py`
+  after any engine change**, must stay ALL PASS. **Engineering tests**:
+  `backend/tests_engineering.py` (45 checks — the vendor chart, selection semantics, and every
+  formula in the client's calculation doc) — run after any `app/engineering/` change. **Retrieval tests**: `backend/tests_retrieval.py`
   (reranker/selector/permissions/citations/formatter/cache; model-free) — run after any
   `rag/` change. **Pricing tests**: `backend/tests_pricing.py` (headline stays historical;
   cost-plus/market signals present, consistent, deterministic) — run after any
