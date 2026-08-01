@@ -33,6 +33,7 @@ from .specification_pdf import render_specification_pdf
 from .ingest import ingest_source
 from .llm import generate_answer, stream_answer
 from .retriever import project_hits, retrieve
+from .schema import QueryUnderstanding
 from .store import get_collection
 from .understand import understand
 
@@ -383,6 +384,164 @@ def tool_spec(payload: dict = Body(...)):
     # knowledge mode, where the agent reasons from engineering knowledge instead.
     resp["spec_markdown"] = _spec_markdown(resp)
     return resp
+
+
+def _spec_for_drawing(q: str) -> dict:
+    """Resolve a requirement into the subset of the spec the drawing consumes."""
+    _, a, _ = _prepare(q, top_k=8, history=[])
+    return {
+        "category": a.get("category"),
+        "category_label": a.get("category_label"),
+        "geometry": _spec_geometry(a),
+        "technical_details": [
+            {"label": t.get("label"), "value": t.get("value"),
+             "origin": t.get("origin"), "kind": t.get("kind")}
+            for t in (a.get("technical_details") or [])
+        ],
+    }
+
+
+@app.get("/api/drawing/catalog")
+def drawing_catalog():
+    """Everything the Drawing Studio needs to build its form, as DATA.
+
+    The UI does not hard-code equipment types or their input fields — it renders
+    whatever this returns, so adding a category to `catalog.py` makes it
+    selectable in the studio with no frontend change. Categories that carry a
+    component glyph are flagged so the studio can show the depth on offer.
+    """
+    from .catalog import CATEGORY_PROFILES
+    from .drawing import sheet
+    from .drawing.symbols import SYMBOLS
+
+    def fields(profile, keys):
+        out = []
+        for key, label in profile.get(keys) or []:
+            unit = ("m" if key.endswith("_m") else
+                    "mm" if key.endswith("_mm") else
+                    "CFM" if key.endswith("_cfm") else
+                    "m3/h" if key.endswith("_cmh") else "")
+            out.append({
+                "key": key, "label": label, "unit": unit,
+                "type": "number" if (unit or key in ("qty",)) else "text",
+                "required": keys == "required_inputs",
+            })
+        return out
+
+    cats = []
+    for key, profile in CATEGORY_PROFILES.items():
+        req = fields(profile, "required_inputs")
+        opt = fields(profile, "optional_inputs")
+        cats.append({
+            "key": key,
+            "label": profile.get("label") or key.replace("_", " ").title(),
+            "has_symbols": key in SYMBOLS,
+            "dimension_keys": profile.get("dimension_keys") or [],
+            "fields": req + opt,
+        })
+    cats.sort(key=lambda c: (not c["has_symbols"], c["label"]))
+
+    return {
+        "categories": cats,
+        # Which views the engine can produce. Third-angle GA is the default;
+        # the others are the same engine with a restricted view set.
+        "drawing_types": [
+            {"key": "ga", "label": "General Arrangement (3 views)",
+             "description": "Plan, front and side elevation in third angle"},
+            {"key": "plan", "label": "Plan only",
+             "description": "Footprint / layout view"},
+            {"key": "elevation", "label": "Elevations only",
+             "description": "Front and side elevation"},
+        ],
+        "sheet_sizes": [{"key": k, "label": f"{k} ({int(w)} x {int(h)} mm)"}
+                        for k, (w, h) in sheet.SHEET_SIZES.items()],
+        "default_sheet": sheet.DEFAULT_SIZE,
+    }
+
+
+@app.post("/api/drawing/render")
+def drawing_render(payload: dict = Body(...)):
+    """Studio entry point: explicit category + field values -> GA drawing.
+
+    Distinct from the agent tool below, which parses a natural-language
+    requirement. Here the studio has already collected structured inputs, so
+    they are passed straight through as the requirement text the engine
+    resolves — keeping ONE resolution path rather than a parallel one that
+    could drift from the spec engine.
+    """
+    from .drawing.drawing_service import build_drawing
+
+    category = str(payload.get("category") or "").strip()
+    values = payload.get("values") or {}
+    if not category:
+        return {"ok": False, "error": "Select an equipment category."}
+
+    from .catalog import CATEGORY_PROFILES
+    profile = CATEGORY_PROFILES.get(category)
+    if not profile:
+        return {"ok": False, "error": f"Unknown category '{category}'."}
+
+    # The studio already HAS structured inputs, so they go straight into the
+    # resolver rather than being rendered to a sentence and re-parsed — a
+    # round-trip through natural language silently loses values whose phrasing
+    # the extractor does not recognise. Same resolver as the chat path, so the
+    # drawing can never disagree with the spec; only the input route differs.
+    params: dict = {}
+    for key, val in (values or {}).items():
+        if val in (None, ""):
+            continue
+        try:
+            params[key] = float(val) if str(val).replace(".", "", 1).lstrip("-").isdigit() else val
+        except (TypeError, ValueError):
+            params[key] = val
+
+    question = " ".join([str(profile.get("label") or category).lower()]
+                        + [f"{k}={v}" for k, v in params.items()])
+    u = QueryUnderstanding(intent="specification", category=category,
+                           parameters=dict(params), source="form")
+    a = resolve(question, retrieve(question, top_k=8, where={"category": category}),
+                u, ATS)
+    a["spec_mode"] = "data"
+    spec = {
+        "category": category,
+        "category_label": profile.get("label") or category,
+        "geometry": _spec_geometry(a),
+        "technical_details": [
+            {"label": t.get("label"), "value": t.get("value"),
+             "origin": t.get("origin"), "kind": t.get("kind")}
+            for t in (a.get("technical_details") or [])
+        ],
+    }
+
+    drawing = build_drawing(
+        spec,
+        sheet_size=str(payload.get("sheet_size") or "A3"),
+        client=str(payload.get("client") or ""),
+        ref=str(payload.get("ref") or ""),
+        drawn_by=str(payload.get("drawn_by") or ""),
+    )
+    drawing["requirement"] = question
+    return drawing
+
+
+@app.post("/api/tools/drawing", operation_id="generate_drawing")
+def tool_drawing(payload: dict = Body(...)):
+    """Requirement -> 2D general-arrangement drawing (deterministic geometry)."""
+    from .drawing.drawing_service import build_drawing
+
+    q = _tool_q(payload)
+    # Same guard as spec/quote: never draw from noise.
+    if not _named_requirement(q):
+        return {"ok": False, "need_requirement": True,
+                "message": ("No equipment requirement was given. Ask the user WHICH equipment and its "
+                            "size to draw. Do NOT generate a drawing, and do NOT invent any equipment "
+                            "or dimension the user did not state.")}
+    drawing = build_drawing(_spec_for_drawing(q),
+                            sheet_size=str(payload.get("sheet_size") or "A3"))
+    # The SVG is large and is for the canvas, not the chat: the agent gets the
+    # markdown summary and never has to echo vector data.
+    drawing["svg_bytes"] = len(drawing.get("svg") or "")
+    return drawing
 
 
 @app.post("/api/tools/quote", operation_id="generate_quotation")
