@@ -48,8 +48,31 @@ check("named client 'Yonex' returns Yonex records", bool(yon) and all("YONEX" in
 check("entity_hits ignores bare equipment words", entity_hits("water wall paint booth") == [],
       ids(entity_hits("water wall paint booth")))
 
-# 6) structured lookup needs a confident equipment type + a numeric attribute
+# 6) structured lookup needs a numeric attribute; the equipment type SCOPES the
+#    search but must not gate it (client report 2026-08-01: a dimensions-only
+#    question answered "no match", then fell through to relevance and returned
+#    unrelated projects).
 check("structured lookup empty without equipment+attrs", structured_project_hits("hello there") == [])
+
+_LABELLED = "is there any client we worked with Length: 0.9 meters Width: 0.92 meters Height: 2 meters"
+check("labelled dimensions with NO equipment word find the exact project",
+      ids(structured_project_hits(_LABELLED)) == ["OFF-YONEX-PB-367"],
+      ids(structured_project_hits(_LABELLED)))
+check("labelled dimensions in mm resolve identically",
+      ids(structured_project_hits("Length: 900 mm Width: 920 mm Height: 2000 mm")) == ["OFF-YONEX-PB-367"],
+      ids(structured_project_hits("Length: 900 mm Width: 920 mm Height: 2000 mm")))
+_WEAK = "which client did we do a 0.9 x 0.92 x 2 booth for"
+check("a weakly-classified equipment word still yields the exact match only",
+      ids(structured_project_hits(_WEAK)) == ["OFF-YONEX-PB-367"], ids(structured_project_hits(_WEAK)))
+# Assert on the EXACT-match path itself: structured_project_hits deliberately
+# falls back to a relevance search when nothing matches exactly, so a stray
+# number must fail to produce an exact hit rather than fail to return anything.
+from app.retriever import _exact_dimension_hit
+check("a single stray number cannot pick an exact project",
+      _exact_dimension_hit("the height is 3") == [],
+      ids(_exact_dimension_hit("the height is 3")))
+check("a lone capacity figure cannot pick an exact project without a category",
+      _exact_dimension_hit("800") == [], ids(_exact_dimension_hit("800")))
 
 # 7) equipment named but no parseable dimensions -> LIST the category's clients,
 #    never claim we have none (the "hot air oven U-type 6.5L -> no clients" bug)

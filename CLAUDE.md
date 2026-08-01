@@ -309,6 +309,35 @@ variables. Verified in a browser: 3-column grid, form generate, 8 layer toggles,
 light + dark, expanded mode, **0 console errors**. Functionality unchanged — the canvas still
 renders only backend-generated SVG.
 
+### ▶ 2026-08-01 (lookup fix) — dimension queries answered "no match", then the wrong projects
+User report: asking the Engineering Agent "is there any client we worked with Length: 0.9 /
+Width: 0.92 / Height: 2" said NO MATCH; pushed again it returned several unrelated records
+instead of the one exact project. **TWO independent root causes, both fixed, four regression
+checks added to `tests_lookup.py`.**
+1. **`retriever._exact_dimension_hit` was GATED on a confident equipment classification**
+   (`if not cat or score < CONFIDENT: return []`). A dimensions-only question classifies to
+   nothing, and "…0.9 x 0.92 x 2 booth for" classified paint_booth at only score 1 — so BOTH
+   skipped the exact-match path and fell through to `_relevant_offer_hits`, which returns a
+   relevance CLUSTER (Valv, Innotrans, Armstrong, NewSynergy). That cluster is the "some file
+   data, not the exact match" symptom. **Fix: the equipment type now SCOPES the search instead of
+   gating it** — a full L×W×H triple matching one offer on every axis is a stronger identifier
+   than a category keyword. Without a confident category at least TWO attributes must match, so a
+   lone "800" can never pick a project. It now collects ALL exact matches rather than returning
+   the first record the store happened to yield.
+2. **`understand._fallback` could only read "A x B x C"** — it had no pattern for LABELLED
+   dimensions ("Length: 0.9 meters, Width: 0.92 m"). This matters because `_exact_dimension_hit`
+   deliberately uses `_fallback` (deterministic, no LLM), so a shape the regex cannot read makes
+   the lookup answer "no match" even though `understand()` itself parsed the numbers fine via the
+   LLM path. **Fix: `_labelled_dims()`** handles `Length/Width/Height` (and long/wide/high/tall)
+   with mm/cm/m units, requiring at least two labels so a stray "height 3" in prose cannot
+   masquerade as a dimensioned requirement.
+**Verified live end-to-end**: all four phrasings (labelled metres, labelled mm, weak "booth",
+and the original "water wall paint booth") now return **Yonex alone**, and the agent answers
+correctly on the FIRST ask. Six suites green.
+**Lesson for similar reports:** when a lookup "finds nothing then finds the wrong things", check
+whether the precise path is gated behind a classification, and whether the DETERMINISTIC parser
+understands the user's phrasing — `understand()` passing does not mean `_fallback()` passes.
+
 ### ▶ NEXT SESSION — spec-quality work remaining (2 of 10 review defects + the gate)
 Eight of the client's ten review defects are closed (see the 2026-08-01 standards entry).
 What is left, in order:

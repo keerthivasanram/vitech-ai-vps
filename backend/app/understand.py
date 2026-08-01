@@ -164,6 +164,33 @@ def contextualize(question: str, history) -> str:
     return f"{prev} {q}" if prev else q
 
 
+_LABELLED_DIM = {
+    "length_m": re.compile(r"\b(?:length|long)\b\s*[:=-]?\s*(\d+(?:\.\d+)?)\s*(mm|cm|m\b|met(?:er|re)s?)?", re.I),
+    "width_m": re.compile(r"\b(?:width|wide)\b\s*[:=-]?\s*(\d+(?:\.\d+)?)\s*(mm|cm|m\b|met(?:er|re)s?)?", re.I),
+    "height_m": re.compile(r"\b(?:height|high|tall)\b\s*[:=-]?\s*(\d+(?:\.\d+)?)\s*(mm|cm|m\b|met(?:er|re)s?)?", re.I),
+}
+
+
+def _labelled_dims(q: str) -> dict:
+    """Dimensions written as labels rather than a product: "Length: 0.9 meters,
+    Width: 0.92 m, Height: 2". Returns metres. Only accepted when at least TWO
+    labels are present, so a stray "height 3" in prose cannot masquerade as a
+    dimensioned requirement."""
+    out: dict = {}
+    for key, rx in _LABELLED_DIM.items():
+        m = rx.search(q)
+        if not m:
+            continue
+        val = float(m.group(1))
+        unit = (m.group(2) or "").lower()
+        if unit.startswith("mm"):
+            val /= 1000.0
+        elif unit.startswith("cm"):
+            val /= 100.0
+        out[key] = val
+    return out if len(out) >= 2 else {}
+
+
 def _fallback(question: str) -> QueryUnderstanding:
     q = question.lower()
     u = QueryUnderstanding(source="regex")
@@ -171,7 +198,17 @@ def _fallback(question: str) -> QueryUnderstanding:
     params: dict = {}
 
     job_ctx = bool(_JOB_SIZE_CTX.search(q)) and u.category in _BOOTH_LIKE
-    if (m := _DIM_TRIPLE.search(q)):
+
+    # LABELLED dimensions ("Length: 0.9 meters, Width: 0.92 m, Height: 2") — the
+    # form people paste from a data sheet or a mail. Checked BEFORE the "A x B x C"
+    # patterns because the two never co-occur, and this parser is deterministic:
+    # `_exact_dimension_hit` relies on it (not on the LLM), so a shape it cannot
+    # read makes a dimension lookup answer "no match" and then fall through to a
+    # relevance search that returns unrelated projects.
+    labelled = _labelled_dims(q)
+    if labelled:
+        params.update(labelled)
+    elif (m := _DIM_TRIPLE.search(q)):
         dims = _dims_to_metres([float(m.group(1)), float(m.group(2)), float(m.group(3))], q, m.end())
         if job_ctx:
             params["job_size"] = _fmt_dims(dims)

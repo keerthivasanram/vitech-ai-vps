@@ -204,29 +204,47 @@ def _exact_dimension_hit(question: str) -> list[dict[str, Any]]:
     from .understand import _fallback                 # deterministic parse (no LLM)
 
     cat, score = classify_equipment(question)
-    if not cat or score < CONFIDENT:
-        return []
+    confident_cat = cat if (cat and score >= CONFIDENT) else None
+
     params = {k: v for k, v in _fallback(question).parameters.items()
               if isinstance(v, (int, float))}
     if not params:
         return []
+
+    # The equipment type SCOPES this search, it does not gate it. A full set of
+    # dimensions matching one offer on every axis is a stronger identifier than
+    # a category keyword — "Length: 0.9 / Width: 0.92 / Height: 2" names exactly
+    # one booth even though it mentions no equipment at all. Requiring a
+    # confident category here made those queries answer "no match" and then fall
+    # through to relevance search, which returned a cluster of unrelated offers.
+    # Without a confident category we demand at least two matching attributes, so
+    # a lone figure like "800" can never pick a project on its own.
+    if not confident_cat and len(params) < 2:
+        return []
+
     col = get_collection()
     if col.count() == 0:
         return []
     res = col.get(include=["documents", "metadatas"])
+    matches = []
     for doc, meta in zip(res["documents"], res["metadatas"]):
         raw = meta.get("_raw")
         if not raw:
             continue
         rec = json.loads(raw)
-        if rec.get("type", "offer") != "offer" or rec.get("category") != cat:
+        if rec.get("type", "offer") != "offer":
+            continue
+        if confident_cat and rec.get("category") != confident_cat:
             continue
         gd = rec.get("given_data", {}) or {}
         keys = [k for k in params if isinstance(gd.get(k), (int, float))]
         if keys and len(keys) == len(params) and all(
                 abs(params[k] - gd[k]) / max(abs(gd[k]), 1e-9) < 0.02 for k in keys):
-            return [_make_hit(rec, doc, score=0.99)]
-    return []
+            matches.append(_make_hit(rec, doc, score=0.99))
+    # Return every exact match. More than one means the dimensions genuinely fit
+    # several projects, which the caller should show rather than silently pick
+    # the first record the store happened to return.
+    return matches
 
 
 def _relevant_offer_hits(question: str, top_k: int = _REL_TOP_K) -> list[dict[str, Any]]:
