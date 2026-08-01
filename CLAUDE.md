@@ -42,6 +42,47 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-01 (later still) — DRAWING AGENT: engine + studio BUILT (P0 + most of P1)
+Committed c46fd05 (backend) + da36ca2 (studio). `tests_drawing.py` (37 checks) added; all
+**six** suites green (golden / engineering / drawing / lookup / pricing / retrieval).
+Full detail in `docs/drawing-agent-plan.md` §12 "Built vs remaining".
+- **`backend/app/drawing/`** — the deterministic geometry→vector engine, mirroring the
+  `engineering/` package split: `primitives` (mm vector model, byte-stable SVG, one `<g>` per
+  layer), `views` (third-angle plan/front/side + standard drafting scale), `symbols`
+  (paint_booth + wet_scrubber glyphs — **the registry is the client-extension point**),
+  `title_block` (shares `vitech_letterhead` constants), `sheet` (A4/A3/A2/A1 + legend + notes +
+  TBD schedule), `drawing_service` (`build_drawing(spec)`).
+- **Golden rule #2 in drafting terms**: dimensions come from `_spec_geometry`; an unknown axis
+  prints **TBD**, never a line. With no dimensions at all the sheet says "NO DIMENSIONED VIEWS"
+  and schedules every unknown instead of drawing a fabricated box. Component **positions** have
+  no engineered setting-out rules yet, so glyphs are deliberately **schematic, undimensioned**,
+  with a standing sheet note saying exactly that — but component **counts and models are real**,
+  read from the resolved spec (e.g. 9 filters, blower CLP-4-15-14500).
+- **Three endpoints**: `GET /api/drawing/catalog` (categories + per-category input fields +
+  drawing types + sheet sizes **as DATA**, so the studio form hard-codes no equipment list),
+  `POST /api/drawing/render` (studio structured-input path), `POST /api/tools/drawing` →
+  `operation_id: generate_drawing` (agent tool, same no-requirement guard as spec/quote).
+- **Drawing Studio UI rebuilt** on the real engine; the old client-side `lib/drawingSvg.js`
+  preview is **DELETED** — geometry living in both Python and JS is exactly the drift golden
+  rule #2 forbids. Verified in a live browser: 10 categories, drawing renders, 8 layer toggles,
+  hiding "Dimensions" removes exactly that layer, zero console errors.
+- **Gotcha — the studio feeds parameters STRAIGHT into the resolver**, it does not compose a
+  sentence and re-parse it. The first attempt did, and every dimension was silently lost
+  (unscaled, viewless sheet): the extractor does not recognise "5 m long 3 m wide". One
+  resolution path, two input routes.
+- **Two bugs that only surfaced by RENDERING the output**, not by reading the SVG: (a) the
+  document `<g>` sets `fill="none"` so outlines stay hollow, and `Text` did not override it —
+  every label, dimension and title-block entry was **invisible** while the markup looked
+  perfect; (b) component counts used a bare integer match, so "flame proof LED 700-800 LUX"
+  became **700 luminaires**. Counts now need an explicit `nos`/`set` marker. Both are pinned by
+  tests. **Lesson: screenshot generated graphics before believing them.**
+- **REMAINING**: the **Flowise "Drawing Agent" chatflow is NOT built** — today the studio drives
+  the engine through its form, not through chat. Clone the Engineering Agent
+  (`drawing-agent-build.py`), tools `generate_drawing` + `generate_specification` +
+  `lookup_project` + `list_projects`; the tool already returns `drawing_markdown` for the chat
+  plus the SVG for the canvas. **Heed the prompt-length lesson below.** Then P2 (DXF/PDF export)
+  and more category glyphs (oven, dust collector, powder coating, conveyor — one function each).
+
 ### ▶ 2026-08-01 (later) — CLIENT ENGINEERING CALCULATIONS LANDED (queue item 6 UNBLOCKED)
 The client delivered three things at once. All are now executable engineering, committed
 (854b042, 86373cf), with `tests_engineering.py` (45 checks) guarding them and all five suites
@@ -184,8 +225,15 @@ see items 2 and 3 below; both need their own investigation session.
 7. **No UI for the data-sheet generator yet** — `GET /api/datasheet/forms` +
    `POST /api/datasheet/pdf` work, but nothing in `frontend/` calls them. A picker + Download
    button is a small, high-visibility win.
-8. Otherwise: next agent (Drawing — plan in `docs/drawing-agent-plan.md`) or the platform
-   upgrades (B1 reranker, D1 Qdrant+BGE-M3, D2 DeepSeek R1); B0 / B0b still open below.
+8. **Build the Flowise "Drawing Agent" chatflow** — the drawing ENGINE, its three endpoints and
+   the Drawing Studio UI are all built and tested (2026-08-01, see that entry); the only missing
+   piece is the chatflow itself, so the studio currently works from its form rather than chat.
+   Clone the Engineering Agent via a new `drawing-agent-build.py`, attach `generate_drawing` +
+   `generate_specification` + `lookup_project` + `list_projects`, keep the prompt SHORT and fold
+   rules into existing ones (never append a standalone rule block — see the 2026-08-01 lesson),
+   retest 3-5x with a Flowise restart between batches. Then P2 (DXF/PDF export) and more
+   category glyphs in `symbols.py`. Otherwise: platform upgrades (B1 reranker, D1 Qdrant+BGE-M3,
+   D2 DeepSeek R1); B0 / B0b still open below.
 9. Before stopping the pod: `bash /workspace/persistent/pg-backup.sh` (agent lives in PG on
    the container disk — the dump on the volume is its only lifeline), and push any commits.
 
@@ -690,10 +738,18 @@ must stay ALL PASS.** Pod-side unless marked LOCAL:
 - **Rate card** (`app/engineering/rate_card.py`, added 2026-08-01): Vitech's real ₹/kg, ₹/HP,
   ₹/sq.ft and bought-out unit prices from their costed BOM; feeds `pricing_intelligence`'s
   cost-plus model in place of the seeded industry defaults.
+- **2D GA drawing engine** (`app/drawing/`, added 2026-08-01): turns `_spec_geometry`'s mm
+  envelope into a dimensioned general-arrangement sheet — `primitives` (byte-stable SVG, one
+  `<g>` per layer), `views` (third-angle + standard scale), `symbols` (per-category glyphs,
+  **client-extension point**), `title_block`, `sheet`, `drawing_service`. Unknown dimension ->
+  TBD callout, never a drawn line. Endpoints: `GET /api/drawing/catalog` (drives the studio
+  form as data), `POST /api/drawing/render`, `POST /api/tools/drawing` (`generate_drawing`).
 - **Golden tests**: `backend/tests_golden.py` (10 cases, byte-identical) — **run before and
   after any engine change**, must stay ALL PASS. **Engineering tests**:
   `backend/tests_engineering.py` (45 checks — the vendor chart, selection semantics, and every
-  formula in the client's calculation doc) — run after any `app/engineering/` change. **Retrieval tests**: `backend/tests_retrieval.py`
+  formula in the client's calculation doc) — run after any `app/engineering/` change.
+  **Drawing tests**: `backend/tests_drawing.py` (37 checks — determinism, layer structure,
+  scale choice, the honest-gap contract) — run after any `app/drawing/` change. **Retrieval tests**: `backend/tests_retrieval.py`
   (reranker/selector/permissions/citations/formatter/cache; model-free) — run after any
   `rag/` change. **Pricing tests**: `backend/tests_pricing.py` (headline stays historical;
   cost-plus/market signals present, consistent, deterministic) — run after any

@@ -1,9 +1,17 @@
 # Drawing Agent — Design Plan ("Vitech Drawing Studio")
 
-> Status: **PLAN** (not built). Third agent after Engineering (live) and
-> Quotation (live). Client framing: a **studio** — a visual, interactive place
-> where a requirement becomes a **2D General-Arrangement (GA) drawing** you can
-> see, tweak, annotate and export, with the chat driving the canvas.
+> Status: **P0 + most of P1 BUILT (2026-08-01)** — the deterministic drawing
+> engine (`backend/app/drawing/`), the three endpoints, and the Drawing Studio
+> UI wired to them are live and tested (`tests_drawing.py`, 37 checks). What
+> remains of P1 is the **Flowise "Drawing Agent" chatflow** itself: today the
+> studio drives the engine through its form, not through chat. P2 (DXF/PDF
+> export, more views) and P3 (annotations, more categories) are untouched.
+> See "Built vs remaining" at the end of this document.
+>
+> Third agent after Engineering (live) and Quotation (live). Client framing: a
+> **studio** — a visual, interactive place where a requirement becomes a **2D
+> General-Arrangement (GA) drawing** you can see, tweak, annotate and export,
+> with the chat driving the canvas.
 
 ## 1. What "studio" means here
 Not a chat that returns an image. A **split workspace**: conversation on the
@@ -158,3 +166,55 @@ Promote `drawing` to a **live split view** (chat | canvas), not a RoadmapPage:
   schedule is a first-class sheet element, not an error.
 - **Prompt discipline**: llama3.1 degrades past ~4k chars (see Quotation Agent) —
   keep the Drawing Agent prompt short; the canvas carries the output, not chat.
+
+---
+
+## 12. Built vs remaining (as of 2026-08-01)
+
+### Built and tested
+- **`backend/app/drawing/`** — `primitives` (mm vector model, byte-stable SVG,
+  one `<g>` per layer), `views` (third-angle projection + standard scale
+  choice), `symbols` (paint booth + wet scrubber glyphs; the registry is the
+  extension point), `title_block` (shares the `vitech_letterhead` constants),
+  `sheet` (A4/A3/A2/A1, legend, notes, TBD schedule), `drawing_service`
+  (`build_drawing(spec)`).
+- **Endpoints** — `GET /api/drawing/catalog` (categories + their input fields +
+  drawing types + sheet sizes, as DATA so the UI hard-codes nothing),
+  `POST /api/drawing/render` (the studio's structured-input path), and
+  `POST /api/tools/drawing` → `operation_id: generate_drawing` (the agent tool,
+  with the same no-requirement guard as spec/quote).
+- **Drawing Studio UI** — category / drawing-type / sheet pickers, per-category
+  input fields rendered from the catalog, title-block fields, pan-zoom canvas,
+  layer toggles built from the sheet's own layers, legend, TBD schedule, BOM and
+  SVG export. The old client-side `lib/drawingSvg.js` preview is **deleted** —
+  geometry living in both Python and JS is precisely the drift golden rule #2
+  forbids.
+- **`tests_drawing.py`** (37 checks) — determinism, layer structure, standard
+  scale choice, the honest-gap contract, and the two regressions that only
+  surfaced by *rendering* the output rather than trusting it (see below).
+
+### Two bugs worth remembering
+- **Invisible text.** The document `<g>` sets `fill="none"` so outlines stay
+  hollow; `Text` did not override it, so every label, dimension and title-block
+  entry rendered invisibly while the SVG looked structurally perfect. `Text` now
+  sets `fill="currentColor"` explicitly, and a test asserts it.
+- **A LUX rating read as a count.** Component counts were taken with a bare
+  integer match, so `"flame proof LED 700-800 LUX"` produced *700 luminaires*.
+  Counts now require an explicit `nos`/`set` marker (`_nos`), and fall back to
+  drawing nothing rather than inventing a quantity.
+
+### Remaining
+1. **Flowise "Drawing Agent" chatflow** — clone the Engineering Agent
+   (`drawing-agent-build.py`), tools `generate_drawing` +
+   `generate_specification` + `lookup_project` + `list_projects`, short prompt
+   per §7. The backend tool is ready and already returns `drawing_markdown` for
+   the chat plus the SVG for the canvas. **Heed the prompt lesson**
+   (CLAUDE.md 2026-08-01): fold rules into existing ones, never append a
+   standalone rule block, and retest 3-5x with a Flowise restart between batches.
+2. **P2 exports** — DXF (decide on `ezdxf`) and PDF (the SVG stays the source of
+   truth).
+3. **More category glyphs** — oven, dust collector, powder coating plant,
+   conveyor. Each is one function in `symbols.py`; everything else is inherited.
+4. **Component setting-out rules from the client** (§10.4) — until they arrive,
+   glyphs stay schematic and undimensioned, and every sheet says so in a
+   standing note.
