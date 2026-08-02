@@ -3,201 +3,430 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ATS Engineering Assistant — Architecture</title>
+<title>Vitech AI Engineering Platform — Architecture &amp; Workflow</title>
 <style>
   :root{
-    --bg:#ffffff; --bg2:#f8fafc; --text:#0f172a; --muted:#64748b;
-    --accent:#4f6ef7; --accent-2:#3451e0; --ok:#059669; --border:#e2e8f0;
-    --shadow:0 1px 3px rgba(0,0,0,.06), 0 8px 30px rgba(15,23,42,.08);
+    --bg:#ffffff; --bg2:#f6f8fb; --text:#0f172a; --muted:#5b6b82;
+    --accent:#2f6f4e; --amber:#b45309; --red:#b91c1c;
+    --border:#e3e8ef; --soft:#f1f5f9; --det:#0f766e; --gen:#7c3aed;
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 32px rgba(16,24,40,.07);
   }
   *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg2); color:var(--text);
-    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1240px; margin:0 auto; padding:32px 24px 56px}
-  header.page{margin-bottom:18px}
-  header.page .kicker{
-    font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
-    color:var(--accent);
-  }
-  header.page h1{margin:6px 0 4px; font-size:26px; letter-spacing:-.01em}
-  header.page p{margin:0; color:var(--muted); font-size:15px}
-  .card{
-    background:var(--bg); border:1px solid var(--border); border-radius:16px;
-    box-shadow:var(--shadow); padding:20px 20px 8px;
-  }
-  svg{width:100%; height:auto; display:block}
-  .notes{
-    margin-top:26px; display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
-  }
-  .note{
-    background:var(--bg); border:1px solid var(--border); border-radius:14px;
-    padding:16px 18px; box-shadow:0 1px 2px rgba(0,0,0,.04);
-  }
-  .note h3{margin:0 0 6px; font-size:14px; display:flex; align-items:center; gap:8px}
-  .note h3 .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
-  .note p{margin:0; font-size:13px; color:#475569; line-height:1.5}
-  .foot{margin-top:22px; text-align:center; color:var(--muted); font-size:12.5px}
-  @media (max-width:820px){ .notes{grid-template-columns:1fr} }
+  body{margin:0;background:var(--bg2);color:var(--text);
+       font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.55}
+  .wrap{max-width:1180px;margin:0 auto;padding:34px 22px 64px}
+  header.page .kicker{font-size:11.5px;font-weight:800;letter-spacing:.16em;
+       text-transform:uppercase;color:var(--accent)}
+  header.page h1{margin:8px 0 6px;font-size:29px;letter-spacing:-.02em}
+  header.page p.lede{margin:0;color:var(--muted);font-size:16px;max-width:78ch}
+  .meta{margin-top:14px;font-size:12.5px;color:var(--muted)}
+  .meta b{color:var(--text)}
+  .card{background:var(--bg);border:1px solid var(--border);border-radius:14px;
+        box-shadow:var(--shadow);padding:22px;margin:22px 0}
+  h2{font-size:19px;margin:34px 0 10px;letter-spacing:-.01em}
+  h2 .num{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:8px}
+  h3{font-size:14.5px;margin:18px 0 6px}
+  p{margin:8px 0}
+  code{background:var(--soft);border:1px solid var(--border);border-radius:5px;
+       padding:1px 5px;font-size:12.5px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .lead{color:var(--muted);font-size:14.5px;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:13.2px;margin:12px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);
+        vertical-align:top}
+  th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+     font-weight:700;background:var(--soft)}
+  tbody tr:last-child td{border-bottom:none}
+  .chip{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;
+        padding:2px 7px;border-radius:999px;vertical-align:middle;white-space:nowrap}
+  .det{background:#ccfbf1;color:var(--det)}
+  .gen{background:#ede9fe;color:var(--gen)}
+  .ok{background:#dcfce7;color:#166534}
+  .blocked{background:#fee2e2;color:var(--red)}
+  .partial{background:#fef3c7;color:var(--amber)}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+  .box{border:1px solid var(--border);border-radius:11px;padding:14px 15px;background:var(--bg)}
+  .box.det{background:#f0fdfa;border-color:#99f6e4}
+  .box.gen{background:#faf5ff;border-color:#ddd6fe}
+  .box h3{margin:0 0 8px}
+  .box ul{margin:6px 0 0;padding-left:18px}
+  .box li{margin:4px 0;font-size:13.2px}
+  .rule{border-left:3px solid var(--accent);background:#f0fdf4;padding:12px 15px;
+        border-radius:0 10px 10px 0;margin:14px 0}
+  .rule b{color:var(--accent)}
+  .warn{border-left:3px solid var(--amber);background:#fffbeb;padding:12px 15px;
+        border-radius:0 10px 10px 0;margin:14px 0}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  svg{display:block;max-width:100%;height:auto}
+  .cap{font-size:12px;color:var(--muted);margin-top:8px}
+  footer{margin-top:40px;font-size:12.5px;color:var(--muted);
+         border-top:1px solid var(--border);padding-top:16px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="page">
-    <div class="kicker">ATS Engineering Assistant</div>
-    <h1>How the system works</h1>
-    <p>From a client requirement to a traceable engineering specification — and the roadmap beyond it.</p>
-  </header>
 
-  <div class="card">
-  <svg viewBox="0 0 1280 820" role="img" aria-label="Architecture flow diagram">
-    <defs>
-      <marker id="arw" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth">
-        <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
-      </marker>
-      <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="1.2" stdDeviation="2.2" flood-color="#0f172a" flood-opacity="0.12"/>
-      </filter>
-      <style>
-        text{font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-        .mid{text-anchor:middle}
-      </style>
-    </defs>
+<header class="page">
+  <div class="kicker">Vitech Enviro Systems</div>
+  <h1>AI Engineering Platform — Architecture &amp; Workflow</h1>
+  <p class="lede">An engineering assistant that turns a client requirement into a
+  specification, a general-arrangement drawing, a bill of materials and a budgetary
+  quotation — all from one deterministic engineering model, with every number traceable
+  to a rule, a standard or a named historical project.</p>
+  <div class="meta">Current as of <b>2 August 2026</b> &middot; 3 live agents &middot;
+  14 equipment categories &middot; 33 historical offers &middot; 8 test suites green</div>
+</header>
 
-    <!-- ===== Title ===== -->
-    <text class="mid" x="640" y="42" font-size="24" font-weight="700" fill="#0f172a">ATS Engineering Assistant</text>
-    <text class="mid" x="640" y="66" font-size="13.5" fill="#64748b">Requirement → understanding → retrieval → the resolver → plain-language answer</text>
+<div class="rule">
+  <b>The rule the whole system is built around.</b> Numbers are deterministic. Every
+  dimension, capacity, count, material and price is produced by engineering rules,
+  client standards or historical data <em>in code</em>. The language model routes
+  requests and writes prose — it never invents a number. Where the engineering cannot
+  answer, the platform says so explicitly rather than filling the gap.
+</div>
 
-    <!-- ===== KNOWLEDGE (loaded once) ===== -->
-    <text x="40" y="112" font-size="12" font-weight="700" letter-spacing="1.5" fill="#64748b">KNOWLEDGE · LOADED ONCE</text>
+<h2><span class="num">1</span>System architecture</h2>
+<p class="lead">Four layers. Flowise orchestrates conversation; Python owns all
+engineering; the browser only renders.</p>
 
-    <rect x="40"  y="126" width="196" height="60" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
-    <text class="mid" x="138" y="152" font-size="13" font-weight="700" fill="#334155">33 real Vitech offers</text>
-    <text class="mid" x="138" y="171" font-size="11" fill="#64748b">structured JSON</text>
+<div class="card scroll">
+<svg viewBox="0 0 1080 700" role="img" aria-label="System architecture diagram">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#7b8794"/>
+    </marker>
+    <style>
+      .lbl{font:600 12.5px Inter,system-ui,sans-serif;fill:#0f172a}
+      .sub{font:11px ui-monospace,Menlo,monospace;fill:#5b6b82}
+      .tier{font:700 10.5px Inter,sans-serif;fill:#5b6b82;letter-spacing:1.4px}
+      .flow{stroke:#7b8794;stroke-width:1.5;fill:none;marker-end:url(#a)}
+    </style>
+  </defs>
 
-    <line x1="238" y1="156" x2="264" y2="156" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+  <text class="tier" x="24" y="26">PRESENTATION — React + Vite</text>
+  <rect x="24" y="36" width="1032" height="78" rx="11" fill="#f8fafc" stroke="#e3e8ef"/>
+  <rect x="44" y="52" width="228" height="46" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <text class="lbl" x="58" y="72">Engineering Chat</text><text class="sub" x="58" y="88">spec | knowledge | lookup</text>
+  <rect x="288" y="52" width="228" height="46" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <text class="lbl" x="302" y="72">Quotation Chat</text><text class="sub" x="302" y="88">price | compare | revise</text>
+  <rect x="532" y="52" width="248" height="46" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <text class="lbl" x="546" y="72">Drawing Studio</text><text class="sub" x="546" y="88">canvas | layers | revisions</text>
+  <rect x="796" y="52" width="240" height="46" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <text class="lbl" x="810" y="72">Knowledge Base</text><text class="sub" x="810" y="88">collections | facets</text>
 
-    <rect x="266" y="126" width="168" height="60" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
-    <text class="mid" x="350" y="152" font-size="13" font-weight="700" fill="#334155">Embed · MiniLM</text>
-    <text class="mid" x="350" y="171" font-size="11" fill="#64748b">local, on-device</text>
+  <text class="tier" x="24" y="152">ORCHESTRATION — FLOWISE 3.0.13 | TOOL AGENTS | llama3.1:8b @ temp 0</text>
+  <rect x="24" y="162" width="1032" height="92" rx="11" fill="#faf5ff" stroke="#ddd6fe"/>
+  <rect x="52" y="180" width="300" height="58" rx="8" fill="#fff" stroke="#c4b5fd"/>
+  <text class="lbl" x="68" y="202">Engineering Agent</text>
+  <text class="sub" x="68" y="220">spec | quote | lookup | retrieve | list</text>
+  <rect x="378" y="180" width="300" height="58" rx="8" fill="#fff" stroke="#c4b5fd"/>
+  <text class="lbl" x="394" y="202">Quotation Agent</text>
+  <text class="sub" x="394" y="220">quote | lookup | retrieve | list</text>
+  <rect x="704" y="180" width="304" height="58" rx="8" fill="#fff" stroke="#c4b5fd"/>
+  <text class="lbl" x="720" y="202">Drawing Agent</text>
+  <text class="sub" x="720" y="220">drawing | spec | lookup | list</text>
 
-    <line x1="436" y1="156" x2="462" y2="156" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+  <text class="tier" x="24" y="292">TOOL API — FastAPI | the contract between conversation and engineering</text>
+  <rect x="24" y="302" width="1032" height="62" rx="11" fill="#f0fdfa" stroke="#99f6e4"/>
+  <g class="sub" fill="#0f766e">
+    <text x="44" y="330">generate_specification</text>
+    <text x="200" y="330">generate_quotation</text>
+    <text x="338" y="330">generate_drawing</text>
+    <text x="462" y="330">generate_bom</text>
+    <text x="572" y="330">lookup_project</text>
+    <text x="682" y="330">retrieve_knowledge</text>
+    <text x="818" y="330">list_projects</text>
+    <text x="926" y="330">list_filters</text>
+    <text x="44" y="350">/api/drawing/render | /from-spec | /export (SVG, DXF, PDF) | /api/bom | /api/specification/pdf | /api/datasheet/pdf</text>
+  </g>
 
-    <rect x="464" y="126" width="300" height="60" rx="10" fill="#1e3a8a" filter="url(#sh)"/>
-    <text class="mid" x="614" y="152" font-size="14" font-weight="700" fill="#ffffff">ChromaDB Knowledge Base</text>
-    <text class="mid" x="614" y="171" font-size="11" fill="#c7d2fe">vectors + structured fields</text>
+  <text class="tier" x="24" y="402">ENGINEERING CORE — deterministic Python</text>
+  <rect x="24" y="412" width="1032" height="182" rx="11" fill="#f0fdf4" stroke="#bbf7d0"/>
 
-    <rect x="812" y="126" width="428" height="60" rx="10" fill="#d9f7f1" stroke="#0d9488" filter="url(#sh)"/>
-    <text class="mid" x="1026" y="151" font-size="13.5" font-weight="700" fill="#0f5f57">Engineering standards &amp; ATS design rules</text>
-    <text class="mid" x="1026" y="171" font-size="11" fill="#0f5f57">airflow velocities · sizing formulas · material specs</text>
+  <rect x="44" y="430" width="238" height="146" rx="9" fill="#fff" stroke="#86efac"/>
+  <text class="lbl" x="58" y="452">Resolver</text>
+  <text class="sub" x="58" y="470">understand | classify</text>
+  <text class="sub" x="58" y="486">agent_router | retriever</text>
+  <text class="sub" x="58" y="502">resolver | analysis</text>
+  <text class="sub" x="58" y="518">spec_template (TBD gate)</text>
+  <text class="sub" x="58" y="534">validate | release_gate</text>
+  <text class="sub" x="58" y="550">ledger (audit trail)</text>
+  <text class="sub" x="58" y="566">catalog (14 categories)</text>
 
-    <!-- ===== LIVE lane ===== -->
-    <text x="40" y="248" font-size="12" font-weight="700" letter-spacing="1.5" fill="#64748b">LIVE · EVERY QUESTION</text>
+  <rect x="298" y="430" width="238" height="146" rx="9" fill="#fff" stroke="#86efac"/>
+  <text class="lbl" x="312" y="452">engineering/</text>
+  <text class="sub" x="312" y="470">formula_service</text>
+  <text class="sub" x="312" y="486">design_standards</text>
+  <text class="sub" x="312" y="502">paint_shop_service</text>
+  <text class="sub" x="312" y="518">blower_service (203)</text>
+  <text class="sub" x="312" y="534">material | standards</text>
+  <text class="sub" x="312" y="550">unit_converter | calc</text>
+  <text class="sub" x="312" y="566">rate_card (client rates)</text>
 
-    <!-- feeders -->
-    <line x1="590" y1="188" x2="470" y2="388" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arw)"/>
-    <line x1="990" y1="188" x2="838" y2="300" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arw)"/>
+  <rect x="552" y="430" width="238" height="146" rx="9" fill="#fff" stroke="#86efac"/>
+  <text class="lbl" x="566" y="452">drawing/</text>
+  <text class="sub" x="566" y="470">primitives (mm vectors)</text>
+  <text class="sub" x="566" y="486">views (third angle)</text>
+  <text class="sub" x="566" y="502">symbols (14 glyphs)</text>
+  <text class="sub" x="566" y="518">envelope | fields</text>
+  <text class="sub" x="566" y="534">sheet | title_block</text>
+  <text class="sub" x="566" y="550">spec_parser</text>
+  <text class="sub" x="566" y="566">export (DXF, PDF)</text>
 
-    <!-- User -->
-    <rect x="30" y="390" width="150" height="80" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
-    <text class="mid" x="105" y="424" font-size="13" font-weight="700" fill="#334155">User question</text>
-    <text class="mid" x="105" y="444" font-size="11" fill="#64748b">React UI</text>
-    <line x1="180" y1="430" x2="204" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+  <rect x="806" y="430" width="230" height="146" rx="9" fill="#fff" stroke="#86efac"/>
+  <text class="lbl" x="820" y="452">Commercial</text>
+  <text class="sub" x="820" y="470">bom (quantities)</text>
+  <text class="sub" x="820" y="486">pricing (historical)</text>
+  <text class="sub" x="820" y="502">pricing_intelligence</text>
+  <text class="sub" x="820" y="518">quotation</text>
+  <text class="sub" x="820" y="534">quotation_pdf</text>
+  <text class="sub" x="820" y="550">specification_pdf</text>
+  <text class="sub" x="820" y="566">datasheet_pdf</text>
 
-    <!-- Understand -->
-    <rect x="206" y="390" width="150" height="80" rx="10" fill="#fef3e2" stroke="#d97706" filter="url(#sh)"/>
-    <text class="mid" x="281" y="418" font-size="13" font-weight="700" fill="#92400e">Understand</text>
-    <text class="mid" x="281" y="437" font-size="10.5" fill="#92400e">intent · category</text>
-    <text class="mid" x="281" y="453" font-size="10.5" fill="#92400e">· parameters</text>
-    <line x1="356" y1="430" x2="382" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+  <text class="tier" x="24" y="632">DATA</text>
+  <rect x="24" y="642" width="1032" height="46" rx="11" fill="#f8fafc" stroke="#e3e8ef"/>
+  <text class="sub" x="44" y="670" fill="#0f172a">33 offers (JSON)</text>
+  <text class="sub" x="190" y="670" fill="#0f172a">ChromaDB — vectors + rag/ retrieval</text>
+  <text class="sub" x="470" y="670" fill="#0f172a">PostgreSQL — chatflows &amp; agent prompts</text>
+  <text class="sub" x="800" y="670" fill="#0f172a">Redis — sessions, cache</text>
 
-    <!-- Retrieve -->
-    <rect x="384" y="390" width="150" height="80" rx="10" fill="#e5eaff" stroke="#4f6ef7" filter="url(#sh)"/>
-    <text class="mid" x="459" y="418" font-size="13" font-weight="700" fill="#26308a">Retrieve</text>
-    <text class="mid" x="459" y="437" font-size="10.5" fill="#26308a">similar past offers</text>
-    <text class="mid" x="459" y="453" font-size="10.5" fill="#26308a">(category-filtered)</text>
-    <line x1="534" y1="430" x2="556" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+  <path class="flow" d="M540 114 L540 158"/>
+  <path class="flow" d="M540 254 L540 298"/>
+  <path class="flow" d="M540 364 L540 408"/>
+  <path class="flow" d="M540 594 L540 638"/>
+</svg>
+<p class="cap">Ollama serves <code>llama3.1:8b</code> to Flowise only. It never touches the
+engineering core &mdash; the link between them is a tool call carrying a requirement in and
+structured numbers out.</p>
+</div>
 
-    <!-- ===== RESOLVER (hero) ===== -->
-    <rect x="558" y="300" width="322" height="282" rx="14" fill="#ffffff" stroke="#4f6ef7" stroke-width="2.5" filter="url(#sh)"/>
-    <text class="mid" x="719" y="329" font-size="15" font-weight="700" fill="#26308a">Specification Resolver</text>
-    <text class="mid" x="719" y="348" font-size="11" fill="#64748b">one engine — the policy decides who may author a value</text>
+<h2><span class="num">2</span>Engineering workflow</h2>
+<p class="lead">One requirement, one resolved model, four documents. Every stage is
+deterministic and every output is a reviewed draft, never an auto-sent document.</p>
 
-    <rect x="574" y="362" width="140" height="30" rx="7" fill="#fef3e2" stroke="#d97706"/>
-    <text class="mid" x="644" y="381" font-size="11" font-weight="700" fill="#92400e">Consulting · knowledge</text>
-    <rect x="724" y="362" width="150" height="30" rx="7" fill="#4f6ef7"/>
-    <text class="mid" x="799" y="381" font-size="11" font-weight="700" fill="#ffffff">ATS · data</text>
+<div class="card scroll">
+<svg viewBox="0 0 1080 640" role="img" aria-label="Engineering workflow diagram">
+  <defs>
+    <marker id="b" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#2f6f4e"/>
+    </marker>
+    <marker id="c" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#b45309"/>
+    </marker>
+    <style>
+      .s{font:700 13px Inter,sans-serif;fill:#0f172a}
+      .d{font:11px ui-monospace,Menlo,monospace;fill:#5b6b82}
+      .n{font:600 11.5px Inter,sans-serif;fill:#2f6f4e}
+      .w{font:600 11.5px Inter,sans-serif;fill:#b45309}
+      .arrow{stroke:#2f6f4e;stroke-width:1.8;fill:none;marker-end:url(#b)}
+      .gate{stroke:#b45309;stroke-width:1.6;fill:none;marker-end:url(#c);stroke-dasharray:5 3}
+    </style>
+  </defs>
 
-    <rect x="574" y="402" width="300" height="28" rx="7" fill="#d9f7f1" stroke="#0d9488"/>
-    <text class="mid" x="724" y="421" font-size="11" font-weight="600" fill="#0f5f57">Rule engine — formulas + standards</text>
-    <rect x="574" y="436" width="300" height="28" rx="7" fill="#e5eaff" stroke="#4f6ef7"/>
-    <text class="mid" x="724" y="455" font-size="11" font-weight="600" fill="#26308a">Case-based — your historical offers</text>
-    <rect x="574" y="470" width="300" height="28" rx="7" fill="#f1f5f9" stroke="#cbd5e1"/>
-    <text class="mid" x="724" y="489" font-size="11" font-weight="600" fill="#334155">Provenance + decision ledger</text>
-    <rect x="574" y="504" width="300" height="28" rx="7" fill="#f1f5f9" stroke="#cbd5e1"/>
-    <text class="mid" x="724" y="523" font-size="11" font-weight="600" fill="#334155">Validation + confidence score</text>
-    <text class="mid" x="719" y="556" font-size="10.5" font-style="italic" fill="#64748b">Rules + your data write the numbers — never invented</text>
+  <rect x="24" y="20" width="248" height="58" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text class="s" x="40" y="44">Client requirement</text>
+  <text class="d" x="40" y="63">chat | studio form | pasted spec</text>
+  <path class="arrow" d="M148 78 L148 112"/>
 
-    <line x1="880" y1="430" x2="904" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+  <rect x="24" y="114" width="248" height="66" rx="9" fill="#faf5ff" stroke="#ddd6fe"/>
+  <text class="s" x="40" y="137">1 - Understand</text>
+  <text class="d" x="40" y="155">intent + parameters</text>
+  <text class="d" x="40" y="171">LLM, with a regex fallback</text>
+  <path class="arrow" d="M148 180 L148 214"/>
 
-    <!-- LLM -->
-    <rect x="906" y="390" width="150" height="80" rx="10" fill="#f1f5f9" stroke="#cbd5e1" filter="url(#sh)"/>
-    <text class="mid" x="981" y="424" font-size="13" font-weight="700" fill="#334155">LLM</text>
-    <text class="mid" x="981" y="444" font-size="11" fill="#64748b">writes the wording only</text>
-    <line x1="1056" y1="430" x2="1080" y2="430" stroke="#94a3b8" stroke-width="2" marker-end="url(#arw)"/>
+  <rect x="24" y="216" width="248" height="66" rx="9" fill="#f0fdfa" stroke="#99f6e4"/>
+  <text class="s" x="40" y="239">2 - Retrieve</text>
+  <text class="d" x="40" y="257">nearest comparable offers</text>
+  <text class="d" x="40" y="273">vector + lexical, reranked</text>
+  <path class="arrow" d="M148 282 L148 316"/>
 
-    <!-- Answer -->
-    <rect x="1082" y="380" width="168" height="100" rx="10" fill="#dcfce7" stroke="#059669" filter="url(#sh)"/>
-    <text class="mid" x="1166" y="414" font-size="14" font-weight="700" fill="#065f46">Specification</text>
-    <text class="mid" x="1166" y="436" font-size="10.5" fill="#065f46">GIVEN → TECHNICAL</text>
-    <text class="mid" x="1166" y="454" font-size="10.5" fill="#065f46">+ confidence + sources</text>
+  <rect x="24" y="318" width="248" height="116" rx="9" fill="#f0fdf4" stroke="#86efac"/>
+  <text class="s" x="40" y="341">3 - Resolve</text>
+  <text class="d" x="40" y="359">given &gt; rule &gt; standard &gt;</text>
+  <text class="d" x="40" y="375">field-level history &gt; TBD</text>
+  <text class="d" x="40" y="395">size gap over 20% =&gt; demoted</text>
+  <text class="d" x="40" y="411">every value carries a source</text>
+  <text class="d" x="40" y="427">ledger records the trail</text>
+  <path class="arrow" d="M148 434 L148 468"/>
 
-    <!-- ===== ROADMAP ===== -->
-    <text x="40" y="628" font-size="12" font-weight="700" letter-spacing="1.5" fill="#64748b">PRODUCTION ROADMAP</text>
+  <rect x="24" y="470" width="248" height="92" rx="9" fill="#fffbeb" stroke="#fde68a"/>
+  <text class="s" x="40" y="493">4 - Engineering review</text>
+  <text class="d" x="40" y="511">cross-validate | check_historical</text>
+  <text class="d" x="40" y="527">release_gate.py</text>
+  <text class="w" x="40" y="549">Draft &gt; Review &gt; Customer Ready</text>
 
-    <!-- bus: one spec feeds many deliverables -->
-    <path d="M1166,480 L1166,620 L525,620" fill="none" stroke="#94a3b8" stroke-width="1.8"/>
-    <text class="mid" x="812" y="611" font-size="10.5" fill="#64748b">one spec → many deliverables</text>
-    <line x1="525" y1="620" x2="525" y2="648" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arw)"/>
-    <line x1="890" y1="620" x2="890" y2="648" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arw)"/>
+  <path class="arrow" d="M272 376 L326 376"/>
 
-    <rect x="360" y="650" width="330" height="72" rx="12" fill="#eef2ff" stroke="#4f6ef7" stroke-dasharray="6 4" stroke-width="1.8"/>
-    <text class="mid" x="525" y="680" font-size="13" font-weight="700" fill="#26308a">Quotation Agent · NEXT</text>
-    <text class="mid" x="525" y="701" font-size="10.5" fill="#475569">Spec → BOM → pricing → quotation PDF</text>
+  <rect x="332" y="40" width="296" height="82" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text class="s" x="348" y="64">Specification</text>
+  <text class="d" x="348" y="82">table | basis per row | TBD schedule</text>
+  <text class="d" x="348" y="98">release status on the document</text>
+  <text class="d" x="348" y="114">PDF on the Vitech letterhead</text>
 
-    <rect x="740" y="650" width="300" height="72" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="6 4" stroke-width="1.8"/>
-    <text class="mid" x="890" y="680" font-size="13" font-weight="700" fill="#334155">CAD Agent · later</text>
-    <text class="mid" x="890" y="701" font-size="10.5" fill="#64748b">Spec → 2D dimensioned GA drawing</text>
+  <rect x="332" y="136" width="296" height="82" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text class="s" x="348" y="160">GA drawing</text>
+  <text class="d" x="348" y="178">3 views | dimensions | glyphs</text>
+  <text class="d" x="348" y="194">legend | item list | revisions</text>
+  <text class="d" x="348" y="210">SVG | DXF R12 | true-size PDF</text>
 
-    <!-- ===== Callout banner ===== -->
-    <rect x="30" y="744" width="1220" height="58" rx="12" fill="#eef2ff" stroke="#c7d0f5"/>
-    <text class="mid" x="640" y="770" font-size="14" font-weight="700" fill="#26308a">The AI writes the words — engineering rules and your 33 real offers write every number.</text>
-    <text class="mid" x="640" y="790" font-size="12" fill="#475569">Every value carries its source (given / rule / historical) and a confidence score. No hallucinated specifications.</text>
-  </svg>
+  <rect x="332" y="232" width="296" height="82" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text class="s" x="348" y="256">Bill of materials</text>
+  <text class="d" x="348" y="274">quantities + weights from the spec</text>
+  <text class="d" x="348" y="290">priced where the rate card reaches</text>
+  <text class="d" x="348" y="306">unpriced lines named, total partial</text>
+
+  <rect x="332" y="328" width="296" height="82" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text class="s" x="348" y="352">Quotation</text>
+  <text class="d" x="348" y="370">historical anchor + cost-plus + market</text>
+  <text class="d" x="348" y="386">range shown, basis kept internal</text>
+  <text class="d" x="348" y="402">PDF in the client house style</text>
+
+  <path class="arrow" d="M326 376 L326 81 L330 81"/>
+  <path class="arrow" d="M326 376 L326 177 L330 177"/>
+  <path class="arrow" d="M326 376 L326 273 L330 273"/>
+  <path class="arrow" d="M326 376 L326 369 L330 369"/>
+
+  <path class="arrow" d="M628 225 L688 225"/>
+  <rect x="694" y="160" width="252" height="130" rx="9" fill="#f0fdf4" stroke="#86efac"/>
+  <text class="s" x="710" y="184">Engineer review</text>
+  <text class="d" x="710" y="204">every output is a DRAFT</text>
+  <text class="d" x="710" y="220">warnings printed above the numbers</text>
+  <text class="d" x="710" y="236">gaps and customer questions listed</text>
+  <text class="d" x="710" y="256">revisions kept, never overwritten</text>
+  <text class="n" x="710" y="280">Released = a human signature</text>
+
+  <path class="arrow" d="M820 290 L820 330"/>
+  <rect x="694" y="332" width="252" height="56" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text class="s" x="710" y="356">Issued to the customer</text>
+  <text class="d" x="710" y="374">after sign-off, never automatically</text>
+
+  <path class="gate" d="M272 516 L500 516 L500 448"/>
+  <text class="w" x="298" y="534">a warning or an open gap holds the pack back</text>
+</svg>
+<p class="cap">The fan-out is the point: specification, drawing, BOM and quotation are four
+readings of <em>one</em> resolved model, so they cannot disagree with each other.</p>
+</div>
+
+<h2><span class="num">3</span>What is generated and what is computed</h2>
+<div class="grid g2">
+  <div class="box gen">
+    <h3><span class="chip gen">GENERATIVE</span> The model handles</h3>
+    <ul>
+      <li>Reading a requirement into intent and parameters (with a deterministic regex fallback)</li>
+      <li>Choosing which tool to call, and asking for missing inputs</li>
+      <li>Narrating results and answering general engineering questions</li>
+      <li>Ordinary conversation, kept in scope</li>
+    </ul>
   </div>
-
-  <!-- plain-language read for the client -->
-  <div class="notes">
-    <div class="note">
-      <h3><span class="dot" style="background:#d97706"></span>Understands the request</h3>
-      <p>A local language model reads the enquiry and extracts the equipment type and sizing inputs. Casual chat and “how many offers…” questions are answered directly — the counts are computed in code, not guessed.</p>
-    </div>
-    <div class="note">
-      <h3><span class="dot" style="background:#4f6ef7"></span>One resolver, two modes</h3>
-      <p>A single engine builds the specification. A <b>policy</b> decides the source of truth: <b>Consulting</b> uses engineering knowledge; <b>ATS</b> (say “refer db”) builds from your historical offers. Same schema, different evidence.</p>
-    </div>
-    <div class="note">
-      <h3><span class="dot" style="background:#059669"></span>Every number is traceable</h3>
-      <p>Each value is tagged with its origin (client-given, engineering rule, or historical consensus), sanity-checked against engineering limits, and given a confidence score — with the source offer cited.</p>
-    </div>
+  <div class="box det">
+    <h3><span class="chip det">DETERMINISTIC</span> Code handles</h3>
+    <ul>
+      <li>Every dimension, airflow, capacity, count, weight, material and price</li>
+      <li>Component selection from real catalogues (203 blower models)</li>
+      <li>All drawing geometry, scale and dimensioning</li>
+      <li>Validation, size-gap checks and the release status</li>
+      <li>BOM quantities and every costed line</li>
+    </ul>
   </div>
+</div>
+<div class="warn">
+  <b>Where the boundary is enforced.</b> Tool responses carry pre-formatted strings
+  (<code>price_display</code>, <code>spec_markdown</code>, <code>lookup_markdown</code>,
+  <code>drawing_markdown</code>) that the agent prints verbatim, so it never re-types a
+  number. The drawing tool strips the SVG before returning &mdash; vector data in an 8B
+  context wrecks the reply, and the canvas already has the drawing. Structural fixes like
+  these have consistently proved more reliable than prompt wording.
+</div>
 
-  <div class="foot">
-    FastAPI · ChromaDB · MiniLM embeddings · Rule Engine (Pydantic) · Ollama Qwen2.5 · React &nbsp;•&nbsp;
-    Human-in-the-loop: outputs are engineer-reviewed drafts.
+<h2><span class="num">4</span>Module status</h2>
+<div class="card" style="padding-top:8px">
+<table>
+  <thead><tr><th>Capability</th><th>Where</th><th>Status</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td>Requirement understanding</td><td><code>understand.py</code> <code>classify.py</code></td><td><span class="chip ok">Live</span></td><td>LLM + regex fallback; labelled and value-first dimensions</td></tr>
+    <tr><td>Retrieval</td><td><code>retriever.py</code> <code>rag/</code></td><td><span class="chip ok">Live</span></td><td>Cache, vector, filter, hybrid rerank, chunk select</td></tr>
+    <tr><td>Specification engine</td><td><code>resolver.py</code> <code>analysis.py</code></td><td><span class="chip ok">Live</span></td><td>Two policies: Consulting (knowledge) and ATS (data)</td></tr>
+    <tr><td>Engineering calculations</td><td><code>engineering/</code></td><td><span class="chip partial">Paint shop</span></td><td>Client paint-shop document implemented; two categories still owed</td></tr>
+    <tr><td>Component selection</td><td><code>design_standards.py</code> <code>blower_service.py</code></td><td><span class="chip ok">Live</span></td><td>Filters, lighting, duct, electrical, fire, blower</td></tr>
+    <tr><td>Cross-validation and release gate</td><td><code>validate.py</code> <code>release_gate.py</code></td><td><span class="chip ok">Live</span></td><td>20% size-gap rule; Released Design is never automatic</td></tr>
+    <tr><td>GA drawing engine</td><td><code>drawing/</code></td><td><span class="chip ok">Live</span></td><td>All 14 categories; SVG, DXF R12, true-size PDF</td></tr>
+    <tr><td>Bill of materials</td><td><code>bom.py</code></td><td><span class="chip partial">Partial cost</span></td><td>Quantities complete; priced only where the rate card reaches</td></tr>
+    <tr><td>Quotation</td><td><code>quotation.py</code> <code>pricing*.py</code></td><td><span class="chip ok">Live</span></td><td>Historical anchor is the headline; cost-plus is advisory</td></tr>
+    <tr><td>Knowledge corpus</td><td><code>rag/ingest.py</code></td><td><span class="chip blocked">Empty</span></td><td>Pipeline verified end to end; no client documents supplied yet</td></tr>
+    <tr><td>Component setting-out</td><td><code>drawing/symbols.py</code></td><td><span class="chip blocked">Blocked</span></td><td>Glyphs stay schematic until the client supplies rules</td></tr>
+    <tr><td>Authentication</td><td><code>auth/AuthProvider.jsx</code></td><td><span class="chip blocked">Front-end only</span></td><td>Acceptable on a trusted LAN; a real backend is needed before VPN</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">5</span>What the client still owes us</h2>
+<p class="lead">Each item below is the single reason a named capability is incomplete or
+deliberately conservative. None of them is a design limitation.</p>
+<div class="card" style="padding-top:8px">
+<table>
+  <thead><tr><th>Outstanding</th><th>What it unblocks</th></tr></thead>
+  <tbody>
+    <tr><td><b>The complete costed BOM</b> &mdash; the supplied image has its first row cut off (visible lines Rs 5,68,534 against a stated Rs 6,49,264)</td><td>A validated BOM total and a corrected cost-plus model. Until it arrives the BOM prices only what the rate card covers and states plainly that the total is partial.</td></tr>
+    <tr><td><b>Powder-coating plant calculations</b></td><td>Rule-backed specifications for that category, which currently reason from knowledge and reuse.</td></tr>
+    <tr><td><b>Pollution-control calculations</b></td><td>Sizing a dust-collector casing from airflow. Today only a client-stated casing size is drawn.</td></tr>
+    <tr><td><b>Component setting-out rules</b></td><td>Dimensioned component positions on drawings. Until then every glyph is schematic and each sheet carries a note saying so.</td></tr>
+    <tr><td><b>A real issued quotation</b> (the three PDFs received are enquiry forms)</td><td>The exact section order of the quotation PDF; the house style is already applied.</td></tr>
+    <tr><td><b>Engineering documents for the knowledge base</b></td><td><code>retrieve_knowledge</code>, which returns nothing until a corpus is ingested.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">6</span>How correctness is held</h2>
+<div class="grid g3">
+  <div class="box">
+    <h3>Golden snapshots</h3>
+    <p style="font-size:13px;margin:0">Ten cases captured byte for byte. Any engine change
+    must leave them identical, or the movement is explained case by case before it lands.</p>
   </div>
+  <div class="box">
+    <h3>Eight suites</h3>
+    <p style="font-size:13px;margin:0">golden, engineering, drawing, lookup, pricing,
+    retrieval, review, bom. All must pass before anything is committed.</p>
+  </div>
+  <div class="box">
+    <h3>Render, do not read</h3>
+    <p style="font-size:13px;margin:0">Generated graphics are rasterised and inspected.
+    Every drawing bug found so far looked perfectly correct in the markup.</p>
+  </div>
+</div>
+
+<h2><span class="num">7</span>Deployment</h2>
+<p class="lead">Runs natively on a RunPod GPU pod today; <code>docker-compose.prod.yml</code>
+is written and ready for the move to a local server.</p>
+<div class="card" style="padding-top:8px">
+<table>
+  <thead><tr><th>Component</th><th>Runtime</th><th>Persistence</th></tr></thead>
+  <tbody>
+    <tr><td>Frontend</td><td>Vite dev server / nginx</td><td>Git</td></tr>
+    <tr><td>Flowise 3.0.13 (pinned and patched)</td><td>Node 20, <code>/opt/flowise-app</code></td><td>Agents live in PostgreSQL; build scripts in <code>ops/flowise/</code></td></tr>
+    <tr><td>Backend</td><td>FastAPI + uvicorn</td><td>Git</td></tr>
+    <tr><td>Ollama</td><td><code>llama3.1:8b</code>, tool-capable</td><td>Models on the persistent volume</td></tr>
+    <tr><td>ChromaDB</td><td>Embedded</td><td><code>/workspace/persistent/chroma</code></td></tr>
+    <tr><td>PostgreSQL / Redis</td><td>Native</td><td>Dumped to <code>vitech.sql</code> before every pod stop</td></tr>
+  </tbody>
+</table>
+<p style="font-size:13px;color:#5b6b82;margin:10px 0 0">
+<code>ops/verify-agents.sh</code> diffs each live agent prompt against its build script in git
+and exits non-zero on mismatch, which is what makes GitHub a trustworthy backup of the agents.</p>
+</div>
+
+<footer>
+  Vitech Enviro Systems Pvt. Ltd. &middot; AI Engineering Platform &middot; architecture and
+  workflow current as of 2 August 2026. Companion documents:
+  <code>docs/technical-flow.html</code> (request lifecycle),
+  <code>docs/drawing-agent-plan.md</code>, <code>docs/spec-quality-plan.md</code>,
+  <code>docs/production-deployment.md</code>, <code>docs/migration-safety-plan.md</code>.
+</footer>
+
 </div>
 </body>
 </html>
