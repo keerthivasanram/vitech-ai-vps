@@ -25,7 +25,7 @@ from .schema import QueryUnderstanding
 from .spec_schema import ATS
 from .spec_template import apply_template
 from .release_gate import assess as assess_release
-from .validate import cross_validate, validate
+from .validate import cross_validate, demote_unscalable, validate
 
 _STRUCTURED = {"specification", "quotation"}
 
@@ -110,6 +110,10 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         # field is present, filling any gap with an explicit TBD (needs engineering
         # input) rather than leaving a hole for the model to hallucinate into.
         # Opt-in per category; no-op where no template is defined.
+        # A size-dependent value copied across a large size gap is a different
+        # machine's answer. Demote it to an honest gap BEFORE the template runs,
+        # so it is scheduled as TBD rather than asserted as engineered fact.
+        technical = demote_unscalable(technical, params, chosen, profile)
         technical = apply_template(profile, technical)
 
     assumptions, missing = _assumptions_and_missing(profile, params, offers) if structured else ([], [])

@@ -20,7 +20,8 @@ from app.engineering.design_standards import (HISTORICAL_TOLERANCE,
                                               STATUS_ENGINEERING_DRAFT,
                                               check_historical)
 from app.release_gate import assess
-from app.validate import cross_validate, is_size_dependent
+from app.spec_template import TBD_VALUE
+from app.validate import (cross_validate, demote_unscalable, is_size_dependent)
 
 FAILS: list[str] = []
 
@@ -99,6 +100,37 @@ check(checks and "floor area" in checks[0]["message"],
 
 check(cross_validate("paint_booth", {}, None, ROWS, {}) == [],
       "with no comparable offer there is nothing to cross-validate")
+
+# --- Scale-or-refuse: a big size gap DEMOTES rather than asserts -----------
+# Warning was not enough. The spec still printed "20 W x 10 LED" as the lighting
+# for a booth seven times the size of the one it came from, and a reader takes a
+# stated value as engineered.
+DEMOTE_ROWS = [
+    {"label": "Illumination", "value": "20w x 10 nos", "origin": "reused", "origin_label": "Reused"},
+    {"label": "Blower MOC", "value": "MS", "origin": "reused", "origin_label": "Reused"},
+    {"label": "Exhaust airflow", "value": "19440 m3/h", "origin": "rule"},
+]
+small_booth = {"id": "OFF-SMALL", "record": {"given_data": {"length_m": 7.5, "width_m": 4.0}}}
+
+out = demote_unscalable(DEMOTE_ROWS, {"length_m": 10, "width_m": 10}, small_booth,
+                        {"scale_driver": None})
+by = {r["label"]: r for r in out}
+check(by["Illumination"]["origin"] == "tbd" and by["Illumination"]["value"] == TBD_VALUE,
+      "a size-dependent value from a far-off design is demoted, not asserted")
+check("engineered for" in by["Illumination"].get("reason", "")
+      and "OFF-SMALL" in by["Illumination"]["reason"],
+      "the demoted row explains what to re-size and which design it came from")
+check(by["Blower MOC"]["origin"] == "reused" and by["Blower MOC"]["value"] == "MS",
+      "a material is left alone - it travels between sizes")
+check(by["Exhaust airflow"]["origin"] == "rule",
+      "a CALCULATED value is never demoted; it was computed for this duty")
+
+check(demote_unscalable(DEMOTE_ROWS, {"length_m": 8, "width_m": 4}, small_booth,
+                        {"scale_driver": None}) == DEMOTE_ROWS,
+      "inside the tolerance band nothing is demoted")
+check(demote_unscalable(DEMOTE_ROWS, {"length_m": 10, "width_m": 10}, None, {}) == DEMOTE_ROWS,
+      "with no source offer there is nothing to demote against")
+
 
 # --- The release gate ------------------------------------------------------
 OK_ROWS = [{"label": "Exhaust airflow", "value": "19440 m3/h", "origin": "rule"},

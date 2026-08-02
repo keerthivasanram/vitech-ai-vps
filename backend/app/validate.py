@@ -14,7 +14,10 @@ from typing import Any
 
 # The +/-20% tolerance and its wording are the CLIENT's, so they live with the
 # rest of their standards rather than being restated here.
+from .catalog import origin_label
 from .engineering.design_standards import check_historical
+
+TBD_VALUE = "To be determined"          # matches spec_template's own wording
 
 _CFM_TO_CMH = 1.699
 
@@ -214,3 +217,43 @@ def cross_validate(category: str | None, params: dict, chosen, items: list[dict]
                 f"(a {round(off)} {unit} design) for a {round(req)} {unit} duty - confirm "
                 f"they still suit the new duty.")})
     return checks
+
+
+def demote_unscalable(items: list[dict], params: dict, chosen,
+                      profile: dict | None = None) -> list[dict]:
+    """Refuse to ASSERT a size-dependent value copied across a large size gap.
+
+    Warning about it is not enough. The spec still printed "20 W x 10 LED" as
+    the lighting for a booth seven times the size of the one it came from, and a
+    reader takes a stated value as engineered. Golden rule #2 applies to reuse
+    exactly as it applies to invention: outside the client's +/-20% band the
+    value is a different machine's answer, so it is demoted to an honest gap
+    with the reason attached.
+
+    Scaling would be better than demoting, but scaling needs a per-field rule
+    the client has not supplied. Until then the honest gap is the right answer,
+    and the reason tells the engineer precisely what to re-size and from where.
+    """
+    if not items or not chosen:
+        return items
+    rec = chosen.get("record", {}) if isinstance(chosen, dict) else {}
+    req, off, unit = _drivers(profile, params, rec.get("given_data") or {})
+    if not req or not off or not check_historical(off, req):
+        return items
+
+    gap = (off - req) / req * 100
+    out = []
+    for it in items:
+        if (it.get("origin") in ("reused", "kept")
+                and is_size_dependent(it.get("label"), it.get("value"))):
+            it = dict(it)
+            it["reason"] = (
+                f"{it.get('label')} from {chosen.get('id')} was engineered for a "
+                f"{round(off)} {unit} design, {gap:+.0f}% from this "
+                f"{round(req)} {unit} duty - re-size rather than reuse.")
+            it["value"] = TBD_VALUE
+            it["origin"] = "tbd"
+            it["origin_label"] = origin_label("tbd")
+            it["source"] = None
+        out.append(it)
+    return out

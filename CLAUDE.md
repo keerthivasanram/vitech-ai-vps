@@ -42,6 +42,43 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-02 (later) — ENGINEERING REVIEW LAYER: cross-validation, scale-or-refuse, release gate
+Phase 1 + 11 of the roadmap. **Most of this was already written and merely never wired** —
+`check_historical` existed but was never called, the `STATUS_*` ladder was defined but nothing
+computed it, and `validation` was calculated but never left the process. Seven suites green
+(**new `tests_review.py`, 34 checks**); goldens moved in only 3 of 7 ATS cases, wording only,
+**confidence unchanged in every case**; all knowledge cases byte-identical.
+- **`cross_validate` now runs for EVERY category**, not just wet scrubbers — reuse across a size
+  gap is a platform-wide failure mode and the client's reviewer found it on a paint booth. It
+  uses their own ±20% tolerance via `check_historical`, comparing booths on floor area and
+  duty-sized equipment on airflow.
+- **`app/release_gate.py` (NEW)** answers what confidence cannot: *may this leave the building?*
+  Engineering Draft / Customer Review Draft / Customer Ready, from the client's own criteria.
+  A **customer decision is a question, not a gap**, so it does not hold the document back.
+  **`Released Design` is deliberately unreachable from code** — release is an engineer's
+  signature, and a program that could award it to itself defeats the human-in-the-loop rule.
+  Verified on the reviewer's own case: a 10x10x10 booth built from a 7.5x4x3.5 offer is held
+  back; a clean wet scrubber reaches Customer Ready.
+- **A4 scale-or-refuse DONE** (`validate.demote_unscalable`, called in `analysis.py` BEFORE
+  `apply_template`). Warning was not enough: the spec still PRINTED "20 W x 10 LED" as the
+  lighting for a booth 7x the size of its source, and a reader takes a stated value as
+  engineered. Beyond ±20% a size-dependent reused value is now demoted to an honest TBD with a
+  reason naming what to re-size and from which offer. Scaling would be better, but that needs a
+  per-field rule the client has not supplied.
+- **THREE bugs in this new code, all found by checking OUTPUT rather than logic:**
+  (a) the requirement carries CFM while an offer may record only m3/h — comparing 6100 m3/h with
+  3000 CFM as one unit reported a **103% size gap where the true gap is 20%**. A basis is now
+  used only when BOTH sides have it. (b) "Blower MOC = MS" and "Air intake filter = 10 micron
+  velcro type" were called size-dependent because their labels named a component; a value must
+  now carry an actual scaling quantity, and descriptors (MOC/material/type/finish/grade) are
+  excluded. **A warning an engineer knows is wrong is worse than no warning.**
+  (c) **the review section was APPENDED to `spec_markdown` and llama3.1:8b truncated the tail**
+  (1997 chars in, 1781 out) — the warning existed in the JSON and never reached the reader. It
+  now sits ABOVE the tables it qualifies. **Position is the structural fix; a prompt rule would
+  be the fragile one.** Verified 4/4 with warning + status shown.
+- **Still open in Phase 1:** C1 field-level retrieval before emitting a TBD (`spec_template::
+  _tbd_row` is the seam; `retriever` already has the scoped-search primitives).
+
 ### ▶ 2026-08-02 — DRAWING AGENT COMPLETE: all 14 glyphs, DXF/PDF export, spec→drawing, revisions
 Everything in `docs/drawing-agent-plan.md` §13 that is not blocked on the client is now built.
 All six suites green throughout (`tests_drawing.py` **37 → 122 checks**), goldens byte-identical,
