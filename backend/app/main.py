@@ -279,6 +279,29 @@ def _spec_markdown(resp: dict) -> str | None:
     L.append(f"Equipment: {resp.get('category_label') or 'Equipment'}{conf}")
     L.append("")
 
+    # ENGINEERING REVIEW, stated BEFORE the numbers it qualifies. It was
+    # originally appended at the end, and llama3.1:8b reliably truncated the
+    # tail when printing spec_markdown verbatim (1997 chars in, 1781 out) — so
+    # the warning existed in the JSON and never reached the reader. Position is
+    # the structural fix; a prompt rule would be the fragile one.
+    release = resp.get("release") or {}
+    warns = [c.get("message") for c in (resp.get("validation") or [])
+             if c.get("level") == "warn"]
+    if release.get("status") or warns:
+        L.append("**Engineering Review**")
+        if release.get("status"):
+            L.append(f"- Release status: **{release['status']}**")
+        for w in warns:
+            L.append(f"- ⚠ {w}")
+        if release.get("gaps"):
+            L.append(f"- {len(release['gaps'])} field(s) awaiting our engineering: "
+                     f"{', '.join(release['gaps'][:6])}"
+                     f"{'...' if len(release['gaps']) > 6 else ''}")
+        if release.get("questions"):
+            L.append(f"- {len(release['questions'])} item(s) for the customer to "
+                     f"confirm: {', '.join(release['questions'][:6])}")
+        L.append("")
+
     gd = resp.get("given_data") or []
     if gd:
         L.append("**Customer Requirement**")
@@ -389,6 +412,11 @@ def tool_spec(payload: dict = Body(...)):
              "kind": t.get("kind")}
             for t in (a.get("technical_details") or [])
         ],
+        # Engineering review: the sanity checks the engine ran, and whether the
+        # document may go to a customer. Confidence says how well-founded the
+        # numbers are; this says whether it may leave the building.
+        "validation": a.get("validation") or [],
+        "release": a.get("release") or {},
         # structured geometry for the 2D-drawing generator (numeric mm envelope
         # + per-dimension status); prose table above is for humans, this is for code.
         "geometry": _spec_geometry(a),

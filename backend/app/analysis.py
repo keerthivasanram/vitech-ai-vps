@@ -24,6 +24,7 @@ from .ledger import build_ledger
 from .schema import QueryUnderstanding
 from .spec_schema import ATS
 from .spec_template import apply_template
+from .release_gate import assess as assess_release
 from .validate import cross_validate, validate
 
 _STRUCTURED = {"specification", "quotation"}
@@ -112,7 +113,8 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         technical = apply_template(profile, technical)
 
     assumptions, missing = _assumptions_and_missing(profile, params, offers) if structured else ([], [])
-    validation = ((validate(category, params) + cross_validate(category, params, chosen, technical))
+    validation = ((validate(category, params)
+                   + cross_validate(category, params, chosen, technical, profile))
                   if structured else [])
     confidence, conf_label, criteria, conf_factors, conf_notes = _confidence(
         match, technical, profile, params, missing, len(offers), validation)
@@ -138,6 +140,9 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         "knowledge_contribution": knowledge_contribution,  # % per source
         "decision_origin": decision_origin,   # canonical [{type,count}] table
         "validation": validation,             # engineering sanity checks {level,message}
+        # Whether this may LEAVE the building, which confidence does not say:
+        # a well-founded spec that contradicts itself is still an internal draft.
+        "release": assess_release({"technical_details": technical, "validation": validation}),
         "completeness": round(comp_score * 100),
         "completeness_missing": comp_missing,
         "assumptions": assumptions,           # missing inputs filled by historical consensus
