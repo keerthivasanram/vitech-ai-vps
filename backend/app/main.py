@@ -577,6 +577,8 @@ def drawing_render(payload: dict = Body(...)):
         ref=str(payload.get("ref") or ""),
         drawn_by=str(payload.get("drawn_by") or ""),
         title_block=_title_block(payload),
+        revisions=payload.get("revisions") or [],
+        drawing_type=str(payload.get("drawing_type") or "ga"),
     )
     drawing["requirement"] = question
     return drawing
@@ -625,6 +627,8 @@ def drawing_export(payload: dict = Body(...)):
         ref=str(payload.get("ref") or ""),
         drawn_by=str(payload.get("drawn_by") or ""),
         title_block=_title_block(payload),
+        revisions=payload.get("revisions") or [],
+        drawing_type=str(payload.get("drawing_type") or "ga"),
     )
     stem = (drawing.get("category_label") or "drawing").replace(" ", "-").lower()
     name = f"{stem}-GA.{fmt}"
@@ -668,6 +672,8 @@ def drawing_from_spec(payload: dict = Body(...)):
         ref=str(payload.get("ref") or ""),
         drawn_by=str(payload.get("drawn_by") or ""),
         title_block=_title_block(payload),
+        revisions=payload.get("revisions") or [],
+        drawing_type=str(payload.get("drawing_type") or "ga"),
     )
     drawing["from_specification"] = True
     return drawing

@@ -42,6 +42,29 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-02 (drawing polish) — item list, revisions, duty, airflow, drawing types
+Acting on a review of a real generated wet-scrubber GA. **Taken selectively** — the suggestions
+to dimension component POSITIONS (nozzle height, pump position) were REJECTED: those have no
+engineered setting-out rules, so dimensioning them would be fabrication, which is exactly what
+golden rule #2 forbids. Line weights were already implemented (`LW_THICK/MED/THIN` + dash
+patterns). All seven suites green (`tests_drawing` 122 -> 133 checks); browser checks all pass.
+- **Item list on the sheet** — a printed or emailed GA should not need the studio panel beside
+  it to tell you what the balloons refer to. Rows come from the resolved spec.
+- **Revision block** above the title block, fed from the studio's own revision history, so a
+  re-issued drawing states what changed and when. Absent when there is no history (no empty box).
+- **Duty in the title block** — a GA titled only "Wet Scrubber" does not say WHICH wet scrubber.
+  `_duty()` takes the rating off the spec's own rows (e.g. "Exhaust airflow: 10000 m3/h").
+- **Airflow arrows** on scrubber + booth. Flow direction is how the machine WORKS, not a position
+  we invented, so it is drawn as direction only and never dimensioned.
+- **`drawing_type` was a DEAD CONTROL** — the studio has offered "Plan only" / "Elevations only"
+  since it was built and nothing consumed it; every choice silently produced the full three-view
+  GA. `views.VIEW_SETS` now drives it, with an unknown type falling back to the full GA.
+- **Visible defect fixed:** the wet scrubber's circulation pump was drawn OUTSIDE the envelope
+  (`x - pr - 5.0`), reading as a stray circle floating beside the drawing with a balloon attached
+  to nothing. It now sits on the tank with its delivery riser. Two further collisions (tank
+  balloon on the pump, "AIR OUT" clipping the height dimension) were found the same way —
+  **by cropping and zooming the render, never by reading the SVG.**
+
 ### ▶ 2026-08-02 (later) — ENGINEERING REVIEW LAYER: cross-validation, scale-or-refuse, release gate
 Phase 1 + 11 of the roadmap. **Most of this was already written and merely never wired** —
 `check_historical` existed but was never called, the `STATUS_*` ladder was defined but nothing

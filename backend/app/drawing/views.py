@@ -62,14 +62,25 @@ def choose_scale(env: dict, avail_w: float, avail_h: float) -> int:
     return STANDARD_SCALES[-1]
 
 
+# Which views each drawing type asks for. The studio has offered this choice
+# since the studio was built, but nothing consumed it — picking "Plan only"
+# silently produced the full three-view GA.
+VIEW_SETS = {
+    "ga": ("plan", "front", "side"),
+    "plan": ("plan",),
+    "elevation": ("front", "side"),
+}
+
+
 def layout(env: dict, ox: float, oy: float, avail_w: float, avail_h: float,
-           scale: int) -> list[View]:
+           scale: int, drawing_type: str = "ga") -> list[View]:
     """Place whichever views the known dimensions support, in third angle.
 
     Returns an empty list when nothing can be drawn to true size, which the
     caller renders as an honest "no dimensioned views" sheet rather than a
     fabricated box.
     """
+    wanted = VIEW_SETS.get(str(drawing_type or "ga").lower(), VIEW_SETS["ga"])
     L, W, H = env.get("length"), env.get("width"), env.get("height")
 
     def s(v):
@@ -79,8 +90,8 @@ def layout(env: dict, ox: float, oy: float, avail_w: float, avail_h: float,
     views: list[View] = []
 
     # Front elevation — length x height. The primary view; drawn bottom-left.
-    front_h = sH if sH is not None else None
-    plan_h = sW if sW is not None else None
+    front_h = sH if ("front" in wanted and sH is not None) else None
+    plan_h = sW if ("plan" in wanted and sW is not None) else None
 
     # Vertical stack: plan on top, then gap, then front.
     total_h = (plan_h or 0) + (VIEW_GAP if plan_h and front_h else 0) + (front_h or 0)
@@ -108,7 +119,7 @@ def layout(env: dict, ox: float, oy: float, avail_w: float, avail_h: float,
         views.append(View("front", "FRONT ELEVATION", ox, y_cursor, sL, front_h,
                           L, H, "length", "height"))
         # Side elevation — width x height, to the right of front, same baseline.
-        if sW is not None:
+        if sW is not None and "side" in wanted:
             views.append(View("side", "SIDE ELEVATION", ox + sL + VIEW_GAP, y_cursor,
                               sW, front_h, W, H, "width", "height"))
     return views

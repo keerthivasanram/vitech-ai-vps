@@ -42,9 +42,57 @@ def header(canvas, w: float, title: str, subtitle: str) -> None:
     canvas.add(Line(MARGIN, MARGIN + 10.0, w - MARGIN, MARGIN + 10.0, L_BORDER, LW_THIN))
 
 
+def _item_table(canvas, x: float, y: float, bom: list, limit: int = 8) -> float:
+    """The parts list a real GA carries, so the sheet stands on its own.
+
+    Reading a drawing should not require the studio panel beside it: an item
+    table is how an engineer finds out WHAT the balloons refer to when the sheet
+    is printed or emailed. Rows come from the resolved specification, so nothing
+    here is drawing-only invention.
+    """
+    if not bom:
+        return y
+    line_h = 4.0
+    canvas.add(Text(x, y, f"ITEM LIST ({len(bom)})", L_TEXT, 2.9, "start", bold=True))
+    y += line_h + 1.0
+    canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
+    for i, row in enumerate(bom[:limit], 1):
+        canvas.add(Text(x, y, str(i), L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 6.0, y, str(row.get("item", ""))[:30], L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 62.0, y, str(row.get("spec", ""))[:42], L_TEXT, 2.3, "start"))
+        y += line_h
+    if len(bom) > limit:
+        canvas.add(Text(x + 6.0, y, f"... and {len(bom) - limit} more", L_TEXT, 2.2, "start"))
+        y += line_h
+    return y + 3.0
+
+
+def revision_block(canvas, w: float, h: float, revisions: list) -> None:
+    """The revision strip, sitting directly above the title block as on a real
+    sheet. Every drawing is issued at SOME revision; stating which one, when and
+    why is what makes a re-issued drawing safe to work from."""
+    if not revisions:
+        return
+    rows = revisions[-3:]                      # the sheet has room for three
+    line_h = 4.4
+    x = w - MARGIN - tb.TB_W
+    bottom = h - MARGIN - tb.TB_H - 2.0
+    y = bottom - line_h * len(rows)
+    canvas.add(Text(x, y - 3.0, "REVISIONS", L_TEXT, 2.4, "start", bold=True))
+    canvas.add(Line(x, y - 1.6, x + tb.TB_W, y - 1.6, L_BORDER, LW_THIN))
+    for r in rows:
+        canvas.add(Text(x + 1.0, y + 2.6, str(r.get("rev", ""))[:4], L_TEXT, 2.2, "start"))
+        canvas.add(Text(x + 12.0, y + 2.6, str(r.get("description", ""))[:52],
+                        L_TEXT, 2.2, "start"))
+        canvas.add(Text(x + tb.TB_W - 1.0, y + 2.6, str(r.get("date", ""))[:12],
+                        L_TEXT, 2.2, "end"))
+        y += line_h
+
+
 def side_column(canvas, w: float, h: float, legend: list, notes: list,
-                tbd: list) -> None:
-    """Legend, general notes and the TBD schedule, stacked above the title block."""
+                tbd: list, bom: list | None = None) -> None:
+    """Legend, item list, general notes and the TBD schedule, stacked above the
+    title block."""
     x = w - MARGIN - NOTE_W
     y = MARGIN + 16.0
     line_h = 4.0
@@ -70,6 +118,8 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
             canvas.add(Text(x + 5.0, y, f"... and {len(tbd) - 12} more", L_TEXT, 2.3, "start"))
             y += line_h
         y += 3.0
+
+    y = _item_table(canvas, x, y, bom or [])
 
     if notes:
         canvas.add(Text(x, y, "NOTES", L_TEXT, 2.9, "start", bold=True))

@@ -67,9 +67,27 @@ def _bom(spec: dict) -> list[dict]:
     return out
 
 
+# What this machine is rated FOR, taken from the spec's own rows. Used in the
+# title block so a GA says which wet scrubber it is, not merely that it is one.
+_DUTY_LABELS = ("exhaust airflow", "air volume", "airflow", "exhaust air volume",
+                "heating capacity", "filter area", "track length")
+
+
+def _duty(spec: dict) -> str:
+    for needle in _DUTY_LABELS:
+        for row in spec.get("technical_details") or []:
+            label = str(row.get("label", "")).lower()
+            value = str(row.get("value", "")).strip()
+            if needle in label and value and value.lower() != "to be determined":
+                return f"{row['label']}: {value}"[:40]
+    return ""
+
+
 def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
             client: str = "", ref: str = "", drawn_by: str = "",
-            title_block: Optional[dict] = None) -> tuple[Canvas, dict[str, Any]]:
+            title_block: Optional[dict] = None,
+            revisions: Optional[list] = None,
+            drawing_type: str = "ga") -> tuple[Canvas, dict[str, Any]]:
     """Build the sheet and return BOTH the canvas and the drawing package.
 
     The canvas is what the non-SVG exporters (DXF, PDF) need — they consume the
@@ -92,7 +110,7 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
 
     ax, ay, aw, ah = sheet.drawing_area(sw, sh)
     scale = views.choose_scale(env, aw, ah)
-    placed = views.layout(env, ax, ay, aw, ah, scale)
+    placed = views.layout(env, ax, ay, aw, ah, scale, drawing_type)
 
     legend: list = []
     if placed:
@@ -111,7 +129,8 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
                         L_TEXT, 2.6, "middle"))
 
     tbd = _tbd_items(spec)
-    sheet.side_column(canvas, sw, sh, legend, STANDING_NOTES, tbd)
+    bom = _bom(spec)
+    sheet.side_column(canvas, sw, sh, legend, STANDING_NOTES, tbd, bom)
     # Anything the caller states wins; everything else is derived. The block
     # still invents nothing — an unstated field simply keeps its default.
     info = {
@@ -127,8 +146,10 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "rev": "0",
         "status": "DRAFT",
     }
+    info.setdefault("duty", _duty(spec))
     info.update({k: v for k, v in (title_block or {}).items() if str(v or "").strip()})
     sheet.title(canvas, sw, sh, info)
+    sheet.revision_block(canvas, sw, sh, revisions or [])
 
     present = canvas.layers_present()
     return canvas, {
@@ -145,7 +166,7 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "views": [{"key": v.key, "label": v.label} for v in placed],
         "layers": [{"id": l, "label": LAYER_LABELS.get(l, l), "on": True} for l in present],
         "legend": [{"tag": t, "description": d} for t, d in legend],
-        "bom": _bom(spec),
+        "bom": bom,
         "tbd": tbd,
         "notes": STANDING_NOTES,
         "title_block": info,
@@ -155,13 +176,16 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
 
 def build_drawing(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
                   client: str = "", ref: str = "", drawn_by: str = "",
-                  title_block: Optional[dict] = None) -> dict[str, Any]:
+                  title_block: Optional[dict] = None,
+                  revisions: Optional[list] = None,
+                  drawing_type: str = "ga") -> dict[str, Any]:
     """Resolved spec -> GA drawing package.
 
     Returns svg, the layer list the studio toggles, the chosen scale, the BOM,
     the TBD schedule and a short markdown summary for the agent to narrate.
     """
-    return compose(spec, sheet_size, client, ref, drawn_by, title_block)[1]
+    return compose(spec, sheet_size, client, ref, drawn_by, title_block,
+                   revisions, drawing_type)[1]
 
 
 def _markdown(label: str, env: dict, scale: int, placed: list, tbd: list,

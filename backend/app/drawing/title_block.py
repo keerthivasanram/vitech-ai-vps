@@ -39,6 +39,12 @@ def draw(canvas, sheet_w: float, sheet_h: float, margin: float, info: dict) -> N
     canvas.add(Text(x + 3.0, y + 16.4, "TITLE", L_TITLE, 1.9, "start"))
     canvas.add(Text(x + 3.0, y + 20.6, str(info.get("title", "")).upper(),
                     L_TITLE, 3.4, "start", bold=True))
+    # The equipment's DUTY next to its name: a GA titled only "Wet Scrubber"
+    # does not say which wet scrubber. The figure comes from the resolved
+    # specification, so it is the same number the spec was engineered to.
+    if info.get("duty"):
+        canvas.add(Text(x + TB_W - 3.0, y + 20.6, str(info["duty"])[:34],
+                        L_TITLE, 2.4, "end"))
 
     # --- client / reference row -------------------------------------------
     canvas.add(Line(x, y + 29.0, x + TB_W, y + 29.0, L_TITLE, LW_THIN))

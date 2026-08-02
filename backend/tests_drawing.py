@@ -387,6 +387,55 @@ check(any("Dry scrubber" in t for t in from_spec["tbd"]),
 check(parse_spec("please draw me something nice") is None,
       "arbitrary prose is never salvaged into geometry")
 
+# --- Sheet furniture: the drawing must stand on its own ---------------------
+# Reading a printed or emailed GA should not require the studio panel beside it.
+SCRUB = {
+    "category": "wet_scrubber", "category_label": "Wet Scrubber",
+    "geometry": {"envelope_mm": {"length": 5000, "width": 3000, "height": 2500},
+                 "ready": True},
+    "technical_details": [
+        {"label": "Exhaust airflow", "value": "10000 m3/h", "origin": "rule"},
+        {"label": "Spray nozzles", "value": "12 nos", "origin": "rule"},
+        {"label": "Pump capacity", "value": "5 HP", "origin": "reused"},
+    ],
+}
+full = build_drawing(SCRUB, client="ABC Engineering",
+                     title_block={"drawn": "LR", "checked": "MS", "rev": "1"},
+                     revisions=[{"rev": "0", "description": "Initial draft", "date": "02-08-2026"},
+                                {"rev": "1", "description": "Tank revised", "date": "02-08-2026"}])
+check("ITEM LIST" in full["svg"] and "Spray nozzles" in full["svg"],
+      "the sheet carries an item list, not just balloons")
+check("REVISIONS" in full["svg"] and "Initial draft" in full["svg"],
+      "the sheet states which revision it is and what changed")
+check(full["title_block"]["duty"] == "Exhaust airflow: 10000 m3/h",
+      f"the title block states the DUTY, so a GA says which machine it is "
+      f"({full['title_block'].get('duty')})")
+check("MS" in full["svg"] and "ABC Engineering" in full["svg"],
+      "checked-by and client reach the title block")
+check("AIR IN" in full["svg"] and "AIR OUT" in full["svg"],
+      "flow direction is shown - how the machine works, never a set-out")
+
+bare = build_drawing(SCRUB)
+check("REVISIONS" not in bare["svg"],
+      "with no revision history the sheet does not print an empty block")
+
+# The studio has offered Plan-only / Elevations-only since it was built, and
+# nothing consumed it: picking either silently produced the full three-view GA.
+check([v["key"] for v in build_drawing(SCRUB, drawing_type="ga")["views"]]
+      == ["plan", "front", "side"], "drawing type 'ga' gives all three views")
+check([v["key"] for v in build_drawing(SCRUB, drawing_type="plan")["views"]] == ["plan"],
+      "drawing type 'plan' gives the plan alone")
+check([v["key"] for v in build_drawing(SCRUB, drawing_type="elevation")["views"]]
+      == ["front", "side"], "drawing type 'elevation' drops the plan")
+check([v["key"] for v in build_drawing(SCRUB, drawing_type="nonsense")["views"]]
+      == ["plan", "front", "side"], "an unknown drawing type falls back to the full GA")
+
+# Nothing a glyph draws may escape the sheet -- re-checked with the new
+# airflow arrows and the relocated pump.
+coords = [float(v) for v in re.findall(r'(?:x|cx|x1|x2)="(-?\d+\.?\d*)"', full["svg"])]
+check(min(coords) >= 0 and max(coords) <= 420,
+      "airflow arrows and the pump stay inside the sheet")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} DRAWING TEST FAIL")

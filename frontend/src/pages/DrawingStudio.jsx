@@ -179,7 +179,13 @@ export function DrawingStudio() {
   const titleFields = useCallback(() => ({
     client, ref, drawn: drawnBy, checked: checkedBy,
     title: project, rev: String(revisions.length),
-  }), [client, ref, drawnBy, checkedBy, project, revisions.length]);
+    // The sheet carries its own revision history, so a printed or exported
+    // drawing says what changed without the studio open beside it.
+    revisions: revisions.map((r, i) => ({
+      rev: String(i), description: r.label,
+      date: new Date(r.at).toLocaleDateString("en-GB"),
+    })),
+  }), [client, ref, drawnBy, checkedBy, project, revisions]);
 
   const generate = useCallback(async () => {
     if (!category) return;

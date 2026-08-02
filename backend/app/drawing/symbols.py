@@ -48,6 +48,30 @@ def item(canvas, legend: list, x: float, y: float, description: str) -> str:
     return tag
 
 
+def airflow(canvas, points, label: str = "") -> None:
+    """A direction-of-flow arrow with an optional caption.
+
+    Flow direction is how the equipment WORKS — air enters a scrubber low and
+    leaves at the top — so it is a fact of the machine type, not a position we
+    invented. It is drawn as direction only and never dimensioned, which keeps
+    it on the right side of golden rule #2 while making the sheet far easier to
+    read at a glance.
+    """
+    pts = [(float(x), float(y)) for x, y in points]
+    for a, b in zip(pts, pts[1:]):
+        canvas.add(Line(a[0], a[1], b[0], b[1], L_COMPONENT, LW_THIN, DASH_HIDDEN))
+    (bx, by), (tx, ty) = pts[-2], pts[-1]
+    dx, dy = tx - bx, ty - by
+    mag = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / mag, dy / mag
+    px, py = -uy * 1.5, ux * 1.5
+    canvas.add(poly([(tx, ty), (tx - ux * 3.4 + px, ty - uy * 3.4 + py),
+                     (tx - ux * 3.4 - px, ty - uy * 3.4 - py)],
+                    L_COMPONENT, LW_THIN, "currentColor"))
+    if label:
+        canvas.add(Text(tx, ty - 2.4, label, L_TEXT, 2.0, "middle"))
+
+
 def note_item(legend: list, description: str) -> str:
     """A legend row with NO balloon: something the spec resolved but that has no
     engineered position to draw. Lettered, so a reader can tell at a glance that
@@ -242,6 +266,11 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Line(x, y + h * 0.10, x + w, y + h * 0.10, L_HIDDEN, LW_THIN, DASH_HIDDEN))
         canvas.add(Text(x + w * 0.5, y + h * 0.075, "AIR INLET FILTER SIDE",
                         L_TEXT, 2.1, "middle"))
+        # Airflow across the booth: in at the filtered inlet, out through the
+        # arresting bank. Direction only — how the booth works, not a set-out.
+        airflow(canvas, [(x + w * 0.30, y + h * 0.16), (x + w * 0.30, y + h * 0.62)])
+        airflow(canvas, [(x + w * 0.70, y + h * 0.16), (x + w * 0.70, y + h * 0.62)],
+                "AIRFLOW")
     return legend
 
 
@@ -262,7 +291,8 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Rect(x, ty, w, tank_h, L_COMPONENT, LW_MED))
         canvas.add(Line(x, ty + tank_h * 0.45, x + w, ty + tank_h * 0.45,
                         L_COMPONENT, LW_THIN, DASH_HIDDEN))
-        item(canvas, legend, x + w * 0.14, ty + tank_h * 0.72, f"Recirculation tank {tank}".strip())
+        item(canvas, legend, x + w * 0.82, ty + tank_h * 0.5,
+             f"Recirculation tank {tank}".strip())
 
         # Spray headers inside the tower.
         for i in range(3):
@@ -281,14 +311,26 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         for i in range(1, 8):
             hx = x + w * (0.10 + 0.80 * i / 8)
             canvas.add(Line(hx, dy, hx - h * 0.03, dy + h * 0.07, L_COMPONENT, LW_THIN))
-        item(canvas, legend, x + w * 0.5, dy - 6.5, "Demister / eliminator pad")
+        item(canvas, legend, x + w * 0.20, dy + h * 0.07 + 4.5,
+             "Demister / eliminator pad")
 
-        # Circulation pump beside the tank, on the LEFT: the height dimension
-        # runs down the right-hand side, so a pump drawn there collides with it.
-        pr = min(w, h) * 0.05
-        pcx = x - pr - 5.0
-        canvas.add(Circle(pcx, ty + tank_h * 0.5, pr, L_COMPONENT, LW_MED))
-        item(canvas, legend, pcx, ty - 5.0, f"Circulation pump {pump}".strip())
+        # Circulation pump ON the tank with its delivery riser to the headers.
+        # It used to be drawn outside the outline entirely, which read as a
+        # stray circle floating beside the drawing with a balloon attached to
+        # nothing — visible immediately on the sheet, invisible in the markup.
+        pr = min(w * 0.05, tank_h * 0.34)
+        pcx, pcy = x + w * 0.12, ty + tank_h * 0.5
+        canvas.add(Circle(pcx, pcy, pr, L_COMPONENT, LW_MED))
+        canvas.add(Line(pcx, pcy - pr, pcx, y + h * 0.30, L_COMPONENT, LW_THIN))
+        item(canvas, legend, pcx + pr + 5.5, pcy, f"Circulation pump {pump}".strip())
+
+        # Airflow through the tower: in low, up through the spray zone and the
+        # demister, out at the top. This is how the machine works, not a
+        # position we invented, so it is drawn as direction only.
+        airflow(canvas, [(x + w * 0.06, y + h * 0.66), (x + w * 0.06, y + h * 0.13)],
+                "AIR IN")
+        airflow(canvas, [(x + w * 0.88, y + h * 0.34), (x + w * 0.88, y + h * 0.13)],
+                "AIR OUT")
     return legend
 
 
