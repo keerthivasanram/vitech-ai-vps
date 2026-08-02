@@ -62,12 +62,13 @@ def _bom(spec: dict) -> list[dict]:
     return out
 
 
-def build_drawing(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
-                  client: str = "", ref: str = "", drawn_by: str = "") -> dict[str, Any]:
-    """Resolved spec -> GA drawing package.
+def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
+            client: str = "", ref: str = "", drawn_by: str = "") -> tuple[Canvas, dict[str, Any]]:
+    """Build the sheet and return BOTH the canvas and the drawing package.
 
-    Returns svg, the layer list the studio toggles, the chosen scale, the BOM,
-    the TBD schedule and a short markdown summary for the agent to narrate.
+    The canvas is what the non-SVG exporters (DXF, PDF) need — they consume the
+    same shape list the SVG is emitted from, so an exported drawing can never
+    drift from the one on screen.
     """
     size = sheet_size if sheet_size in sheet.SHEET_SIZES else sheet.DEFAULT_SIZE
     sw, sh = sheet.SHEET_SIZES[size]
@@ -120,7 +121,7 @@ def build_drawing(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
     })
 
     present = canvas.layers_present()
-    return {
+    return canvas, {
         "ok": True,
         "category": category,
         "category_label": label,
@@ -139,6 +140,16 @@ def build_drawing(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "notes": STANDING_NOTES,
         "drawing_markdown": _markdown(label, env, scale, placed, tbd, size),
     }
+
+
+def build_drawing(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
+                  client: str = "", ref: str = "", drawn_by: str = "") -> dict[str, Any]:
+    """Resolved spec -> GA drawing package.
+
+    Returns svg, the layer list the studio toggles, the chosen scale, the BOM,
+    the TBD schedule and a short markdown summary for the agent to narrate.
+    """
+    return compose(spec, sheet_size, client, ref, drawn_by)[1]
 
 
 def _markdown(label: str, env: dict, scale: int, placed: list, tbd: list,

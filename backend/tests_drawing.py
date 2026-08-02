@@ -120,7 +120,8 @@ check(all(str(r["spec"]).lower() != "to be determined" for r in a["bom"]),
       "the BOM never lists an undetermined item as if it were supplied")
 
 # --- Categories without a glyph still produce a valid sheet ----------------
-generic = build_drawing({**NO_DIMS, "category": "ducting", "category_label": "Ducting",
+generic = build_drawing({**NO_DIMS, "category": "pretreatment_plant",
+                         "category_label": "Pretreatment Plant",
                          "geometry": {"envelope_mm": {"length": 2000, "width": 600,
                                                       "height": 600}, "ready": True}})
 check(generic["ok"] and generic["legend"] == [],
@@ -158,6 +159,38 @@ check(derive_envelope("wet_scrubber", [
       == {"length": 750, "width": 750, "height": 4000},
       "display-form origins are accepted too (the tool response labels them)")
 
+# A dust collector's casing size is drawable only when the CLIENT stated it.
+# There is deliberately no airflow -> casing fallback: that needs an
+# air-to-cloth ratio and hopper proportions Vitech has not supplied.
+DC_SIZE = "3.9L x 4.0W x 8.3H"
+check(derive_envelope("dust_collector",
+                      [{"label": "Collector size (m)", "value": DC_SIZE,
+                        "origin": "given"}], {})
+      == {"length": 3900, "width": 4000, "height": 8300},
+      "dust collector envelope reads a client-stated casing size")
+check(derive_envelope("dust_collector",
+                      [{"label": "Collector size (m)", "value": DC_SIZE,
+                        "origin": "reused"}], {}) is None,
+      "a historical collector's casing is refused - it is a different machine")
+check(derive_envelope("dust_collector",
+                      [{"label": "Collector size (mm)", "value": "900 x 900 x 1400",
+                        "origin": "given"}], {})
+      == {"length": 900, "width": 900, "height": 1400},
+      "a collector size already in mm is not scaled again")
+check(derive_envelope("dust_collector", [], {"air_volume_cmh": 25000}) is None,
+      "airflow alone never sizes a casing (no client air-to-cloth standard yet)")
+
+# A duct run: client-given length by the diameter the client's own transport
+# velocity standard selects.
+check(derive_envelope("ducting", [], {"layout_length_m": 40, "air_volume_cmh": 25000})
+      == {"length": 40000, "width": 800, "height": 800},
+      "ducting envelope = given run length x duct dia from select_duct")
+check(derive_envelope("ducting", [], {"layout_length_m": 40, "air_volume_cfm": 14715})
+      == {"length": 40000, "width": 800, "height": 800},
+      "ducting accepts either airflow unit basis")
+check(derive_envelope("ducting", [], {"layout_length_m": 40}) is None,
+      "ducting without an airflow cannot compute a section, so it refuses")
+
 derived_drawing = build_drawing({
     "category": "wet_scrubber", "category_label": "Wet Scrubber",
     "geometry": {"envelope_mm": env, "ready": True},
@@ -186,6 +219,105 @@ check(fieldspec.coerce({"length_m": "abc"}) == {},
       "an unparseable number is dropped, not passed through as text")
 check(fieldspec.coerce({"length_m": "", "width_m": None, "qty": "  "}) == {},
       "blank inputs are omitted so they surface as TBD, not as zero")
+
+# Categories specified by duty, not size, still need a way to be DRAWN.
+from app.catalog import CATEGORY_PROFILES
+
+dc_size = fieldspec.size_fields(CATEGORY_PROFILES["dust_collector"])
+check([f["key"] for f in dc_size] == ["length_m", "width_m", "height_m"],
+      "a duty-specified category is offered optional overall-size drawing inputs")
+check(all(f["drawing_only"] and not f["required"] for f in dc_size),
+      "those size inputs are drawing-only and never required")
+check(fieldspec.size_fields(CATEGORY_PROFILES["paint_booth"]) == [],
+      "a category that already declares dimensions is not offered duplicates")
+
+# --- Component glyphs ------------------------------------------------------
+GLYPH_CASES = {
+    "hot_air_oven": ([
+        {"label": "Insulation", "value": "150mm rock wool"},
+        {"label": "Heating source", "value": "LPG burner"},
+        {"label": "Circulation blower (HP)", "value": "10"},
+        {"label": "Circulation blower (nos)", "value": "2 nos"},
+        {"label": "No. of heating zones", "value": "3"},
+        {"label": "Conveyor", "value": "overhead chain"}], "3 zones"),
+    "dust_collector": ([
+        {"label": "Filter bags", "value": "polyester, Dia 160 x 2500mm - 225 nos"},
+        {"label": "Blower motor (HP)", "value": "60"},
+        {"label": "Rotary airlock", "value": "0.5 HP - 2 nos"}], "225 nos"),
+    "powder_coating_plant": ([
+        {"label": "Powder coating booth", "value": "downside draft"},
+        {"label": "Curing oven", "value": "batch 180 C"}], "Curing oven"),
+    "conveyor": ([{"label": "Type", "value": "overhead"},
+                  {"label": "Operation", "value": "manual"}], "Track"),
+    "ducting": ([{"label": "Exhaust duct", "value": "GI 300mm"}], "Duct section"),
+}
+for cat, (rows_in, needle) in GLYPH_CASES.items():
+    check(cat in SYMBOLS, f"{cat} has a component glyph")
+    drawn = build_drawing({"category": cat, "category_label": cat,
+                           "geometry": {"envelope_mm": {"length": 6000, "width": 3000,
+                                                        "height": 4000}, "ready": True},
+                           "technical_details": rows_in})
+    legend_text = " | ".join(l["description"] for l in drawn["legend"])
+    check(drawn["legend"] and needle in legend_text,
+          f"{cat} legend carries the resolved value ({needle})")
+    check(build_drawing({"category": cat, "category_label": cat,
+                         "geometry": {"envelope_mm": {"length": 6000, "width": 3000,
+                                                      "height": 4000}, "ready": True},
+                         "technical_details": rows_in})["svg"] == drawn["svg"],
+          f"{cat} glyph is deterministic")
+
+# A count is only drawn when the value states one. "700-800 LUX" is not 700
+# luminaires, and a glyph must omit the symbol rather than invent a quantity.
+oven_no_counts = build_drawing({
+    "category": "hot_air_oven", "category_label": "Hot Air Oven",
+    "geometry": {"envelope_mm": {"length": 6000, "width": 3000, "height": 4000},
+                 "ready": True},
+    "technical_details": [{"label": "Circulation blower (nos)", "value": "700-800 LUX"}]})
+check(not any("700" in l["description"] for l in oven_no_counts["legend"]),
+      "a glyph never reads a non-count number as a quantity")
+
+# Nothing a glyph draws may escape the sheet frame.
+for cat, (rows_in, _) in GLYPH_CASES.items():
+    d = build_drawing({"category": cat, "category_label": cat,
+                       "geometry": {"envelope_mm": {"length": 6000, "width": 3000,
+                                                    "height": 4000}, "ready": True},
+                       "technical_details": rows_in})
+    coords = [float(v) for v in re.findall(r'(?:x|cx|x1|x2)="(-?\d+\.?\d*)"', d["svg"])]
+    check(coords and min(coords) >= 0 and max(coords) <= 420,
+          f"{cat} glyph geometry stays inside the sheet")
+
+# --- Exports (DXF / PDF) ---------------------------------------------------
+from app.drawing import export as exporter
+from app.drawing.drawing_service import compose
+
+canvas, pkg = compose(BOOTH)
+check(pkg["svg"] == a["svg"], "compose() and build_drawing() produce the same sheet")
+
+dxf = exporter.to_dxf(canvas)
+check(dxf.startswith("0\nSECTION") and dxf.rstrip().endswith("EOF"),
+      "DXF is a complete R12 document")
+check("\nENTITIES\n" in dxf and "\nLAYER\n" in dxf and "\nLTYPE\n" in dxf,
+      "DXF declares its tables and an entities section")
+for lay in [l["id"] for l in pkg["layers"]]:
+    check(f"\n{lay}\n" in dxf, f"DXF carries the '{lay}' layer")
+check("5000" in dxf, "DXF keeps the dimension text as text, not as outlines")
+# DXF is +y UP while the sheet model is +y DOWN; a mirrored sheet is the
+# classic symptom of getting this backwards.
+ys = [float(v) for v in re.findall(r"\n20\n(-?\d+\.\d+)\n", dxf)]
+check(ys and min(ys) >= -0.01 and max(ys) <= 297.01,
+      f"DXF ordinates are flipped into sheet extents ({min(ys):.1f}..{max(ys):.1f})")
+check(exporter.to_dxf(canvas) == dxf, "DXF export is deterministic")
+
+pdf = exporter.to_pdf(canvas)
+check(pdf.startswith(b"%PDF"), "PDF export is a real PDF")
+check(len(pdf) > 3000, f"PDF has vector content ({len(pdf)} bytes)")
+# The sheet is 420x297: fpdf2 SWAPS an explicit format tuple when told "L",
+# which silently produced a portrait page.
+check(b"/MediaBox [0 0 1190.55 841.89]" in pdf or b"1190.55 841.89" in pdf,
+      "PDF page is the true landscape sheet size, not rotated to portrait")
+check(exporter._pt(2.5) == 7.09, "text height in mm converts to points")
+check(exporter._dash_mm("2,1.5") == (2.0, 1.5) and exporter._dash_mm(None) == (),
+      "SVG dash patterns map to fpdf dash/gap")
 
 print()
 if FAILS:

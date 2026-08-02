@@ -61,6 +61,25 @@ check("labelled dimensions with NO equipment word find the exact project",
 check("labelled dimensions in mm resolve identically",
       ids(structured_project_hits("Length: 900 mm Width: 920 mm Height: 2000 mm")) == ["OFF-YONEX-PB-367"],
       ids(structured_project_hits("Length: 900 mm Width: 920 mm Height: 2000 mm")))
+# The VALUE-FIRST phrasing ("0.9 m long") is at least as common as the
+# label-first one, and used to be read off by one: the label-first pattern
+# found "long", scanned forward and took the NEXT dimension's number, so
+# "0.9 m long 0.92 m wide 2 m high" silently became length 0.92 / width 2 /
+# no height. A wrong envelope draws a wrong GA, so it is pinned here.
+from app.understand import _labelled_dims
+check("value-first dimensions parse in order, not shifted by one",
+      _labelled_dims("dust collector 3.9 m long 4 m wide 8.3 m high")
+      == {"length_m": 3.9, "width_m": 4.0, "height_m": 8.3},
+      _labelled_dims("dust collector 3.9 m long 4 m wide 8.3 m high"))
+check("label-first dimensions are unaffected by the value-first support",
+      _labelled_dims("length 900mm width 920mm height 2000mm")
+      == {"length_m": 0.9, "width_m": 0.92, "height_m": 2.0},
+      _labelled_dims("length 900mm width 920mm height 2000mm"))
+_VF = "any client with 0.9 m long 0.92 m wide 2 m high booth"
+check("a value-first dimensioned question finds the same exact project",
+      ids(structured_project_hits(_VF)) == ["OFF-YONEX-PB-367"],
+      ids(structured_project_hits(_VF)))
+
 _WEAK = "which client did we do a 0.9 x 0.92 x 2 booth for"
 check("a weakly-classified equipment word still yields the exact match only",
       ids(structured_project_hits(_WEAK)) == ["OFF-YONEX-PB-367"], ids(structured_project_hits(_WEAK)))

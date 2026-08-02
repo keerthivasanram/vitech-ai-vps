@@ -49,6 +49,10 @@ export function DrawingStudio() {
   const [ref, setRef] = useState("");
 
   const [drawing, setDrawing] = useState(null);
+  // How the CURRENT drawing was asked for (studio form or chat requirement),
+  // replayed to the export endpoint so DXF/PDF rebuild the identical sheet.
+  const [source, setSource] = useState(null);
+  const [exporting, setExporting] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [hidden, setHidden] = useState(() => new Set());
@@ -104,14 +108,15 @@ export function DrawingStudio() {
   const generate = useCallback(async () => {
     if (!category) return;
     setBusy(true); setError("");
+    const req = { category, values, sheet_size: sheetSize, drawing_type: drawingType, client, ref };
     try {
       const res = await fetch("/api/drawing/render", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, values, sheet_size: sheetSize, drawing_type: drawingType, client, ref }),
+        body: JSON.stringify(req),
       });
       const d = await res.json();
-      if (!d.ok) { setError(d.error || "The drawing could not be generated."); setDrawing(null); }
-      else { setDrawing(d); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }
+      if (!d.ok) { setError(d.error || "The drawing could not be generated."); setDrawing(null); setSource(null); }
+      else { setDrawing(d); setSource(req); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }
     } catch { setError("Could not reach the drawing engine."); }
     finally { setBusy(false); }
   }, [category, values, sheetSize, drawingType, client, ref]);
@@ -138,12 +143,15 @@ export function DrawingStudio() {
       const drew = (d.usedTools || []).find((u) => u.tool === "generate_drawing");
       setChat((c) => [...c, { role: "agent", text: d.text || d.answer || "(no reply)" }]);
       if (drew) {
+        const req = { question: drew.toolInput?.question || q, sheet_size: sheetSize };
         const r = await fetch("/api/tools/drawing", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: drew.toolInput?.question || q, sheet_size: sheetSize }),
+          body: JSON.stringify(req),
         });
         const dr = await r.json();
-        if (dr.ok && dr.svg) { setDrawing(dr); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }
+        if (dr.ok && dr.svg) {
+          setDrawing(dr); setSource(req); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 });
+        }
       }
     } catch { setChat((c) => [...c, { role: "agent", text: "Could not reach the Drawing Agent." }]); }
     finally { setThinking(false); }
@@ -183,14 +191,42 @@ export function DrawingStudio() {
     const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
-  const exportSvg = () => {
-    if (!drawing?.svg) return;
-    const url = URL.createObjectURL(new Blob([drawing.svg], { type: "image/svg+xml" }));
+  const download = (blob, name) => {
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(drawing.category_label || "drawing").replace(/\s+/g, "-").toLowerCase()}-GA.svg`;
+    a.href = url; a.download = name;
     a.click(); URL.revokeObjectURL(url);
   };
+
+  /**
+   * DXF and PDF are produced by the backend from the SAME compose() the canvas
+   * renders, so an exported sheet can never disagree with the approved one.
+   * `source` records how the current drawing was requested (studio form or a
+   * chat requirement) and is replayed verbatim to the export endpoint.
+   */
+  const exportAs = useCallback(async (fmt) => {
+    if (!drawing) return;
+    const stem = `${(drawing.category_label || "drawing").replace(/\s+/g, "-").toLowerCase()}-GA`;
+    if (fmt === "svg") {                       // already in hand, byte-identical
+      download(new Blob([drawing.svg], { type: "image/svg+xml" }), `${stem}.svg`);
+      return;
+    }
+    if (!source) { setError("Regenerate the drawing before exporting it."); return; }
+    setExporting(fmt); setError("");
+    try {
+      const res = await fetch("/api/drawing/export", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...source, format: fmt }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || `The ${fmt.toUpperCase()} export failed.`);
+        return;
+      }
+      download(await res.blob(), `${stem}.${fmt}`);
+    } catch { setError(`Could not reach the export service for ${fmt.toUpperCase()}.`); }
+    finally { setExporting(""); }
+  }, [drawing, source]);
 
   // Applied as a scoped stylesheet so a layer the backend adds later toggles
   // without any change here.
@@ -211,10 +247,18 @@ export function DrawingStudio() {
             {drawing.tbd?.length > 0 && <span className="ds-chip is-warn">{drawing.tbd.length} TBD</span>}
           </div>
         )}
-        <div className="ds-bar-group">
-          <button type="button" className="ds-btn" onClick={exportSvg} disabled={!drawing}>
-            <Download size={14} strokeWidth={2} /> Export SVG
-          </button>
+        <div className="ds-bar-group ds-export">
+          <span className="ds-export-label"><Download size={14} strokeWidth={2} /> Export</span>
+          {["svg", "dxf", "pdf"].map((fmt) => (
+            <button key={fmt} type="button" className="ds-btn is-fmt"
+                    onClick={() => exportAs(fmt)}
+                    disabled={!drawing || !!exporting}
+                    title={fmt === "dxf" ? "DXF R12 for AutoCAD / LibreCAD"
+                           : fmt === "pdf" ? "True-size vector PDF for printing"
+                           : "Scalable vector graphic"}>
+              {exporting === fmt ? "…" : fmt.toUpperCase()}
+            </button>
+          ))}
           <button type="button" className="ds-btn is-icon" onClick={() => setFocus((f) => !f)}
                   title={focus ? "Exit expanded view (Esc)" : "Expand workspace"}
                   aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>

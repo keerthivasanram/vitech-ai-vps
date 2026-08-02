@@ -86,6 +86,19 @@ def layout(env: dict, ox: float, oy: float, avail_w: float, avail_h: float,
     total_h = (plan_h or 0) + (VIEW_GAP if plan_h and front_h else 0) + (front_h or 0)
     top = oy + max(0.0, (avail_h - total_h - LABEL_DROP * 2) / 2)
 
+    # Centre the view block horizontally in the drawing area. Without this the
+    # views hug the left edge and a small-scale drawing leaves a dead band
+    # between the geometry and the notes column. The block is as wide as its
+    # widest row (plan, or front + side), and the leading gutter also gives the
+    # glyphs that sit outside an outline (a scrubber's pump) somewhere to go.
+    row_w = 0.0
+    if sL is not None and front_h is not None and sW is not None:
+        row_w = sL + VIEW_GAP + sW
+    elif sL is not None:
+        row_w = sL
+    block_w = max(row_w, sL or 0.0)
+    ox += max(0.0, (avail_w - block_w) / 2)
+
     y_cursor = top
     if sL is not None and plan_h is not None:
         views.append(View("plan", "PLAN", ox, y_cursor, sL, plan_h, L, W, "length", "width"))

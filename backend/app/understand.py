@@ -164,21 +164,49 @@ def contextualize(question: str, history) -> str:
     return f"{prev} {q}" if prev else q
 
 
-_LABELLED_DIM = {
-    "length_m": re.compile(r"\b(?:length|long)\b\s*[:=-]?\s*(\d+(?:\.\d+)?)\s*(mm|cm|m\b|met(?:er|re)s?)?", re.I),
-    "width_m": re.compile(r"\b(?:width|wide)\b\s*[:=-]?\s*(\d+(?:\.\d+)?)\s*(mm|cm|m\b|met(?:er|re)s?)?", re.I),
-    "height_m": re.compile(r"\b(?:height|high|tall)\b\s*[:=-]?\s*(\d+(?:\.\d+)?)\s*(mm|cm|m\b|met(?:er|re)s?)?", re.I),
+_DIM_WORDS = {
+    "length_m": r"length|long",
+    "width_m": r"width|wide",
+    "height_m": r"height|high|tall",
 }
+_UNIT = r"(mm|cm|m\b|met(?:er|re)s?)"
+
+# TWO phrasings: value-first ("3.9 m long") and label-first ("Length: 0.9 m").
+_LABELLED_DIM_SUFFIX = {
+    key: re.compile(rf"(\d+(?:\.\d+)?)\s*{_UNIT}?\s*(?:{words})\b", re.I)
+    for key, words in _DIM_WORDS.items()
+}
+_LABELLED_DIM_PREFIX = {
+    key: re.compile(rf"\b(?:{words})\b\s*[:=-]?\s*(\d+(?:\.\d+)?)\s*{_UNIT}?", re.I)
+    for key, words in _DIM_WORDS.items()
+}
+
+# Which phrasing the text uses has to be decided ONCE for the whole string,
+# because each pattern happily mis-reads the other's layout:
+#   label-first patterns on "3.9 m long 4 m wide 8.3 m high" find "long", scan
+#   forward and take the NEXT dimension's number -> length 4.0, width 8.3, no
+#   height, silently wrong;
+#   value-first patterns on "length 900mm width 920mm" match "900mm width" and
+#   read length's value as the width.
+# Whichever layout appears FIRST in the string is the one the writer is using.
+_ANY_DIM_WORD = "|".join(_DIM_WORDS.values())
+_VALUE_FIRST = re.compile(rf"(\d+(?:\.\d+)?)\s*{_UNIT}?\s*(?:{_ANY_DIM_WORD})\b", re.I)
+_LABEL_FIRST = re.compile(rf"\b(?:{_ANY_DIM_WORD})\b\s*[:=-]?\s*\d", re.I)
 
 
 def _labelled_dims(q: str) -> dict:
     """Dimensions written as labels rather than a product: "Length: 0.9 meters,
-    Width: 0.92 m, Height: 2". Returns metres. Only accepted when at least TWO
-    labels are present, so a stray "height 3" in prose cannot masquerade as a
-    dimensioned requirement."""
+    Width: 0.92 m, Height: 2" or "0.9 m long, 0.92 m wide, 2 m high". Returns
+    metres. Only accepted when at least TWO labels are present, so a stray
+    "height 3" in prose cannot masquerade as a dimensioned requirement."""
+    vf, lf = _VALUE_FIRST.search(q), _LABEL_FIRST.search(q)
+    value_first = bool(vf) and (not lf or vf.start() < lf.start())
+    primary = _LABELLED_DIM_SUFFIX if value_first else _LABELLED_DIM_PREFIX
+    fallback = _LABELLED_DIM_PREFIX if value_first else _LABELLED_DIM_SUFFIX
+
     out: dict = {}
-    for key, rx in _LABELLED_DIM.items():
-        m = rx.search(q)
+    for key in _DIM_WORDS:
+        m = primary[key].search(q) or fallback[key].search(q)
         if not m:
             continue
         val = float(m.group(1))

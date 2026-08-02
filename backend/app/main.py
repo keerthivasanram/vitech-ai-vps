@@ -5,10 +5,12 @@ Pipeline per query:  question -> understand -> retrieve -> analyze -> LLM -> ans
 import html
 import json
 import re
+from typing import Optional
 
 from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from fastapi.responses import (HTMLResponse, JSONResponse, Response,
+                               StreamingResponse)
 from pydantic import BaseModel
 
 import shutil
@@ -339,7 +341,8 @@ def _spec_geometry(a: dict) -> dict:
     # and only from client-given or rule-computed values.
     if len(have) < 3:
         from .drawing.envelope import derive_envelope
-        derived = derive_envelope(a.get("category"), a.get("technical_details") or [])
+        derived = derive_envelope(a.get("category"),
+                                  a.get("technical_details") or [], params)
         if derived:
             env, src = derived, "derived"
     fields = [
@@ -432,12 +435,17 @@ def drawing_catalog():
     for key, profile in CATEGORY_PROFILES.items():
         req = fieldspec.describe(profile, "required_inputs")
         opt = fieldspec.describe(profile, "optional_inputs")
+        # Categories specified by duty rather than size (dust collector,
+        # conveyor, ducting) get optional overall-size inputs so the studio can
+        # actually produce a dimensioned sheet; blank leaves them TBD.
+        size = fieldspec.size_fields(profile)
         cats.append({
             "key": key,
             "label": profile.get("label") or key.replace("_", " ").title(),
             "has_symbols": key in SYMBOLS,
-            "dimension_keys": profile.get("dimension_keys") or [],
-            "fields": req + opt,
+            "dimension_keys": (profile.get("dimension_keys") or []
+                               or [f["key"] for f in size]),
+            "fields": req + opt + size,
         })
     cats.sort(key=lambda c: (not c["has_symbols"], c["label"]))
 
@@ -459,27 +467,19 @@ def drawing_catalog():
     }
 
 
-@app.post("/api/drawing/render")
-def drawing_render(payload: dict = Body(...)):
-    """Studio entry point: explicit category + field values -> GA drawing.
-
-    Distinct from the agent tool below, which parses a natural-language
-    requirement. Here the studio has already collected structured inputs, so
-    they are passed straight through as the requirement text the engine
-    resolves — keeping ONE resolution path rather than a parallel one that
-    could drift from the spec engine.
-    """
-    from .drawing.drawing_service import build_drawing
-
+def _studio_spec(payload: dict) -> tuple[Optional[dict], str, Optional[dict]]:
+    """Studio payload -> (spec, requirement, error). Shared by render and export
+    so an exported sheet is built from exactly the same resolution as the one
+    on screen."""
     category = str(payload.get("category") or "").strip()
     values = payload.get("values") or {}
     if not category:
-        return {"ok": False, "error": "Select an equipment category."}
+        return None, "", {"ok": False, "error": "Select an equipment category."}
 
     from .catalog import CATEGORY_PROFILES
     profile = CATEGORY_PROFILES.get(category)
     if not profile:
-        return {"ok": False, "error": f"Unknown category '{category}'."}
+        return None, "", {"ok": False, "error": f"Unknown category '{category}'."}
 
     # The studio already HAS structured inputs, so they go straight into the
     # resolver rather than being rendered to a sentence and re-parsed — a
@@ -506,6 +506,24 @@ def drawing_render(payload: dict = Body(...)):
             for t in (a.get("technical_details") or [])
         ],
     }
+    return spec, question, None
+
+
+@app.post("/api/drawing/render")
+def drawing_render(payload: dict = Body(...)):
+    """Studio entry point: explicit category + field values -> GA drawing.
+
+    Distinct from the agent tool below, which parses a natural-language
+    requirement. Here the studio has already collected structured inputs, so
+    they are passed straight through as the requirement text the engine
+    resolves — keeping ONE resolution path rather than a parallel one that
+    could drift from the spec engine.
+    """
+    from .drawing.drawing_service import build_drawing
+
+    spec, question, err = _studio_spec(payload)
+    if err:
+        return err
 
     drawing = build_drawing(
         spec,
@@ -516,6 +534,57 @@ def drawing_render(payload: dict = Body(...)):
     )
     drawing["requirement"] = question
     return drawing
+
+
+@app.post("/api/drawing/export")
+def drawing_export(payload: dict = Body(...)):
+    """The same sheet as a downloadable SVG, DXF (CAD) or PDF (print).
+
+    Takes either the studio's structured input (`category` + `values`) or a
+    natural-language `question`, and rebuilds the drawing through the SAME
+    resolver as `/api/drawing/render` — an export is never a second rendering
+    path that could disagree with what the engineer approved on screen.
+    """
+    from .drawing.drawing_service import compose
+    from .drawing import export as exporter
+
+    fmt = str(payload.get("format") or "svg").lower().strip()
+    if fmt not in ("svg", "dxf", "pdf"):
+        return JSONResponse({"ok": False, "error": f"Unsupported format '{fmt}'."},
+                            status_code=400)
+
+    if payload.get("category"):
+        spec, _, err = _studio_spec(payload)
+        if err:
+            return JSONResponse(err, status_code=400)
+    else:
+        q = _tool_q(payload)
+        if not _named_requirement(q):
+            return JSONResponse(
+                {"ok": False, "error": "No equipment requirement was given."},
+                status_code=400)
+        spec = _spec_for_drawing(q)
+
+    canvas, drawing = compose(
+        spec,
+        sheet_size=str(payload.get("sheet_size") or "A3"),
+        client=str(payload.get("client") or ""),
+        ref=str(payload.get("ref") or ""),
+        drawn_by=str(payload.get("drawn_by") or ""),
+    )
+    stem = (drawing.get("category_label") or "drawing").replace(" ", "-").lower()
+    name = f"{stem}-GA.{fmt}"
+    media, body = {
+        "svg": ("image/svg+xml", drawing["svg"].encode("utf-8")),
+        "dxf": ("application/dxf", exporter.to_dxf(canvas).encode("utf-8")),
+        "pdf": ("application/pdf", exporter.to_pdf(canvas)),
+    }[fmt]
+    return Response(content=body, media_type=media, headers={
+        "Content-Disposition": f'attachment; filename="{name}"',
+        # so the studio can show what it just downloaded without a second call
+        "X-Drawing-Scale": str(drawing.get("scale") or ""),
+        "X-Drawing-Tbd": str(len(drawing.get("tbd") or [])),
+    })
 
 
 @app.post("/api/tools/drawing", operation_id="generate_drawing")

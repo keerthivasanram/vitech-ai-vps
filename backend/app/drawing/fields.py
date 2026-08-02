@@ -58,6 +58,38 @@ def describe(profile: dict, group: str) -> list[dict]:
     return out
 
 
+# A drawing needs an overall size; a SPECIFICATION often does not. A dust
+# collector is specified by airflow and dust type, so its profile has no
+# L/W/H inputs at all and the studio could only ever produce an undrawable
+# sheet — even though the resolver accepts those dimensions perfectly well
+# when a chat requirement happens to state them.
+_DRAWING_SIZE_FIELDS = [("length_m", "Overall length"),
+                        ("width_m", "Overall width"),
+                        ("height_m", "Overall height")]
+
+
+def size_fields(profile: dict) -> list[dict]:
+    """Optional overall-size inputs for a category whose profile declares none.
+
+    These are DRAWING inputs, not new spec inputs: they are not added to the
+    profile, so completeness, required-input prompting and the goldens are
+    untouched. They reach the engine by the same route a stated dimension in a
+    chat requirement does, and left blank they simply stay TBD.
+    """
+    if profile.get("dimension_keys"):
+        return []
+    declared = {k for k, _ in (profile.get("required_inputs") or [])}
+    declared |= {k for k, _ in (profile.get("optional_inputs") or [])}
+    return [{
+        "key": key,
+        "label": label,
+        "unit": unit_for(key),
+        "type": "number",
+        "required": False,
+        "drawing_only": True,
+    } for key, label in _DRAWING_SIZE_FIELDS if key not in declared]
+
+
 def coerce(values: dict) -> dict[str, Any]:
     """Turn submitted form values into engine parameters.
 

@@ -93,6 +93,20 @@
 .ds-btn.is-block { width: 100%; height: 38px; font-size: 13px; }
 .ds-btn.is-icon { width: 32px; padding: 0; }
 
+/* Export cluster: one label, one compact button per format. */
+.ds-export { gap: 4px; padding-right: 4px; }
+.ds-export-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--ds-dim); font-size: 12.5px; font-weight: 600;
+  margin-right: 2px; white-space: nowrap;
+}
+.ds-btn.is-fmt {
+  min-width: 44px; padding: 0 9px;
+  font-size: 11.5px; letter-spacing: 0.04em;
+}
+/* Narrow toolbars keep the buttons and drop the word, not the other way round. */
+@media (max-width: 1180px) { .ds-export-label { font-size: 0; gap: 0; margin-right: 0; } }
+
 /* --------------------------------------------------------------------------
    Panels (left parameters, right assistant)
    -------------------------------------------------------------------------- */

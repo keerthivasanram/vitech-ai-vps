@@ -113,15 +113,32 @@ class Circle(NamedTuple):
 
 
 class Path(NamedTuple):
-    """An arbitrary polyline/polygon, given as an SVG path `d` string."""
+    """An arbitrary polyline/polygon.
+
+    `d` is what the SVG emits; `pts` carries the same geometry as real
+    coordinates. The non-SVG exporters (DXF, PDF) need coordinates, and
+    re-parsing an SVG `d` string to recover them would be a second, drifting
+    definition of the same shape — so shapes are built from points via `poly()`
+    and the `d` string is derived from them, never the other way round.
+    """
     d: str
     layer: str = L_COMPONENT
     width: float = LW_MED
     fill: str = "none"
+    pts: tuple = ()
+    closed: bool = True
 
     def svg(self) -> str:
         return (f'<path d="{self.d}" fill="{self.fill}" '
                 f'stroke-width="{n(self.width)}"/>')
+
+
+def poly(points, layer: str = L_COMPONENT, width: float = LW_MED,
+         fill: str = "none", closed: bool = True) -> Path:
+    """A polyline/polygon from points, carrying both representations."""
+    pts = tuple((float(x), float(y)) for x, y in points)
+    d = "M" + " L".join(f"{n(x)},{n(y)}" for x, y in pts) + (" Z" if closed else "")
+    return Path(d, layer, width, fill, pts, closed)
 
 
 class Text(NamedTuple):
@@ -146,12 +163,12 @@ class Text(NamedTuple):
                 f'{esc(self.text)}</text>')
 
 
-def _arrowhead(x: float, y: float, dx: float, dy: float) -> str:
+def _arrowhead(x: float, y: float, dx: float, dy: float) -> Path:
     """Solid triangular arrowhead at (x,y) pointing along the unit vector."""
     bx, by = x - dx * ARROW, y - dy * ARROW
     px, py = -dy * ARROW * 0.28, dx * ARROW * 0.28
-    return (f'M{n(x)},{n(y)} L{n(bx + px)},{n(by + py)} '
-            f'L{n(bx - px)},{n(by - py)} Z')
+    return poly([(x, y), (bx + px, by + py), (bx - px, by - py)],
+                L_DIM, LW_THIN, "currentColor")
 
 
 class Dim:
@@ -178,8 +195,7 @@ class Dim:
                     Line(self.x2, self.y2, bx + 1.5, by, L_DIM, LW_THIN),
                     Line(ax, ay, bx, by, L_DIM, LW_THIN)]
             u = 1.0 if by > ay else -1.0
-            out += [Path(_arrowhead(ax, ay, 0, -u), L_DIM, LW_THIN, "currentColor"),
-                    Path(_arrowhead(bx, by, 0, u), L_DIM, LW_THIN, "currentColor")]
+            out += [_arrowhead(ax, ay, 0, -u), _arrowhead(bx, by, 0, u)]
             out.append(Text(ax - 1.2, (ay + by) / 2, self.label, L_DIM,
                             TEXT_H, "middle", rotate=-90))
         else:
@@ -190,8 +206,7 @@ class Dim:
                     Line(self.x2, self.y2, bx, by + 1.5, L_DIM, LW_THIN),
                     Line(ax, ay, bx, by, L_DIM, LW_THIN)]
             u = 1.0 if bx > ax else -1.0
-            out += [Path(_arrowhead(ax, ay, -u, 0), L_DIM, LW_THIN, "currentColor"),
-                    Path(_arrowhead(bx, by, u, 0), L_DIM, LW_THIN, "currentColor")]
+            out += [_arrowhead(ax, ay, -u, 0), _arrowhead(bx, by, u, 0)]
             out.append(Text((ax + bx) / 2, ay - 1.2, self.label, L_DIM,
                             TEXT_H, "middle"))
         return out
