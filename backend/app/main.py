@@ -337,6 +337,17 @@ def _spec_markdown(resp: dict) -> str | None:
     return "\n".join(L)
 
 
+def _spec_bom(a: dict) -> dict:
+    """Bill of materials for a resolved analysis, or {} if it has no rows."""
+    if not (a.get("technical_details") or []):
+        return {}
+    from .bom import build_bom
+    return build_bom({"category": a.get("category"),
+                      "category_label": a.get("category_label"),
+                      "geometry": _spec_geometry(a),
+                      "technical_details": a.get("technical_details") or []})
+
+
 def _spec_geometry(a: dict) -> dict:
     """Machine-readable geometry for the 2D drawing generator: the numeric
     envelope (mm) plus the status of every geometry-kind template field. Only
@@ -417,6 +428,10 @@ def tool_spec(payload: dict = Body(...)):
         # numbers are; this says whether it may leave the building.
         "validation": a.get("validation") or [],
         "release": a.get("release") or {},
+        # The same engineering read a second way, by what must be bought and
+        # made. Structured only — it is deliberately NOT folded into
+        # spec_markdown, which the agent already prints at its length limit.
+        "bom": _spec_bom(a),
         # structured geometry for the 2D-drawing generator (numeric mm envelope
         # + per-dimension status); prose table above is for humans, this is for code.
         "geometry": _spec_geometry(a),
@@ -643,6 +658,39 @@ def drawing_export(payload: dict = Body(...)):
         "X-Drawing-Scale": str(drawing.get("scale") or ""),
         "X-Drawing-Tbd": str(len(drawing.get("tbd") or [])),
     })
+
+
+@app.post("/api/bom", operation_id="generate_bom")
+def bom_endpoint(payload: dict = Body(...)):
+    """Requirement (or a pasted specification) -> bill of materials.
+
+    Derived from the SAME resolved specification the spec and the drawing come
+    from, so the three documents describe one machine. Quantities and weights
+    are engineering; a line is priced only where the client's own rate card
+    reaches it, and the total says plainly that it is partial.
+    """
+    from .bom import build_bom
+    from .drawing.spec_parser import looks_like_spec, parse_spec
+
+    text = str(payload.get("spec") or "").strip()
+    if text and looks_like_spec(text):
+        spec = parse_spec(text)
+        if not spec:
+            return {"ok": False, "error": "That specification could not be read."}
+        return build_bom(spec)
+
+    if payload.get("category"):
+        spec, _, err = _studio_spec(payload)
+        if err:
+            return err
+        return build_bom(spec)
+
+    q = _tool_q(payload)
+    if not _named_requirement(q):
+        return {"ok": False, "need_requirement": True,
+                "message": ("No equipment requirement was given. Ask the user WHICH equipment "
+                            "and its size before listing any material.")}
+    return build_bom(_spec_for_drawing(q))
 
 
 @app.post("/api/drawing/from-spec")

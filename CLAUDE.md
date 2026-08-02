@@ -42,6 +42,28 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-02 (BOM) — BILL OF MATERIALS from the engineering model (`app/bom.py`)
+Roadmap Phase 3, purely additive — no architecture change. `POST /api/bom` (operation_id
+`generate_bom`) accepts a requirement, a studio `category`+`values`, OR a pasted specification;
+the resolved spec also carries a structured `bom` block. **Eight suites green** (`tests_bom.py`,
+26 checks). Deliberately NOT folded into `spec_markdown` — the agent already prints that at its
+truncation limit (see the review-layer entry).
+- **One engineering model, two documents.** BOM lines are derived from the SPEC's own rows —
+  sheet weight, selected blower, filter count and size, luminaire count, duct bore — so the
+  spec, the drawing and the BOM describe the same machine by construction.
+- **Quantities and weights are engineering; MONEY is not.** A line is priced ONLY where the
+  client's own `rate_card` reaches it. Everything else is listed with the cost left open and a
+  reason. **Nothing is extrapolated and nothing is dropped**: the client priced exactly one
+  blower model, so `CLP-4-15-14500` is listed UNPRICED rather than scaled from `CLP-4-10-9000`;
+  a 13 kW panel is not priced from their 10 HP booth panel; MS structure is listed even though
+  no rule computes its weight yet.
+- **The total declares itself partial** and the printed BOM says "not a quotation" at the TOP.
+  This is the direct consequence of the client's cost sheet having its first row cut off
+  (Rs 5,68,534 visible vs Rs 6,49,264 stated) — no total built here can be validated against
+  theirs, and a confident-looking grand total would be the most dangerous number we could print.
+  **The uncosted list IS the answer to "what else do we need from you"** — on a 5x3x4 booth it
+  names 6 gaps against 5 priced lines (Rs 2,73,966, 1240 kg).
+
 ### ▶ 2026-08-02 (drawing polish) — item list, revisions, duty, airflow, drawing types
 Acting on a review of a real generated wet-scrubber GA. **Taken selectively** — the suggestions
 to dimension component POSITIONS (nozzle height, pump position) were REJECTED: those have no
