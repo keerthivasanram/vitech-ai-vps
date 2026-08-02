@@ -219,6 +219,20 @@ def cross_validate(category: str | None, params: dict, chosen, items: list[dict]
     return checks
 
 
+def fits_size(required: dict, offer: dict, profile: dict | None = None) -> bool:
+    """Is this offer close enough in size for its values to be evidence here?
+
+    Used before BORROWING a field from history, so that field-level retrieval
+    cannot quietly reintroduce the very mismatch `demote_unscalable` removes.
+    Unknown size compares as acceptable: refusing every offer we cannot measure
+    would turn the retrieval off rather than make it careful.
+    """
+    req, off, _ = _drivers(profile, required or {}, offer or {})
+    if not req or not off:
+        return True
+    return check_historical(off, req) is None
+
+
 def demote_unscalable(items: list[dict], params: dict, chosen,
                       profile: dict | None = None) -> list[dict]:
     """Refuse to ASSERT a size-dependent value copied across a large size gap.

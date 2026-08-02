@@ -20,8 +20,9 @@ from app.engineering.design_standards import (HISTORICAL_TOLERANCE,
                                               STATUS_ENGINEERING_DRAFT,
                                               check_historical)
 from app.release_gate import assess
-from app.spec_template import TBD_VALUE
-from app.validate import (cross_validate, demote_unscalable, is_size_dependent)
+from app.spec_template import TBD_VALUE, apply_template
+from app.validate import (cross_validate, demote_unscalable, fits_size,
+                          is_size_dependent)
 
 FAILS: list[str] = []
 
@@ -130,6 +131,50 @@ check(demote_unscalable(DEMOTE_ROWS, {"length_m": 8, "width_m": 4}, small_booth,
       "inside the tolerance band nothing is demoted")
 check(demote_unscalable(DEMOTE_ROWS, {"length_m": 10, "width_m": 10}, None, {}) == DEMOTE_ROWS,
       "with no source offer there is nothing to demote against")
+
+
+# --- Field-level retrieval: TBD is the LAST resort -------------------------
+# The nearest offer decides most of a spec, but it is one document. A field it
+# happens to leave blank may be answered by the next-closest design, and before
+# this the template stopped at the first miss and printed TBD (review defect #6).
+PROFILE = {
+    "spec_template": [{"label": "Dry scrubber", "kind": "standard"},
+                      {"label": "Blower MOC", "kind": "standard"},
+                      {"label": "Material handling", "kind": "customer_decision"}],
+    "field_labels": {"dry_scrubber": "Dry scrubber", "blower_moc": "Blower MOC"},
+    "scale_driver": None,
+}
+NEAR = {"id": "OFF-NEAR", "record": {"given_data": {"length_m": 3, "width_m": 3},
+                                     "technical_details": {"dry_scrubber": None}}}
+FAR_MATCH = {"id": "OFF-FAR", "record": {"given_data": {"length_m": 3, "width_m": 3},
+                                         "technical_details": {"dry_scrubber": "activated carbon 3 nos",
+                                                               "blower_moc": "MS"}}}
+
+rows = apply_template(PROFILE, [], [NEAR, FAR_MATCH], {"length_m": 3, "width_m": 3})
+by = {r["label"]: r for r in rows}
+check(by["Dry scrubber"]["origin"] == "reused"
+      and by["Dry scrubber"]["source"] == "OFF-FAR",
+      f"a field the nearest design left blank is found in a comparable one "
+      f"({by['Dry scrubber']['origin']})")
+check("Field-level match" in by["Dry scrubber"]["reason"],
+      "the borrowed field says it came from a field-level match, not the main design")
+check(by["Material handling"]["origin"] == "customer_decision",
+      "a customer decision is never looked up - it is theirs to make, not ours to find")
+
+# Retrieval must not reintroduce the mismatch demote_unscalable exists to remove.
+rows = apply_template(PROFILE, [], [NEAR, FAR_MATCH], {"length_m": 10, "width_m": 10})
+by = {r["label"]: r for r in rows}
+check(by["Dry scrubber"]["origin"] == "tbd",
+      "a size-dependent field is NOT borrowed across a large size gap")
+check(by["Blower MOC"]["origin"] == "reused",
+      "a material is still borrowed across a size gap - it does not scale")
+
+check(all(r["origin"] in ("tbd", "customer_decision")
+          for r in apply_template(PROFILE, [], [], {})),
+      "with no offers to search, every unresolved field is still an honest TBD")
+
+check(fits_size({}, {}, PROFILE) is True,
+      "an unmeasurable offer is not rejected outright - that would disable retrieval")
 
 
 # --- The release gate ------------------------------------------------------

@@ -12,6 +12,8 @@ This is the surface the client's uploaded engineering field-lists slot into — 
 a category's field list to `spec_template` in catalog.py and the resolver walks
 it automatically. Categories without a template are unaffected (opt-in).
 """
+import re
+
 from .catalog import origin_label
 
 TBD_VALUE = "To be determined"
@@ -51,12 +53,76 @@ def _tbd_row(field):
     }
 
 
-def apply_template(profile, technical):
+def _keys_for(field, profile) -> list[str]:
+    """The historical record keys that hold this template field.
+
+    An offer stores `technical_details` keyed by field name (`dry_scrubber`),
+    while the template names the field by label ("Dry scrubber"), so the two are
+    matched through the profile's own `field_labels` map plus the obvious
+    snake_case form of the label.
+    """
+    label = _norm(field.get("label"))
+    keys = [k for k, lbl in ((profile or {}).get("field_labels") or {}).items()
+            if _norm(lbl) == label]
+    slug = re.sub(r"[^a-z0-9]+", "_", label).strip("_")
+    if slug and slug not in keys:
+        keys.append(slug)
+    return keys
+
+
+def _field_from_history(field, profile, offers, params):
+    """Search comparable offers for THIS field before declaring it unknown.
+
+    The nearest offer decides most of a spec, but it is one document: a field it
+    happens to leave blank may be answered by the next-closest design. Before
+    this, `dry_scrubber` was `None` on the nearest booth and the template stopped
+    there, printing a TBD while several comparable booths on file had the answer
+    (client review defect #6).
+
+    The same size guard applies as everywhere else: a value engineered for a
+    materially different duty is not evidence for this one, so it is skipped
+    rather than borrowed. Retrieval must not reintroduce the defect that
+    `demote_unscalable` exists to prevent.
+    """
+    if not offers:
+        return None
+    from .validate import fits_size, is_size_dependent
+
+    keys = _keys_for(field, profile)
+    if not keys:
+        return None
+
+    for hit in offers:
+        rec = (hit or {}).get("record") or {}
+        tech = rec.get("technical_details") or {}
+        for key in keys:
+            value = tech.get(key)
+            if value in (None, "", []) or _norm(value) == _norm(TBD_VALUE):
+                continue
+            text = value if isinstance(value, str) else str(value)
+            if (is_size_dependent(field.get("label"), text)
+                    and not fits_size(params, rec.get("given_data") or {}, profile)):
+                continue                     # a different-sized machine's answer
+            return {
+                "label": field["label"],
+                "value": text,
+                "origin": "reused",
+                "origin_label": origin_label("reused"),
+                "source": hit.get("id") or rec.get("id"),
+                "reason": (f"Field-level match: the nearest design left this blank, so "
+                           f"{field['label'].lower()} was taken from comparable project "
+                           f"{hit.get('id') or rec.get('id')}."),
+                "kind": field.get("kind"),
+            }
+    return None
+
+
+def apply_template(profile, technical, offers=None, params=None):
     """Reconcile resolved `technical` rows against the category spec template:
     resolved rows appear in template order, and every template field with no
-    resolved value gets an explicit TBD row. Rows the template doesn't mention
-    (extra reused detail) are appended, so nothing is lost. No template ->
-    `technical` unchanged (opt-in)."""
+    resolved value is looked up in comparable history before falling back to an
+    explicit TBD row. Rows the template doesn't mention (extra reused detail) are
+    appended, so nothing is lost. No template -> `technical` unchanged (opt-in)."""
     template = (profile or {}).get("spec_template")
     if not template:
         return technical
@@ -74,8 +140,12 @@ def apply_template(profile, technical):
                 hit["kind"] = field["kind"]
             out.append(hit)
             used.add(id(hit))
-        else:
-            out.append(_tbd_row(field))
+            continue
+        # TBD is the LAST resort, not the first answer. A customer decision is
+        # never looked up — it is theirs to make, not ours to find.
+        found = (None if field.get("kind") == "customer_decision"
+                 else _field_from_history(field, profile, offers, params or {}))
+        out.append(found or _tbd_row(field))
     for it in technical:
         if id(it) not in used:
             out.append(it)

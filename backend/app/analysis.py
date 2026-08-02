@@ -114,7 +114,7 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         # machine's answer. Demote it to an honest gap BEFORE the template runs,
         # so it is scheduled as TBD rather than asserted as engineered fact.
         technical = demote_unscalable(technical, params, chosen, profile)
-        technical = apply_template(profile, technical)
+        technical = apply_template(profile, technical, offers, params)
 
     assumptions, missing = _assumptions_and_missing(profile, params, offers) if structured else ([], [])
     validation = ((validate(category, params)

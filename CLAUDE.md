@@ -76,8 +76,24 @@ computed it, and `validation` was calculated but never left the process. Seven s
   (1997 chars in, 1781 out) — the warning existed in the JSON and never reached the reader. It
   now sits ABOVE the tables it qualifies. **Position is the structural fix; a prompt rule would
   be the fragile one.** Verified 4/4 with warning + status shown.
-- **Still open in Phase 1:** C1 field-level retrieval before emitting a TBD (`spec_template::
-  _tbd_row` is the seam; `retriever` already has the scoped-search primitives).
+- **C1 field-level retrieval DONE** (`spec_template::_field_from_history`, called from
+  `apply_template`, which now receives `offers` + `params`). The nearest offer decides most of a
+  spec but it is ONE document: a field it leaves blank may be answered by the next-closest
+  design. **TBD is now the last resort, not the first answer.** The same size guard applies
+  (`validate.fits_size`) so retrieval cannot reintroduce the mismatch `demote_unscalable` exists
+  to remove, and a **customer decision is never looked up** — it is theirs to make, not ours to
+  find. Goldens: only the 2 paint-booth cases move (Blower MOC + Air intake filter tbd ->
+  reused); all wet-scrubber and all knowledge cases byte-identical.
+  **Honest limit on review defect #6:** only ONE booth on file (OFF-DMN-PB-180624R3, 9 m2)
+  records a `dry_scrubber`, and its value is size-dependent — so it fills a comparable 9-9.6 m2
+  booth and is correctly REFUSED for a 12 m2 one. The defect closes properly only when the
+  client supplies more booths carrying that field.
+- **Phase 1 is now complete.** Deliberately NOT doing, after review: the multi-agent split
+  (would turn deterministic Python into LLM agents, and 8 prompts to stabilise instead of 3),
+  the knowledge graph (a relational schema at 33 offers), the client portal (auth is still
+  frontend-only), the coordinate GA layout engine (blocked on client setting-out rules), and
+  **YAML rule files** (adds a parser, a schema and a new failure mode to load-bearing code for a
+  benefit that assumes the client edits config — they send PDFs).
 
 ### ▶ 2026-08-02 — DRAWING AGENT COMPLETE: all 14 glyphs, DXF/PDF export, spec→drawing, revisions
 Everything in `docs/drawing-agent-plan.md` §13 that is not blocked on the client is now built.
