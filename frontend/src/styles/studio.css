@@ -151,6 +151,48 @@
   padding: 1px 6px; border-radius: 999px; background: var(--ds-sunken); color: var(--ds-faint);
 }
 
+/* Collapsible sections. The header doubles as the toggle, so the whole strip
+   is the hit target rather than a small chevron. */
+.ds-group-h.is-btn {
+  width: 100%; padding: 3px 0; margin: 0;
+  background: none; border: 0; cursor: pointer; text-align: left;
+  font: inherit; font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--ds-faint);
+}
+.ds-group-h.is-btn:hover { color: var(--ds-ink); }
+.ds-group-h.is-btn:hover svg { color: var(--ds-ink); }
+.ds-group-h .ds-caret {
+  margin-left: 6px; flex: none;
+  transition: transform 0.18s var(--ds-ease);
+}
+.ds-group-h .ds-count + .ds-caret { margin-left: 6px; }
+.ds-group-h .ds-caret:only-of-type { margin-left: auto; }
+.ds-group.is-closed .ds-caret { transform: rotate(-90deg); }
+.ds-group-body { display: flex; flex-direction: column; gap: 9px; }
+
+/* Parameter / value pair rows for manually added specification lines. */
+.ds-pair { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; }
+.ds-icon-btn {
+  width: 28px; height: 28px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--ds-line); border-radius: var(--ds-r-sm);
+  background: var(--ds-panel); color: var(--ds-faint); cursor: pointer;
+}
+.ds-icon-btn:hover { color: var(--danger, #d14343); border-color: var(--border-strong); }
+
+.ds-textarea {
+  width: 100%; padding: 9px 10px; resize: vertical; min-height: 96px;
+  border: 1px solid var(--border-strong); border-radius: var(--ds-r-sm);
+  background: var(--ds-panel); color: var(--ds-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; line-height: 1.5;
+}
+.ds-textarea:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
+}
+.ds-textarea::placeholder { color: var(--ds-faint); opacity: 0.75; }
+
 .ds-field { display: flex; flex-direction: column; gap: 5px; }
 .ds-field > span { font-size: 11px; font-weight: 550; color: var(--ds-dim); display: flex; align-items: center; gap: 3px; }
 .ds-field .req { color: var(--primary); font-style: normal; }
@@ -262,6 +304,40 @@
 .ds-stage svg text { fill: currentColor; }
 
 /* Floating tool cluster */
+/* --------------------------------------------------------------------------
+   Revision strip — every sheet generated in this session, top-left of the
+   canvas. Deliberately small: it is a way back, not the subject of the screen.
+   -------------------------------------------------------------------------- */
+.ds-revs {
+  position: absolute; top: 12px; left: 12px; z-index: 6;
+  display: flex; align-items: flex-end; gap: 6px;
+  max-width: min(52%, 520px); padding: 5px;
+  overflow-x: auto; overflow-y: hidden;
+  background: var(--ds-panel); border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-md); box-shadow: var(--ds-shadow, 0 4px 14px rgba(0,0,0,0.10));
+  scrollbar-width: thin;
+}
+.ds-rev {
+  position: relative; flex: none;
+  width: 58px; height: 42px; padding: 0;
+  border: 1px solid var(--ds-line); border-radius: 6px;
+  background: #fff; cursor: pointer; overflow: hidden;
+  transition: border-color 0.16s var(--ds-ease), transform 0.16s var(--ds-ease);
+}
+.ds-rev:hover { transform: translateY(-1px); border-color: var(--border-strong); }
+.ds-rev.is-on { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.22); }
+/* The thumbnail is the real sheet SVG scaled down, so a revision is recognised
+   by its drawing rather than by a label nobody reads. */
+.ds-rev-thumb { position: absolute; inset: 0; display: block; pointer-events: none; }
+.ds-rev-thumb svg { width: 100%; height: 100%; color: #1c2430; }
+.ds-rev-n {
+  position: absolute; bottom: 0; right: 0;
+  min-width: 15px; padding: 0 3px;
+  font-size: 9.5px; font-weight: 700; line-height: 13px; text-align: center;
+  color: #fff; background: rgba(28, 36, 48, 0.82); border-top-left-radius: 5px;
+}
+.ds-rev.is-on .ds-rev-n { background: var(--primary); }
+
 .ds-tools {
   position: absolute; top: 12px; right: 12px; z-index: 6;
   display: flex; align-items: center; gap: 3px; padding: 4px;

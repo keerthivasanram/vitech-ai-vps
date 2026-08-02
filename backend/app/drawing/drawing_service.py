@@ -48,7 +48,12 @@ def _tbd_items(spec: dict) -> list[str]:
 
 
 def _bom(spec: dict) -> list[dict]:
-    """Bill of material from the resolved spec rows that name real hardware."""
+    """Bill of material from the resolved spec rows that name real hardware.
+
+    A row the engineer typed in by hand is always kept, whatever it names: they
+    put it on the specification deliberately, and silently dropping it because
+    it did not match a hardware keyword would lose stated information.
+    """
     keep = ("blower", "filter", "pump", "motor", "tank", "nozzle", "demister",
             "illumination", "control panel", "duct")
     out = []
@@ -57,13 +62,14 @@ def _bom(spec: dict) -> list[dict]:
         value = str(row.get("value", ""))
         if value.strip().lower() in ("", "to be determined"):
             continue
-        if any(k in label.lower() for k in keep):
+        if row.get("manual") or any(k in label.lower() for k in keep):
             out.append({"item": label, "spec": value, "origin": row.get("origin")})
     return out
 
 
 def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
-            client: str = "", ref: str = "", drawn_by: str = "") -> tuple[Canvas, dict[str, Any]]:
+            client: str = "", ref: str = "", drawn_by: str = "",
+            title_block: Optional[dict] = None) -> tuple[Canvas, dict[str, Any]]:
     """Build the sheet and return BOTH the canvas and the drawing package.
 
     The canvas is what the non-SVG exporters (DXF, PDF) need — they consume the
@@ -106,7 +112,9 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
 
     tbd = _tbd_items(spec)
     sheet.side_column(canvas, sw, sh, legend, STANDING_NOTES, tbd)
-    sheet.title(canvas, sw, sh, {
+    # Anything the caller states wins; everything else is derived. The block
+    # still invents nothing — an unstated field simply keeps its default.
+    info = {
         "title": f"{label} - GA",
         "client": client or "(to be completed)",
         "ref": ref or f"VT/GA/{date.today():%y%m%d}/DRAFT",
@@ -118,7 +126,9 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "checked": "",
         "rev": "0",
         "status": "DRAFT",
-    })
+    }
+    info.update({k: v for k, v in (title_block or {}).items() if str(v or "").strip()})
+    sheet.title(canvas, sw, sh, info)
 
     present = canvas.layers_present()
     return canvas, {
@@ -138,18 +148,20 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "bom": _bom(spec),
         "tbd": tbd,
         "notes": STANDING_NOTES,
+        "title_block": info,
         "drawing_markdown": _markdown(label, env, scale, placed, tbd, size),
     }
 
 
 def build_drawing(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
-                  client: str = "", ref: str = "", drawn_by: str = "") -> dict[str, Any]:
+                  client: str = "", ref: str = "", drawn_by: str = "",
+                  title_block: Optional[dict] = None) -> dict[str, Any]:
     """Resolved spec -> GA drawing package.
 
     Returns svg, the layer list the studio toggles, the chosen scale, the BOM,
     the TBD schedule and a short markdown summary for the agent to narrate.
     """
-    return compose(spec, sheet_size, client, ref, drawn_by)[1]
+    return compose(spec, sheet_size, client, ref, drawn_by, title_block)[1]
 
 
 def _markdown(label: str, env: dict, scale: int, placed: list, tbd: list,

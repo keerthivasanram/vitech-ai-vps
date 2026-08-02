@@ -42,6 +42,65 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-02 — DRAWING AGENT COMPLETE: all 14 glyphs, DXF/PDF export, spec→drawing, revisions
+Everything in `docs/drawing-agent-plan.md` §13 that is not blocked on the client is now built.
+All six suites green throughout (`tests_drawing.py` **37 → 122 checks**), goldens byte-identical,
+three agents verified reproducible from git (`ops/verify-agents.sh`), and every claim below was
+checked in a real browser or by rendering the output.
+- **EVERY catalog category now draws** (glyphs 2 → **14**): hot_air_oven, dust_collector,
+  powder_coating_plant, conveyor, ducting, cleaning_room, buffing_booth, flash_off_zone,
+  paint_drying_oven, blast_booth, pretreatment_plant, fume_extraction. Shared enclosure furniture
+  (`_lights`/`_filter_bank`/`_fan`/`_door`) holds the common vocabulary. **Legend tags allocate
+  themselves** (`item()`), because conditional rows left holes in the numbering (1, 2, 3, **5**);
+  `note_item()` adds a LETTERED row for a real value with no engineered position to draw.
+  **powder_coating_plant deliberately annotates its envelope as the MAXIMUM COMPONENT envelope** —
+  the catalog's geometry inputs are the largest component's L/W/H, NOT a plant footprint, so
+  drawing plant machinery inside it would be a lie.
+- **P2 EXPORTS DONE** — `app/drawing/export.py`: **DXF R12** (hand-rolled; the primitives are only
+  lines/circles/polylines/text, so `ezdxf` would buy nothing) and a **true-size vector PDF** via
+  fpdf2. Both consume the SAME `Canvas` the SVG comes from, through the new `compose()` — an
+  export can never drift from the approved sheet. `POST /api/drawing/export` (svg/dxf/pdf) serves
+  the studio form, a chat requirement, or a pasted spec. DXF validated by reading it back with
+  ezdxf (AC1009, correct extents, layers, linetypes) and round-tripping it to an image.
+- **SPECIFICATION → DRAWING** (`app/drawing/spec_parser.py`, `POST /api/drawing/from-spec`; the
+  agent tool auto-detects a pasted spec). It **parses rather than re-resolves ON PURPOSE**:
+  re-running the resolver draws a spec that *resembles* the reviewed one, parsing draws the
+  document the engineer is holding — every value they reviewed and every TBD they accepted. Only
+  safe because the document is ours (`main._spec_markdown` emits it); anything off-contract
+  returns None and the caller falls back to resolving a requirement.
+- **STUDIO REVISIONS** — a new drawing is APPENDED, never substituted. A strip of numbered
+  thumbnails sits top-left of the canvas; click one to go back. Each revision keeps its own
+  `source`, so an OLD revision still exports to DXF/PDF exactly as drawn, and the title block is
+  stamped with the revision number so a printed sheet is self-describing. Chat-driven changes are
+  revisions too — "alter it" never discards the sheet it started from.
+- **PARAMETER PANEL rebuilt** into collapsible sections: required inputs / process & options /
+  additional specification (hand-entered lines, carried as **stated** values, never dressed up as
+  calculated, and always kept in the BOM) / from-a-specification / title block (project, client,
+  drawing no., drawn by, checked by).
+- **Duty-specified categories can now be drawn from the studio.** dust_collector, conveyor and
+  ducting have no L/W/H in their profiles, so the form could only ever make an undrawable sheet —
+  even though the resolver accepts those dimensions fine from a chat requirement.
+  `fields.size_fields()` offers optional overall-size inputs as **DRAWING inputs that never enter
+  the catalog profile**, so completeness, required-input prompting and the goldens are untouched.
+- **Derived envelopes**: dust_collector (client-stated casing ONLY — there is deliberately **no
+  airflow→casing fallback**, that needs an air-to-cloth ratio and hopper proportions the client
+  has not supplied) and ducting (given run length × the diameter `select_duct` computes from the
+  client's own transport-velocity standard).
+- **FIVE bugs that were invisible in the source and only appeared when RENDERED** — this is why
+  the screenshot rule exists: (a) views hugged the left edge leaving a dead band, now centred;
+  (b) glyph geometry escaped the sheet frame; (c) **fpdf2 SWAPS an explicit `(w,h)` format when
+  told orientation `"L"`** — a 420×297 landscape sheet came out 297×420 portrait; (d) **fpdf2 ≥
+  2.5.6 `circle()` takes centre+radius**, not the legacy bounding box + diameter, so every balloon
+  drew at twice size offset up-left; (e) the paint_booth glyph read only the plural "Filters", so
+  every STANDARDS-resolved booth (label "Paint arresting filter") drew a bank with no elements.
+- **Also fixed: a silent dimension-extraction bug.** `_labelled_dims` matched "long" in
+  "3.9 m long 4 m wide 8.3 m high", scanned FORWARD and took the NEXT dimension's number →
+  length 4.0, width 8.3, no height. Phrasing is now decided once per string (whichever layout
+  appears first wins). A wrong envelope draws a wrong GA, and `_exact_dimension_hit` uses this
+  same parser for project lookups.
+- **`ezdxf` is installed in the pod venv for VERIFICATION only** — it is not in
+  `requirements.txt` and no app code imports it; the DXF writer is dependency-free by design.
+
 ### ▶ 2026-08-01 (studio UX) — canvas navigation, right-hand chat rail, status bar
 User feedback after the live review: "mouse is too sensitive", "chat needs to be on the right
 when we click expand", "needs to work properly for enterprise-level design". All verified in a

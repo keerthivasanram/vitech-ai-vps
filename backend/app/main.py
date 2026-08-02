@@ -506,7 +506,24 @@ def _studio_spec(payload: dict) -> tuple[Optional[dict], str, Optional[dict]]:
             for t in (a.get("technical_details") or [])
         ],
     }
+    # Anything the engineer typed in by hand on the studio's specification
+    # panel. Carried with origin "given" — it is the customer's/engineer's own
+    # stated value, exactly like a requirement, and is never presented as
+    # something the engine calculated.
+    for extra in payload.get("extra_rows") or []:
+        label = str(extra.get("label") or "").strip()
+        value = str(extra.get("value") or "").strip()
+        if label and value:
+            spec["technical_details"].append(
+                {"label": label, "value": value, "origin": "given",
+                 "kind": None, "manual": True})
     return spec, question, None
+
+
+def _title_block(payload: dict) -> dict:
+    """Title-block overrides the studio supplies; blanks keep the defaults."""
+    keys = ("title", "client", "ref", "drawn", "checked", "rev", "date", "status")
+    return {k: payload[k] for k in keys if payload.get(k)}
 
 
 @app.post("/api/drawing/render")
@@ -531,6 +548,7 @@ def drawing_render(payload: dict = Body(...)):
         client=str(payload.get("client") or ""),
         ref=str(payload.get("ref") or ""),
         drawn_by=str(payload.get("drawn_by") or ""),
+        title_block=_title_block(payload),
     )
     drawing["requirement"] = question
     return drawing
@@ -553,7 +571,14 @@ def drawing_export(payload: dict = Body(...)):
         return JSONResponse({"ok": False, "error": f"Unsupported format '{fmt}'."},
                             status_code=400)
 
-    if payload.get("category"):
+    if payload.get("spec"):
+        from .drawing.spec_parser import parse_spec
+        spec = parse_spec(str(payload["spec"]))
+        if not spec:
+            return JSONResponse(
+                {"ok": False, "error": "That does not look like a generated specification."},
+                status_code=400)
+    elif payload.get("category"):
         spec, _, err = _studio_spec(payload)
         if err:
             return JSONResponse(err, status_code=400)
@@ -571,6 +596,7 @@ def drawing_export(payload: dict = Body(...)):
         client=str(payload.get("client") or ""),
         ref=str(payload.get("ref") or ""),
         drawn_by=str(payload.get("drawn_by") or ""),
+        title_block=_title_block(payload),
     )
     stem = (drawing.get("category_label") or "drawing").replace(" ", "-").lower()
     name = f"{stem}-GA.{fmt}"
@@ -587,12 +613,52 @@ def drawing_export(payload: dict = Body(...)):
     })
 
 
+@app.post("/api/drawing/from-spec")
+def drawing_from_spec(payload: dict = Body(...)):
+    """A pasted engineering specification -> its general-arrangement drawing.
+
+    Draws THE specification the engineer is holding rather than re-resolving the
+    original requirement, so every reviewed value and every accepted TBD carries
+    through to the sheet unchanged.
+    """
+    from .drawing.drawing_service import build_drawing
+    from .drawing.spec_parser import parse_spec
+
+    text = str(payload.get("spec") or payload.get("question") or "").strip()
+    if not text:
+        return {"ok": False, "error": "Paste an engineering specification to draw."}
+    spec = parse_spec(text)
+    if not spec:
+        return {"ok": False, "error": ("That does not look like a generated engineering "
+                                       "specification. Paste the specification table, or "
+                                       "describe the equipment and its size instead.")}
+
+    drawing = build_drawing(
+        spec,
+        sheet_size=str(payload.get("sheet_size") or "A3"),
+        client=str(payload.get("client") or ""),
+        ref=str(payload.get("ref") or ""),
+        drawn_by=str(payload.get("drawn_by") or ""),
+        title_block=_title_block(payload),
+    )
+    drawing["from_specification"] = True
+    return drawing
+
+
 @app.post("/api/tools/drawing", operation_id="generate_drawing")
 def tool_drawing(payload: dict = Body(...)):
     """Requirement -> 2D general-arrangement drawing (deterministic geometry)."""
     from .drawing.drawing_service import build_drawing
+    from .drawing.spec_parser import looks_like_spec, parse_spec
 
     q = _tool_q(payload)
+    # A pasted specification is drawn AS GIVEN rather than re-resolved, so the
+    # sheet matches the document the engineer reviewed.
+    if looks_like_spec(q) and (parsed := parse_spec(q)):
+        drawing = build_drawing(parsed, sheet_size=str(payload.get("sheet_size") or "A3"))
+        drawing["svg_bytes"] = len(drawing.get("svg") or "")
+        drawing["from_specification"] = True
+        return drawing
     # Same guard as spec/quote: never draw from noise.
     if not _named_requirement(q):
         return {"ok": False, "need_requirement": True,

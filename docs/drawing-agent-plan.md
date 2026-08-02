@@ -221,56 +221,67 @@ Promote `drawing` to a **live split view** (chat | canvas), not a RoadmapPage:
 
 ---
 
-## 13. NEXT SESSION — Drawing Agent work plan
+## 13. Status after 2026-08-02
 
-P0/P1 are done: engine, three endpoints, studio UI and the Flowise chatflow are
-live. This is the ordered plan for the next block of work. **Items 1-3 need no
-client input**; item 4 is blocked on the client.
+P0, P1 and P2 are complete. Every catalog category draws, exports are live, and
+a generated specification is itself a drawable input.
 
-### 1. More category glyphs — highest value, lowest risk
-`app/drawing/symbols.py` currently covers `paint_booth` and `wet_scrubber`; every
-other category draws its envelope with an empty legend. Each new one is **a
-single function plus a registry entry** — sheet, views, title block, scaling,
-export and the studio all come for free.
+### Done
+1. **Glyphs for all 14 categories.** `symbols.py` covers paint_booth,
+   wet_scrubber, hot_air_oven, dust_collector, powder_coating_plant, conveyor,
+   ducting, cleaning_room, buffing_booth, flash_off_zone, paint_drying_oven,
+   blast_booth, pretreatment_plant and fume_extraction. Shared enclosure
+   furniture (`_lights` / `_filter_bank` / `_fan` / `_door`) keeps the common
+   vocabulary in one place. Legend tags allocate themselves via `item()`, so a
+   conditional row that does not resolve cannot leave a hole in the numbering;
+   `note_item()` adds a LETTERED row for something real that has no engineered
+   position to draw.
+2. **Derived envelopes** for dust_collector (client-stated casing only) and
+   ducting (given run length x the diameter `select_duct` computes). The studio
+   also offers optional overall-size inputs for duty-specified categories --
+   drawing inputs that never enter the catalog profile, so completeness,
+   required-input prompting and the goldens are untouched.
+3. **P2 exports.** `app/drawing/export.py` emits DXF R12 (hand-rolled -- the
+   primitives are only lines/circles/polylines/text) and a true-size vector PDF
+   through fpdf2. Both consume the same `Canvas` the SVG is emitted from via
+   `compose()`, so an exported sheet cannot drift from the approved one.
+   `POST /api/drawing/export` serves svg/dxf/pdf from the studio form, a chat
+   requirement, or a pasted specification.
+4. **Specification -> drawing.** `app/drawing/spec_parser.py` reads a generated
+   `spec_markdown` back into a drawable spec, so "now draw that" works.
+   `POST /api/drawing/from-spec` serves it, and `/api/tools/drawing` detects a
+   pasted spec automatically. It parses rather than re-resolves ON PURPOSE:
+   re-running the resolver would draw a spec that *resembles* the reviewed one;
+   parsing draws the document the engineer is actually holding, TBDs included.
+   Safe only because the document is ours -- anything off-contract returns None.
+5. **Studio revisions.** A new drawing is appended, never substituted. The strip
+   over the canvas keeps every earlier sheet one click away, each with its own
+   `source` so an old revision still exports. The title block is stamped with
+   the revision number, so a printed sheet is self-describing.
+6. **Parameter panel** rebuilt into collapsible sections: required inputs,
+   process & options, additional specification (hand-entered lines, carried as
+   stated values and always kept in the BOM), from-a-specification, title block
+   (project / client / drawing no. / drawn / checked).
 
-Order by how often they are quoted: **hot_air_oven** (chamber, door, heater bank,
-conveyor opening) → **dust_collector** (hopper, bag/cartridge array, fan, airlock)
-→ **powder_coating_plant** → **conveyor**.
-
-Follow the rules the existing glyphs set: real COUNTS from the spec (use `_nos`,
-never a bare integer match — a LUX rating is not a luminaire count), positions
-schematic and undimensioned, balloons offset clear of dimension lines and view
-captions, and every glyph returns its legend rows.
-
-### 2. More derived envelopes
-`app/drawing/envelope.py` teaches a category how to compose an envelope when the
-requirement never states L×W×H. `wet_scrubber` is done (tower diameter = footprint,
-computed tower height = height). Add **dust_collector** and **ducting** the same
-way — one function in `_DERIVERS`. Keep the two guards that make it safe: only
-client-given or rule-computed values may feed an envelope (never a REUSED
-historical value, which belongs to a different machine), and a partial envelope
-is refused outright rather than drawn.
-
-### 3. P2 exports — DXF and PDF
-The SVG stays the source of truth. **DXF**: decide on `ezdxf` (pure-Python,
-acceptable) versus a minimal hand-rolled writer — lines/text/circles are all the
-current primitives emit, so hand-rolling is viable and dependency-free. **PDF**:
-either render the SVG, or re-emit through `fpdf2` vector calls to match the
-existing `quotation_pdf` / `specification_pdf` stationery. The studio's
-`PDF / DXF` button is already in place and disabled.
-
-### 4. Component setting-out rules — BLOCKED on the client
-Until Vitech supplies real setting-out rules, glyph positions stay schematic and
-every sheet carries the standing note saying so. When they arrive, a glyph can
-graduate from proportional placement to dimensioned geometry — and only then may
-component positions carry dimension lines.
+### Remaining
+1. **Component setting-out rules -- BLOCKED on the client.** Until Vitech supply
+   real setting-out rules, glyph positions stay schematic and undimensioned and
+   every sheet carries the standing note saying so. Only then may a component
+   position carry a dimension line.
+2. **A dust collector sized from airflow.** Deliberately NOT built: it needs an
+   air-to-cloth ratio, bag pitch and hopper proportions, and the client's
+   pollution-control calculation document has not arrived. Today a casing size
+   is drawn only when the client states it.
+3. More sheet furniture as it is asked for: section views, weld/finish
+   annotations, a revision-history block on the sheet itself.
 
 ### Standing rules for any drawing work
-- **Screenshot the output; do not trust the SVG source.** Both bugs found during
-  the build — invisible text, and a LUX rating read as a luminaire count — looked
-  perfectly correct in the markup.
+- **Screenshot the output; do not trust the SVG source.** Every bug found while
+  building this was invisible in the markup: text rendering hollow, a LUX rating
+  read as a luminaire count, views hugging the left edge, glyphs escaping the
+  frame, fpdf2 rotating the page to portrait, and fpdf2's circle() taking
+  centre+radius rather than the legacy bounding box + diameter.
 - Run `tests_drawing.py` after any `app/drawing/` change; add a check per new
-  glyph (counts honoured, legend returned, no fabricated dimension).
+  glyph (counts honoured, legend returned, nothing escapes the sheet).
 - Keep `generate_drawing`'s tool function stripping `svg` before returning. A
-  ~16 KB sheet in an 8B context wrecks the reply, and the canvas renders the
-  drawing anyway.
+  ~16 KB sheet in an 8B context wrecks the reply, and the canvas has the drawing.

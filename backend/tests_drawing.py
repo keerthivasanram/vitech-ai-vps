@@ -119,16 +119,32 @@ check(any(r["item"] == "Exhaust blower" for r in a["bom"]), "the BOM lists real 
 check(all(str(r["spec"]).lower() != "to be determined" for r in a["bom"]),
       "the BOM never lists an undetermined item as if it were supplied")
 
-# --- Categories without a glyph still produce a valid sheet ----------------
-generic = build_drawing({**NO_DIMS, "category": "pretreatment_plant",
-                         "category_label": "Pretreatment Plant",
+# --- A category with no glyph still produces a valid sheet -----------------
+# Every catalog category now carries a glyph, so the fallback is exercised
+# directly: it is the contract for whatever the client adds next.
+generic = build_drawing({**NO_DIMS, "category": "not_yet_supported",
+                         "category_label": "New Equipment",
                          "geometry": {"envelope_mm": {"length": 2000, "width": 600,
                                                       "height": 600}, "ready": True}})
 check(generic["ok"] and generic["legend"] == [],
       "a category with no glyph draws its envelope with an empty legend")
 check(len(generic["views"]) == 3, "envelope views still project without component glyphs")
-check("wet_scrubber" in SYMBOLS and "paint_booth" in SYMBOLS,
-      "the glyph registry exposes the implemented categories")
+
+from app.catalog import CATEGORY_PROFILES as _PROFILES
+missing = sorted(set(_PROFILES) - set(SYMBOLS))
+check(not missing, f"every catalog category has a component glyph (missing: {missing})")
+
+# Legend tags allocate themselves, so a conditional item that does not resolve
+# cannot leave a hole in the numbering (a sheet reading 1, 2, 3, 5).
+for cat in SYMBOLS:
+    d = build_drawing({"category": cat, "category_label": cat,
+                       "geometry": {"envelope_mm": {"length": 6000, "width": 3000,
+                                                    "height": 4000}, "ready": True},
+                       "technical_details": [{"label": "Illumination", "value": "LED 6 nos"},
+                                             {"label": "Blower motor hp", "value": "15"}]})
+    nums = [l["tag"] for l in d["legend"] if l["tag"].isdigit()]
+    check(nums == [str(i + 1) for i in range(len(nums))],
+          f"{cat} legend numbering has no gaps ({nums})")
 
 # --- Markdown summary is a summary, not vector data ------------------------
 check("<svg" not in a["drawing_markdown"] and "<path" not in a["drawing_markdown"],
@@ -318,6 +334,58 @@ check(b"/MediaBox [0 0 1190.55 841.89]" in pdf or b"1190.55 841.89" in pdf,
 check(exporter._pt(2.5) == 7.09, "text height in mm converts to points")
 check(exporter._dash_mm("2,1.5") == (2.0, 1.5) and exporter._dash_mm(None) == (),
       "SVG dash patterns map to fpdf dash/gap")
+
+# --- A generated specification is itself drawable --------------------------
+from app.drawing.spec_parser import looks_like_spec, parse_spec
+
+SPEC_DOC = """**ENGINEERING SPECIFICATION - DRAFT**
+Equipment: Paint Booth   |   Confidence: High (93%)
+
+**Customer Requirement**
+| Parameter | Value |
+| --- | --- |
+| Length m | 5 |
+| Width m | 3 |
+| Height m | 4 |
+
+**Technical Specification**
+| Parameter | Value | Basis / Calculation |
+| --- | --- | --- |
+| Exhaust airflow | 19440 m3/h | Calculated: face area 3.0x4.0 x 0.45 m/s x 3600. |
+| Construction | panels MS 1.6mm | Reused from historical offer OFF-CRI-PB-082406R4. |
+| Construction material | Recommended GI panels | Recommended: material matrix (advisory). |
+| Paint arresting filter | 16 nos 600 x 600 x 50 mm | Calculated: required area 5.4 m2. |
+| Illumination | 3 nos 40 W LED | Calculated: 15 m2 x 750 lux. |
+| Dry scrubber | To be determined | Needs a standard selection or a historical match. |
+"""
+
+check(looks_like_spec(SPEC_DOC) and not looks_like_spec("draw me a paint booth"),
+      "a generated specification is told apart from a plain request")
+parsed = parse_spec(SPEC_DOC)
+check(parsed and parsed["category"] == "paint_booth",
+      "the specification's Equipment line resolves to a catalog category")
+# The two tables have DIFFERENT widths (Parameter|Value vs Parameter|Value|Basis).
+# A fixed three-column row pattern skipped every requirement row, so a fully
+# dimensioned spec drew as an NTS blank.
+check(parsed["geometry"]["envelope_mm"] == {"length": 5000, "width": 3000, "height": 4000},
+      f"the 2-column requirement table still yields the envelope ({parsed['geometry']['envelope_mm']})")
+check(parsed["geometry"]["ready"], "a fully dimensioned specification is drawable")
+origins = {r["label"]: r["origin"] for r in parsed["technical_details"]}
+check(origins.get("Exhaust airflow") == "rule"
+      and origins.get("Construction") == "reused"
+      and origins.get("Construction material") == "advisory"
+      and origins.get("Dry scrubber") == "tbd",
+      f"each row's basis wording maps back to its origin ({origins.get('Dry scrubber')})")
+
+from_spec = build_drawing(parsed)
+check(from_spec["scale"] != "NTS" and len(from_spec["views"]) == 3,
+      "a pasted specification produces a real scaled drawing")
+check(any("16 nos" in l["description"] for l in from_spec["legend"]),
+      "counts stated in the specification reach the drawing")
+check(any("Dry scrubber" in t for t in from_spec["tbd"]),
+      "a TBD the engineer accepted carries through to the sheet's schedule")
+check(parse_spec("please draw me something nice") is None,
+      "arbitrary prose is never salvaged into geometry")
 
 print()
 if FAILS:

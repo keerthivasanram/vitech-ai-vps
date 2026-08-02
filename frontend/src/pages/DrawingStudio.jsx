@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, Box, Bot, Download, Expand, FileText, Layers, Maximize2,
-  Minus, Package, PenTool, Plus, Ruler, Send, Shrink, Sparkles, User, Wrench,
+  AlertTriangle, Box, Bot, ChevronDown, ClipboardPaste, Download, Expand,
+  FileText, Layers, ListPlus, Maximize2, Minus, Package, PenTool, Plus, Ruler,
+  Send, Shrink, Sparkles, Trash2, User, Wrench,
 } from "lucide-react";
 import { agentUrl } from "../lib/constants";
 import { Answer } from "../lib/markdown";
@@ -39,6 +40,39 @@ const SUGGESTIONS = [
   "wet scrubber 800 cfm 750 mm tower",
 ];
 
+/** A collapsible parameter section. The panel carries a lot of ground now, so
+ *  each concern folds away rather than forcing a long scroll. */
+function Group({ icon: Icon, title, count, open, onToggle, children }) {
+  return (
+    <section className={`ds-group${open ? "" : " is-closed"}`}>
+      <button type="button" className="ds-group-h is-btn" onClick={onToggle}
+              aria-expanded={open}>
+        {Icon && <Icon size={12} strokeWidth={2} />}
+        <span dangerouslySetInnerHTML={{ __html: title }} />
+        {count !== undefined && <span className="ds-count">{count}</span>}
+        <ChevronDown className="ds-caret" size={13} strokeWidth={2} />
+      </button>
+      {open && <div className="ds-group-body">{children}</div>}
+    </section>
+  );
+}
+
+/** One catalog-driven input. */
+function Field({ f, values, setValues }) {
+  return (
+    <label className="ds-field">
+      <span>
+        {f.label}{f.unit ? ` (${f.unit})` : ""}
+        {f.required && <em className="req">*</em>}
+      </span>
+      <input className="ds-input" type={f.type === "number" ? "number" : "text"}
+             value={values[f.key] ?? ""}
+             placeholder={f.required ? "required" : "optional"}
+             onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))} />
+    </label>
+  );
+}
+
 export function DrawingStudio() {
   const [catalog, setCatalog] = useState(null);
   const [category, setCategory] = useState("");
@@ -48,10 +82,24 @@ export function DrawingStudio() {
   const [client, setClient] = useState("");
   const [ref, setRef] = useState("");
 
-  const [drawing, setDrawing] = useState(null);
-  // How the CURRENT drawing was asked for (studio form or chat requirement),
-  // replayed to the export endpoint so DXF/PDF rebuild the identical sheet.
-  const [source, setSource] = useState(null);
+  const [drawnBy, setDrawnBy] = useState("");
+  const [checkedBy, setCheckedBy] = useState("");
+  const [project, setProject] = useState("");
+  const [specText, setSpecText] = useState("");
+  const [extraRows, setExtraRows] = useState([]);
+
+  /**
+   * REVISIONS. A new drawing never replaces the last one — it is appended as
+   * the next revision, and the strip over the canvas keeps every earlier sheet
+   * one click away. Engineering review is iterative, and "alter it" must not
+   * mean "lose what we had". Each entry keeps its own `source` so an old
+   * revision can still be exported to DXF/PDF exactly as it was drawn.
+   */
+  const [revisions, setRevisions] = useState([]);
+  const [activeRev, setActiveRev] = useState(-1);
+  const drawing = activeRev >= 0 ? revisions[activeRev]?.drawing ?? null : null;
+  const source = activeRev >= 0 ? revisions[activeRev]?.source ?? null : null;
+
   const [exporting, setExporting] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -105,21 +153,71 @@ export function DrawingStudio() {
     .filter((f) => f.required && !String(values[f.key] ?? "").trim())
     .map((f) => f.label), [activeCategory, values]);
 
+  const required = useMemo(
+    () => (activeCategory?.fields || []).filter((f) => f.required), [activeCategory]);
+  const optional = useMemo(
+    () => (activeCategory?.fields || []).filter((f) => !f.required), [activeCategory]);
+
+  const [open, setOpen] = useState({
+    required: true, optional: true, extra: false, spec: false, title: false,
+  });
+  const toggle = (k) => setOpen((p) => ({ ...p, [k]: !p[k] }));
+
+  /** Append a drawing as the next revision and make it the active one. */
+  const pushRevision = useCallback((d, req, label) => {
+    setRevisions((prev) => {
+      const next = [...prev, { drawing: d, source: req, label, at: Date.now() }];
+      setActiveRev(next.length - 1);
+      return next;
+    });
+    setHidden(new Set());
+    setView({ zoom: 1, x: 0, y: 0 });
+  }, []);
+
+  // The title block's REV cell shows the revision this sheet actually is, so a
+  // printed or exported drawing is self-describing away from the studio.
+  const titleFields = useCallback(() => ({
+    client, ref, drawn: drawnBy, checked: checkedBy,
+    title: project, rev: String(revisions.length),
+  }), [client, ref, drawnBy, checkedBy, project, revisions.length]);
+
   const generate = useCallback(async () => {
     if (!category) return;
     setBusy(true); setError("");
-    const req = { category, values, sheet_size: sheetSize, drawing_type: drawingType, client, ref };
+    const req = {
+      category, values, sheet_size: sheetSize, drawing_type: drawingType,
+      extra_rows: extraRows.filter((r) => r.label.trim() && r.value.trim()),
+      ...titleFields(),
+    };
     try {
       const res = await fetch("/api/drawing/render", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(req),
       });
       const d = await res.json();
-      if (!d.ok) { setError(d.error || "The drawing could not be generated."); setDrawing(null); setSource(null); }
-      else { setDrawing(d); setSource(req); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }
+      if (!d.ok) setError(d.error || "The drawing could not be generated.");
+      else pushRevision(d, req, activeCategory?.label || category);
     } catch { setError("Could not reach the drawing engine."); }
     finally { setBusy(false); }
-  }, [category, values, sheetSize, drawingType, client, ref]);
+  }, [category, values, sheetSize, drawingType, extraRows, titleFields,
+      pushRevision, activeCategory]);
+
+  /** Draw a generated engineering specification exactly as it stands. */
+  const generateFromSpec = useCallback(async () => {
+    if (!specText.trim()) return;
+    setBusy(true); setError("");
+    const req = { spec: specText, sheet_size: sheetSize, ...titleFields() };
+    try {
+      const res = await fetch("/api/drawing/from-spec", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+      });
+      const d = await res.json();
+      if (!d.ok) setError(d.error || "That specification could not be drawn.");
+      else pushRevision(d, req, `${d.category_label} (from spec)`);
+    } catch { setError("Could not reach the drawing engine."); }
+    finally { setBusy(false); }
+  }, [specText, sheetSize, titleFields, pushRevision]);
 
   /**
    * The agent replies in prose and never carries the drawing — the tool strips
@@ -149,13 +247,13 @@ export function DrawingStudio() {
           body: JSON.stringify(req),
         });
         const dr = await r.json();
-        if (dr.ok && dr.svg) {
-          setDrawing(dr); setSource(req); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 });
-        }
+        // A chat-driven change is a REVISION too, so asking the assistant to
+        // alter something never discards the sheet it started from.
+        if (dr.ok && dr.svg) pushRevision(dr, req, q.slice(0, 42));
       }
     } catch { setChat((c) => [...c, { role: "agent", text: "Could not reach the Drawing Agent." }]); }
     finally { setThinking(false); }
-  }, [ask, thinking, sheetSize]);
+  }, [ask, thinking, sheetSize, pushRevision]);
 
   // React attaches wheel handlers PASSIVELY, so preventDefault inside an onWheel
   // prop is ignored and floods the console. Registering it natively with
@@ -277,7 +375,7 @@ export function DrawingStudio() {
             <div className="ds-presets">
               {PRESETS.map((p) => (
                 <button key={p.label} type="button" className="ds-preset"
-                        onClick={() => { setCategory(p.category); setValues(p.values); setDrawing(null); }}>
+                        onClick={() => { setCategory(p.category); setValues(p.values); setError(""); }}>
                   <Box size={15} strokeWidth={1.9} />
                   <span>{p.label}<small>{p.hint}</small></span>
                 </button>
@@ -290,7 +388,7 @@ export function DrawingStudio() {
             <label className="ds-field">
               <span>Category</span>
               <select className="ds-select" value={category}
-                      onChange={(e) => { setCategory(e.target.value); setValues({}); setDrawing(null); }}>
+                      onChange={(e) => { setCategory(e.target.value); setValues({}); setError(""); }}>
                 {catalog?.categories?.map((c) => (
                   <option key={c.key} value={c.key}>{c.label}{c.has_symbols ? " — detailed" : ""}</option>
                 ))}
@@ -312,27 +410,83 @@ export function DrawingStudio() {
             </div>
           </section>
 
-          {activeCategory && (
-            <section className="ds-group">
-              <div className="ds-group-h">
-                <Ruler size={12} strokeWidth={2} /> Geometry &amp; process
-                <span className="ds-count">{activeCategory.fields.length}</span>
-              </div>
+          {/* Required and optional inputs are separated: what the engine NEEDS
+              to size the equipment should not be buried among nice-to-haves. */}
+          {activeCategory && required.length > 0 && (
+            <Group icon={Ruler} title="Required inputs" count={required.length}
+                   open={open.required} onToggle={() => toggle("required")}>
               <div className="ds-grid2">
-                {activeCategory.fields.map((f) => (
-                  <label key={f.key} className="ds-field">
-                    <span>{f.label}{f.unit ? ` (${f.unit})` : ""}{f.required && <em className="req">*</em>}</span>
-                    <input className="ds-input" type={f.type === "number" ? "number" : "text"}
-                           value={values[f.key] ?? ""} placeholder={f.required ? "required" : "optional"}
-                           onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))} />
-                  </label>
-                ))}
+                {required.map((f) => <Field key={f.key} f={f} values={values} setValues={setValues} />)}
               </div>
-            </section>
+            </Group>
           )}
 
-          <section className="ds-group">
-            <div className="ds-group-h"><FileText size={12} strokeWidth={2} /> Title block</div>
+          {activeCategory && optional.length > 0 && (
+            <Group icon={Sparkles} title="Process &amp; options" count={optional.length}
+                   open={open.optional} onToggle={() => toggle("optional")}>
+              <div className="ds-grid2">
+                {optional.map((f) => <Field key={f.key} f={f} values={values} setValues={setValues} />)}
+              </div>
+              {optional.some((f) => f.drawing_only) && (
+                <p className="ds-note">
+                  Overall sizes are drawing inputs for equipment specified by duty
+                  rather than size. Leave them blank and the sheet schedules them
+                  as TBD instead of guessing.
+                </p>
+              )}
+            </Group>
+          )}
+
+          {/* Manually entered specification lines. These are the engineer's own
+              stated values, carried as "From Requirement" — never dressed up as
+              something the engine calculated. */}
+          <Group icon={ListPlus} title="Additional specification" count={extraRows.length}
+                 open={open.extra} onToggle={() => toggle("extra")}>
+            {extraRows.map((r, i) => (
+              <div key={i} className="ds-pair">
+                <input className="ds-input" placeholder="Parameter" value={r.label}
+                       onChange={(e) => setExtraRows((p) => p.map((x, j) =>
+                         j === i ? { ...x, label: e.target.value } : x))} />
+                <input className="ds-input" placeholder="Value" value={r.value}
+                       onChange={(e) => setExtraRows((p) => p.map((x, j) =>
+                         j === i ? { ...x, value: e.target.value } : x))} />
+                <button type="button" className="ds-icon-btn" aria-label="Remove line"
+                        onClick={() => setExtraRows((p) => p.filter((_, j) => j !== i))}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+            <button type="button" className="ds-btn is-block"
+                    onClick={() => setExtraRows((p) => [...p, { label: "", value: "" }])}>
+              <Plus size={13} strokeWidth={2} /> Add specification line
+            </button>
+            <p className="ds-note">
+              Anything added here is recorded as a stated value, not a calculated
+              one, and appears in the sheet's bill of material.
+            </p>
+          </Group>
+
+          {/* Draw an existing specification exactly as written. */}
+          <Group icon={ClipboardPaste} title="From a specification"
+                 open={open.spec} onToggle={() => toggle("spec")}>
+            <textarea className="ds-textarea" rows={6} value={specText}
+                      placeholder="Paste a generated engineering specification here…"
+                      onChange={(e) => setSpecText(e.target.value)} />
+            <button type="button" className="ds-btn is-block" disabled={busy || !specText.trim()}
+                    onClick={generateFromSpec}>
+              <FileText size={13} strokeWidth={2} /> Draw this specification
+            </button>
+            <p className="ds-note">
+              Draws the specification as it stands — every reviewed value and
+              every accepted TBD — rather than re-deriving it.
+            </p>
+          </Group>
+
+          <Group icon={FileText} title="Title block"
+                 open={open.title} onToggle={() => toggle("title")}>
+            <label className="ds-field"><span>Project / drawing title</span>
+              <input className="ds-input" value={project} placeholder="auto from equipment"
+                     onChange={(e) => setProject(e.target.value)} /></label>
             <div className="ds-grid2">
               <label className="ds-field"><span>Client</span>
                 <input className="ds-input" value={client} placeholder="(to be completed)"
@@ -340,8 +494,18 @@ export function DrawingStudio() {
               <label className="ds-field"><span>Drawing no.</span>
                 <input className="ds-input" value={ref} placeholder="auto"
                        onChange={(e) => setRef(e.target.value)} /></label>
+              <label className="ds-field"><span>Drawn by</span>
+                <input className="ds-input" value={drawnBy} placeholder="Vitech AI"
+                       onChange={(e) => setDrawnBy(e.target.value)} /></label>
+              <label className="ds-field"><span>Checked by</span>
+                <input className="ds-input" value={checkedBy} placeholder="(engineer)"
+                       onChange={(e) => setCheckedBy(e.target.value)} /></label>
             </div>
-          </section>
+            <p className="ds-note">
+              The sheet is stamped <b>Rev {revisions.length}</b> and marked DRAFT
+              until an engineer signs it off.
+            </p>
+          </Group>
 
           {error && <div className="ds-alert"><AlertTriangle size={14} /> <span>{error}</span></div>}
 
@@ -430,6 +594,24 @@ export function DrawingStudio() {
         </div>
 
         {layerCss && <style>{layerCss}</style>}
+
+        {/* Revision strip: every sheet ever generated, newest last. Kept small
+            and out of the way at the top-left so the canvas stays the subject. */}
+        {revisions.length > 0 && (
+          <div className="ds-revs" role="tablist" aria-label="Drawing revisions">
+            {revisions.map((r, i) => (
+              <button key={r.at} type="button" role="tab"
+                      className={`ds-rev${i === activeRev ? " is-on" : ""}`}
+                      aria-selected={i === activeRev}
+                      onClick={() => { setActiveRev(i); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }}
+                      title={`Rev ${i}: ${r.label}`}>
+                <span className="ds-rev-thumb"
+                      dangerouslySetInnerHTML={{ __html: r.drawing.svg }} />
+                <span className="ds-rev-n">{i}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {drawing ? (
           <>
