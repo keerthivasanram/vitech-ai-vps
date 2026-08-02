@@ -495,6 +495,19 @@ correctly on the FIRST ask. Six suites green.
 whether the precise path is gated behind a classification, and whether the DETERMINISTIC parser
 understands the user's phrasing — `understand()` passing does not mean `_fallback()` passes.
 
+### ▶ TOTAL-LOSS RECOVERY — `docs/disaster-recovery.md` (audited 2026-08-02)
+Answers "what if the VPS vanished". **Audited result: nothing is lost even if the downloaded
+tarball is also gone** — GitHub alone rebuilds the platform, agents included. Every entry on
+the 11 GB volume falls into exactly one of four buckets (in git / in the tarball / regenerable
+/ disposable); the audit found **no uncovered item**. `flowise-package.json` looked uncovered
+but is redundant — `flowise-reinstall.sh` (in git) writes the identical pins inline; only a
+cosmetic `description` field differs. All 33 offer records are recoverable from the 6 tracked
+JSON files, and all thirteen ops scripts were byte-identical to `ops/flowise/`.
+**The one thing that changes on a git-only rebuild:** new chatflow IDs, so
+`VITE_ENGINEERING_AGENT_ID` / `VITE_QUOTATION_AGENT_ID` / `VITE_DRAWING_AGENT_ID` must be set.
+Restoring from the tarball keeps the existing IDs, the Flowise encryption key and the vector
+store — minutes instead of hours.
+
 ### ▶ MIGRATION SAFETY — `docs/migration-safety-plan.md` (execute this to move off the pod)
 The zero-data-loss plan, written to be executed top to bottom with a verification on every step.
 **Nothing is deleted from the pod until the new server passes acceptance (§5), so rollback is
