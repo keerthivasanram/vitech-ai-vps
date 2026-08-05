@@ -1,0 +1,142 @@
+{
+  "bom.booth": {
+    "bytes": 5148,
+    "sha256": "87b071adb011bb968df0de8f9bf62020f1509d5854bd65ae90e2e2da0525695d",
+    "status": 200
+  },
+  "datasheet.forms": {
+    "bytes": 241,
+    "sha256": "88706ec966c2f29778ae053a41300d4075d061d89d5a2b516282703eae7777d6",
+    "status": 200
+  },
+  "drawing.catalog": {
+    "bytes": 10147,
+    "sha256": "9d74b696d999d6a841a2010d7001fbdffe12f3d95e96580072e067331db6a785",
+    "status": 200
+  },
+  "drawing.render": {
+    "bytes": 22951,
+    "sha256": "71c675b5097597e60e0b5bf372cbf700f44ac88735510fb7246c887fb65f7b73",
+    "status": 200
+  },
+  "guard.bom": {
+    "bytes": 155,
+    "sha256": "799110cab74429fd78dde02554fab42254523ef8970b2dead5a24c1fc06e594a",
+    "status": 200
+  },
+  "guard.drawing": {
+    "bytes": 231,
+    "sha256": "c26a2059b10373a2bd7cc10fa484fcc8a1d184a603ae363d843b3b4b5dddd03f",
+    "status": 200
+  },
+  "guard.package": {
+    "bytes": 215,
+    "sha256": "a555923d33a730582eacdc87d6de2d58d8ad192f37c27021fb2e11549cf11f08",
+    "status": 200
+  },
+  "guard.quote": {
+    "bytes": 314,
+    "sha256": "2799a52117fb60e73db04b2d0d437b4cc634ee94ae3685d325eb14835996ac03",
+    "status": 200
+  },
+  "guard.spec": {
+    "bytes": 245,
+    "sha256": "5cb7185581f1f503d6a1cbd40718f9bf262107a957d5a53d290773262864f3d4",
+    "status": 200
+  },
+  "health": {
+    "bytes": 120,
+    "sha256": "c2c6020b3c51bf7a9c9d420da9ae55a9838da0cff82515a2c0e3a5649d1aed69",
+    "status": 200
+  },
+  "knowledge.overview": {
+    "bytes": 2243,
+    "sha256": "2101e80728d3ee65cc0e6db970853b4285bae6b0d229594c47b2d9532347d80d",
+    "status": 200
+  },
+  "offers.by_source": {
+    "bytes": 938,
+    "sha256": "0d399abed00709366f572e26721f2886256dbaf60ee3a0b1b44a3dd099fc0e92",
+    "status": 200
+  },
+  "offers.list": {
+    "bytes": 8665,
+    "sha256": "e2bf7e6af5facda1d1f13270bf8984809dbb6b888f4f987be9bcb6e2d960b94b",
+    "status": 200
+  },
+  "offers.one": {
+    "bytes": 938,
+    "sha256": "0d399abed00709366f572e26721f2886256dbaf60ee3a0b1b44a3dd099fc0e92",
+    "status": 200
+  },
+  "openapi": {
+    "bytes": 21793,
+    "sha256": "87e3220cf0217964a768629404e5a161a57af55104bf79420164065e96c264e8",
+    "status": 200
+  },
+  "package.booth": {
+    "bytes": 72036,
+    "sha256": "50a9f66d35a4744b5559aec99729fbc2143c46c722749fc9be9f83f04d1a02f0",
+    "status": 200
+  },
+  "records": {
+    "bytes": 33146,
+    "sha256": "64fafebb8a47e1ee8cff13c6a63af2ad33153cbe8cb26f0aa28cce251f520b34",
+    "status": 200
+  },
+  "tools.drawing.booth": {
+    "bytes": 22863,
+    "sha256": "dbd35ff2119899c0dcdd991f2983872570e54ae7610e410b6ca3dd8dd1516446",
+    "status": 200
+  },
+  "tools.drawing.dust": {
+    "bytes": 30876,
+    "sha256": "d7c9c708ed544825ff4494135082810feeb86fbf7ae233f821862e5d287b43ec",
+    "status": 200
+  },
+  "tools.filters": {
+    "bytes": 24,
+    "sha256": "6d6293aab0c846b6b58b2e2786ffa619eb1b2343dfd4f94066786c779d39d204",
+    "status": 200
+  },
+  "tools.list": {
+    "bytes": 12347,
+    "sha256": "302152c14c1657b8035dd1aae0744c51d4c422ba42cdca8690f649cf9021955c",
+    "status": 200
+  },
+  "tools.lookup": {
+    "bytes": 1873,
+    "sha256": "d0b719ccb4239bc2b11dd9ac1615cfaffe4f611e6a27ff434c99e2c1b48a2890",
+    "status": 200
+  },
+  "tools.quote.scrub": {
+    "bytes": 10719,
+    "sha256": "f4e260dbd566b3b20d92647d267342877c930a1f113bb485d9696f04d91acb7a",
+    "status": 200
+  },
+  "tools.retrieve": {
+    "bytes": 99,
+    "sha256": "cab10ce4c0c8da67a5269b0da8f0a8d986ac869ff23511acd5efdb3c90afe870",
+    "status": 200
+  },
+  "tools.spec.booth": {
+    "bytes": 23991,
+    "sha256": "26cf2f5df4df43bfd92719c1f4b377c1bd07afabe2e07afa559559ea1282af27",
+    "status": 200
+  },
+  "tools.spec.dust": {
+    "bytes": 14799,
+    "sha256": "79a17e5f4b465aea4f4941dc7ee9e268507d6141db21cc4357f66c9e78970cb0",
+    "status": 200
+  },
+  "tools.spec.scrub": {
+    "bytes": 12702,
+    "sha256": "9526669f497c6b12f3f2ca4875f43f2219b12a9bfee37d91ea22cbb17c3dd49f",
+    "status": 200
+  },
+  "uploads.list": {
+    "bytes": 22,
+    "sha256": "0eb7a68538da0d4f0546c8e9f17ea0e02840e994751b1d6e6567ca0a8741771a",
+    "status": 200
+  }
+}
