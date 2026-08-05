@@ -4,7 +4,7 @@ ORDER MATTERS: `/api/offers/by-source/{path}` must stay registered BEFORE
 `/api/offers/{offer_id}`, or the literal path would be captured as an id."""
 from fastapi import APIRouter
 from ..analytics import _label as category_label
-from ..store import get_collection
+from ..store import get_collection, offer_records
 from fastapi.responses import HTMLResponse
 from pathlib import Path
 import html
@@ -21,16 +21,10 @@ def offer_by_source(source_file: str):
     content behind a specification's cited source file in the record inspector.
     Matches on the exact stored name, else on basename (case-insensitive)."""
     target = Path(source_file).name.strip().lower()
-    col = get_collection()
-    if col.count():
-        for m in col.get(include=["metadatas"])["metadatas"]:
-            raw = m.get("_raw")
-            if not raw:
-                continue
-            r = json.loads(raw)
-            sf = r.get("source_file")
-            if sf and Path(str(sf)).name.strip().lower() == target:
-                return r
+    for r in offer_records():
+        sf = r.get("source_file")
+        if sf and Path(str(sf)).name.strip().lower() == target:
+            return r
     return {"error": "not found", "source_file": source_file}
 
 
@@ -127,25 +121,15 @@ def knowledge_overview():
 @router.get("/api/offers/{offer_id}")
 def get_offer(offer_id: str):
     """Full extracted record for one file — powers the Knowledge Base detail view."""
-    col = get_collection()
-    if col.count():
-        for m in col.get(include=["metadatas"])["metadatas"]:
-            raw = m.get("_raw")
-            if raw:
-                r = json.loads(raw)
-                if r.get("id") == offer_id:
-                    return r
+    for r in offer_records():
+        if r.get("id") == offer_id:
+            return r
     return {"error": "not found", "id": offer_id}
 
 @router.get("/api/records")
 def records():
     """All stored offer records (rebuilt from Chroma `_raw` metadata)."""
-    col = get_collection()
-    out = []
-    for m in col.get(include=["metadatas"])["metadatas"]:
-        raw = m.get("_raw")
-        if raw:
-            out.append(json.loads(raw))
+    out = list(offer_records())      # copy: sorting the shared cache would corrupt it
     out.sort(key=lambda r: (r.get("category", ""), r.get("id", "")))
     return {"count": len(out), "records": out}
 

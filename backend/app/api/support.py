@@ -10,7 +10,7 @@ from ..resolver import ATS
 from ..resolver import resolve
 from ..retriever import retrieve
 from ..schema import QueryUnderstanding
-from ..store import get_collection
+from ..store import get_collection, offer_records
 from typing import Optional
 import json
 import re
@@ -257,30 +257,24 @@ def _title_block(payload: dict) -> dict:
 # Shared by the data views and the `list_projects` agent tool.
 def _offers_overview() -> list[dict]:
     """One summary row per stored offer file (id, client, category, price, ...)."""
-    col = get_collection()
     out = []
-    if col.count():
-        for m in col.get(include=["metadatas"])["metadatas"]:
-            raw = m.get("_raw")
-            if not raw:
-                continue
-            r = json.loads(raw)
-            ps = r.get("price_schedule") or {}
-            total = None
-            for k in ("final_price", "grand_total", "total"):
-                if isinstance(ps.get(k), (int, float)):
-                    total = ps[k]
-                    break
-            if total is None:
-                nums = [v for k, v in ps.items() if isinstance(v, (int, float))]
-                total = sum(nums) if nums else None
-            out.append({
-                "id": r.get("id"), "category": r.get("category"),
-                "client": r.get("client"), "ref": r.get("ref"), "date": r.get("date"),
-                "source_file": r.get("source_file"),
-                "n_given": len(r.get("given_data") or {}),
-                "n_tech": len(r.get("technical_details") or {}),
-                "price_total": total, "currency": ps.get("currency", "INR"),
-            })
+    for r in offer_records():
+        ps = r.get("price_schedule") or {}
+        total = None
+        for k in ("final_price", "grand_total", "total"):
+            if isinstance(ps.get(k), (int, float)):
+                total = ps[k]
+                break
+        if total is None:
+            nums = [v for k, v in ps.items() if isinstance(v, (int, float))]
+            total = sum(nums) if nums else None
+        out.append({
+            "id": r.get("id"), "category": r.get("category"),
+            "client": r.get("client"), "ref": r.get("ref"), "date": r.get("date"),
+            "source_file": r.get("source_file"),
+            "n_given": len(r.get("given_data") or {}),
+            "n_tech": len(r.get("technical_details") or {}),
+            "price_total": total, "currency": ps.get("currency", "INR"),
+        })
     out.sort(key=lambda x: (x.get("category") or "", x.get("id") or ""))
     return out

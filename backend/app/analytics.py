@@ -13,7 +13,7 @@ from .catalog import get_profile, label_for
 from .classify import CONFIDENT, classify_equipment
 from .pricing import inr_display
 from .retriever import _names_stored_client, project_hits
-from .store import get_collection
+from .store import get_collection, offer_records
 
 _CAT_LABEL = {
     "wet_scrubber": "Wet Scrubber", "paint_booth": "Paint Booth",
@@ -32,15 +32,7 @@ def _label(cat: str) -> str:
 
 
 def _records() -> list[dict]:
-    col = get_collection()
-    if col.count() == 0:
-        return []
-    out = []
-    for m in col.get(include=["metadatas"])["metadatas"]:
-        raw = m.get("_raw")
-        if raw:
-            out.append(json.loads(raw))
-    return out
+    return offer_records()
 
 
 def _driver(rec: dict):

@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 from . import config
-from .store import get_collection
+from .store import get_collection, offer_records
 
 # generic words that don't identify a specific client/equipment
 _STOP = {"pvt", "ltd", "private", "limited", "systems", "system", "india", "the",
@@ -54,14 +54,7 @@ def _names_stored_client(question: str) -> bool:
     q = question.lower()
     if re.search(r"\boff-[a-z0-9][a-z0-9-]+", q):     # explicit offer id
         return True
-    col = get_collection()
-    if col.count() == 0:
-        return False
-    for meta in col.get(include=["metadatas"])["metadatas"]:
-        raw = meta.get("_raw")
-        if not raw:
-            continue
-        rec = json.loads(raw)
+    for rec in offer_records():
         # client identity only — skip vendor (always us) and title (equipment words)
         names = str(rec.get("client", "")).lower()
         tokens = {t for t in re.split(r"[\s,./_-]+", names)

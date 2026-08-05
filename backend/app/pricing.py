@@ -17,7 +17,7 @@ import json
 from typing import Any, Optional
 
 from .catalog import get_profile
-from .store import get_collection
+from .store import get_collection, offer_records
 
 _CURRENCY_DEFAULT = "INR"
 # price schedule keys that already represent an order total, most-canonical first
@@ -26,15 +26,8 @@ _TOTAL_KEYS = ("final_price", "grand_total", "total")
 
 def _offer_records(category: str) -> list[dict]:
     """All priced offers of a category, straight from the knowledge base."""
-    col = get_collection()
-    if col.count() == 0:
-        return []
     out = []
-    for m in col.get(include=["metadatas"])["metadatas"]:
-        raw = m.get("_raw")
-        if not raw:
-            continue
-        r = json.loads(raw)
+    for r in offer_records():
         if r.get("type") == "offer" and r.get("category") == category:
             out.append(r)
     return out
