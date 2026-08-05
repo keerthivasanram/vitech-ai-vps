@@ -84,6 +84,34 @@ Design reviewed first in `docs/observability-design.md`.
   `purge()` never touches them (pinned by a test).
 - **FOUND BY THE NEW TRACING, AND NOW FIXED (see the entry below).**
 
+### ▶ 2026-08-05 (end of session) — GREETING LEAK GUARDED + SHUTDOWN STATE
+**The pod is safe to STOP.** Everything is committed and pushed, PG is backed up (the Flowise
+tool rows now carry the service key, so the dump contains it), and `auth.db` / `ops.db` /
+`data/jobs/` all live on the `/workspace` persistent volume and survive a stop.
+**On next start:** `bash /workspace/persistent/start-all.sh`; if psql/node/ollama are gone
+(container disk wiped) run `bootstrap-pod.sh` FIRST. **Playwright/Chromium was installed on the
+CONTAINER DISK this session and will need reinstalling after a wipe** (`cd /opt/flowise-app &&
+npx playwright install chromium && npx playwright install-deps chromium`).
+- **THE GREETING DEFECT the user hit ("There is no function call needed for your greeting") is
+  the KNOWN PRE-EXISTING leak documented on 2026-08-01, not a regression.** Diagnosed rather
+  than assumed: **14/14 clean on fresh chatIds**, and clean again with a tool call first in the
+  same chat — it does NOT reproduce on a freshly restarted Flowise. The documented trigger is
+  process degradation from rapid-fire predictions, and this session made a great many of them
+  (agent verification after the service-key rotation, auth tests, trace demos).
+- **Guarded at the CHAT BOUNDARY** (`frontend/src/lib/agentReply.js`, used by `useAgentChat`
+  and the studio dock). A reply that is ENTIRELY tool-call mechanics is replaced with a real
+  greeting and the raw text is `console.warn`ed so the defect stays visible.
+  **NOT a prompt change — deliberately.** Prompt tuning for this has already backfired
+  (a standalone rule fixed one case and broke greetings 5/5), and the project's own conclusion
+  was to fix this class structurally, exactly as `lookup_markdown` was.
+  **Only whole-reply mechanics are replaced** (≤240 chars, anchored patterns): a real answer
+  that merely mentions a tool survives, because losing an engineering answer to an over-eager
+  filter would be far worse than the leak. 13 checks in `frontend/tests/agentReply.test.mjs`.
+- **This is a symptom guard, not a cure.** The leak is an llama3.1:8b limitation; the real fix
+  is roadmap D2 (a stronger tool-capable model). **Operational lesson worth keeping: restart
+  Flowise before a demo or a clean diagnostic run** — degradation after heavy use is real and
+  documented, and it recovers on restart.
+
 ### ▶ 2026-08-05 (frontend) — Package Center, password gate, role-aware nav, DevOps console
 Frontend phase. Verified in a REAL BROWSER (Playwright, reinstalled on the container disk) —
 engineer and admin flows, zero console errors throughout. Twelve suites green, 28 contract

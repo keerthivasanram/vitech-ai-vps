@@ -5,6 +5,7 @@ import {
   Send, Shrink, Sparkles, Trash2, User, Wrench,
 } from "lucide-react";
 import { agentUrl } from "../lib/constants";
+import { sanitizeAgentReply } from "../lib/agentReply";
 import { Answer } from "../lib/markdown";
 
 /**
@@ -295,7 +296,9 @@ export function DrawingStudio() {
       });
       const d = await res.json();
       const drew = (d.usedTools || []).find((u) => u.tool === "generate_drawing");
-      setChat((c) => [...c, { role: "agent", text: d.text || d.answer || "(no reply)" }]);
+      setChat((c) => [...c, { role: "agent", text: sanitizeAgentReply(
+        d.text || d.answer || "(no reply)",
+        (raw) => console.warn("[agent] tool-call mechanics suppressed:", raw)) }]);
       if (drew) {
         const req = { question: drew.toolInput?.question || q, sheet_size: sheetSize };
         const r = await fetch("/api/tools/drawing", {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { sanitizeAgentReply } from "../lib/agentReply";
 import { agentUrl, isChatView, DETERMINISTIC_TOOLS } from "../lib/constants";
 import { fmtTime, newId, titleFrom } from "../lib/format";
 
@@ -283,7 +284,12 @@ export function useAgentChat(view, health) {
           });
           if (!resp.ok) throw new Error("bad status");
           const data = await resp.json();
-          const answer = data.text ?? data.answer ?? "(no response)";
+          // Guard against the agent showing its own plumbing on a greeting —
+          // a documented, pre-existing leak. See lib/agentReply.js for why this
+          // is a boundary guard rather than a prompt change.
+          const answer = sanitizeAgentReply(
+            data.text ?? data.answer ?? "(no response)",
+            (raw) => console.warn("[agent] tool-call mechanics suppressed:", raw));
           const used = (data.usedTools || []).filter((t) => t && t.tool);
           patch({
             text: answer,
