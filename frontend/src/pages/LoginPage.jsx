@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, Loader2, LogIn, Moon, Sun } from "lucide-react";
+import { Clock, Eye, EyeOff, Loader2, LogIn, Moon, Sun } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { Button } from "../common/Button";
 
@@ -8,7 +8,7 @@ import { Button } from "../common/Button";
  * Delegates credential checking to `onLogin` (see AuthProvider) and shows the
  * returned error inline. No account fields are invented.
  */
-export function LoginPage({ onLogin, isDark, onToggleTheme }) {
+export function LoginPage({ onLogin, isDark, onToggleTheme, notice }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -43,6 +43,16 @@ export function LoginPage({ onLogin, isDark, onToggleTheme }) {
         <div className="login-brand">
           <Logo height={52} isDark={isDark} />
         </div>
+        {/* A session that expired mid-use lands here. Saying so is the point:
+            without it the user is bounced to a login screen with no explanation
+            and reasonably assumes the application broke. */}
+        {notice && (
+          <div className="login-notice" role="status">
+            <Clock size={15} strokeWidth={2} />
+            <span>{notice}</span>
+          </div>
+        )}
+
         <h1 className="login-title">Sign in</h1>
         <p className="login-sub">Vitech AI Engineering Platform</p>
 

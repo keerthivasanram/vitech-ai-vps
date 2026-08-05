@@ -61,7 +61,12 @@ export function AuthProvider({ children }) {
         const res = await fetch("/api/auth/me");
         if (res.ok) {
           const me = await res.json();
-          const current = { username: me.username, name: me.username, role: me.role };
+          const current = {
+            username: me.username, name: me.username, role: me.role,
+            // Re-read from the SERVER on every load, so a refresh cannot walk
+            // past the mandatory password change.
+            mustChangePassword: !!me.must_change_password,
+          };
           cacheUser(current);
           if (!cancelled) setUser(current);
         } else {
@@ -129,6 +134,8 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  /** Clears the must-change flag locally once the server has accepted the new
+   *  password, so the gate lifts without a reload. */
   const changePassword = useCallback(async (currentPassword, newPassword) => {
     try {
       const res = await fetch("/api/auth/password", {
@@ -139,6 +146,11 @@ export function AuthProvider({ children }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, error: data.error || "Could not change the password." };
       if (data.token) setToken(data.token);      // other sessions were revoked
+      setUser((u) => {
+        const next = { ...(u || {}), mustChangePassword: false };
+        cacheUser(next);
+        return next;
+      });
       return { ok: true };
     } catch {
       return { ok: false, error: "Could not reach the server." };

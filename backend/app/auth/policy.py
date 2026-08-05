@@ -60,6 +60,11 @@ _RULES: list[tuple[str, str, tuple[str, bool]]] = [
     (r".*", r"^/api/query", (ADMIN, False)),
     (r".*", r"^/api/session/", (ADMIN, False)),
 
+    # Engineering job history and artifact downloads. Engineer-level because
+    # producing these documents IS the engineer's job; the parallel
+    # `/api/admin/jobs` view stays administrator-only.
+    (r"GET", r"^/api/jobs", (ENGINEER, False)),
+
     # --- engineer: the engines, the documents, and the data views ----------
     (r".*", r"^/api/(bom|package|drawing|quotation|specification|datasheet)", (ENGINEER, False)),
     (r".*", r"^/api/(offers|records|knowledge)", (ENGINEER, False)),

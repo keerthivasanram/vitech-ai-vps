@@ -70,8 +70,8 @@
     "status": 200
   },
   "openapi": {
-    "bytes": 29998,
-    "sha256": "c027acd286b98a94c3fc94fc7d789c9e8c6cf3feab5967a5beeaf1e4db47c4f4",
+    "bytes": 32300,
+    "sha256": "66c89e950732d5f65152ea6142278adc9acfd66ff517881bb793070ceb261493",
     "status": 200
   },
   "package.booth": {

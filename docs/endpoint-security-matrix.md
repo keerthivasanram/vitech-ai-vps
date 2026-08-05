@@ -45,6 +45,18 @@ names, prices), so never public — but no engine is invoked and nothing changes
 | GET | `/api/uploads` |
 | GET | `/api/datasheet/forms` |
 
+### Engineer — job history (added for the Package Center)
+
+| Method | Path | Note |
+| --- | --- | --- |
+| GET | `/api/jobs` | Engineering job history |
+| GET | `/api/jobs/{job_id}` | One job and its artifacts |
+| GET | `/api/jobs/{job_id}/artifact/{name}` | Download, checksum-verified |
+
+Engineer-level because producing these documents IS the engineer's work, and the
+offer corpus — equally sensitive, carrying client names and prices — is already
+at that level. The parallel `/api/admin/jobs` view stays administrator-only.
+
 ### Engineer — 17 routes
 
 Everything that runs an engine, calls the LLM, or produces a document. These

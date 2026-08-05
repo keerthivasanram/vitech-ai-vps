@@ -66,7 +66,15 @@ def me(request: Request):
     p = getattr(request.state, "principal", None)
     if p is None or not p.is_authenticated:
         return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
-    return {"ok": True, "kind": p.kind, "username": p.name, "role": p.role}
+    out = {"ok": True, "kind": p.kind, "username": p.name, "role": p.role}
+    # The must-change flag is re-read on every identity check, not just at
+    # sign-in. Without it a page refresh would drop the flag and walk straight
+    # past the mandatory password change — the gate has to be re-asserted by the
+    # SERVER, or it is only a suggestion the browser is free to forget.
+    if p.kind == "user":
+        row = store.get_user(p.name)
+        out["must_change_password"] = bool(row["must_change_password"]) if row else False
+    return out
 
 
 @router.post("/api/auth/password")
