@@ -231,9 +231,11 @@ def _blower_label(rows) -> str:
 
 # --------------------------------------------------------------------------
 def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
-    """Paint booth GA: filter bank, door leaves, lighting, exhaust blower.
+    """Paint booth GA: enclosure, filter bank, extract plant, lighting, services.
 
-    Returns the legend as (tag, description) pairs.
+    Everything drawn comes from a value the spec resolved (filter count, blower
+    model, luminaire count, duct bore, panel rating) or from how the booth type
+    works. Setting-out that needs a client standard is scheduled, not invented.
     """
     legend: list[tuple[str, str]] = []
     # The filter count is labelled differently depending on which path resolved
@@ -245,9 +247,17 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                or _int(_find(rows, "filters"), 0))
     blower = _find(rows, "exhaust blower") or ""
     blower_qty = _nos(_find(rows, "blower", "nos"), 0) or _int(_find(rows, "blower", "nos"), 1)
+    blower_hp = _find(rows, "blower motor", "hp") or ""
     lights = _nos(_find(rows, "illumination"), 0)
+    duct = _find(rows, "exhaust duct") or ""
+    intake = _find(rows, "intake filter") or _find(rows, "inlet filter") or ""
+    carbon = _find(rows, "carbon") or ""
+    panel = _find(rows, "control panel") or ""
+    fire = _find(rows, "fire") or ""
+    construction = _find(rows, "construction") or ""
 
     front = views.get("front")
+    side = views.get("side")
     plan = views.get("plan")
 
     if front:
@@ -255,11 +265,10 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Door opening: a double-leaf sliding door across the working face.
         dw = w * 0.44
         dx = x + (w - dw) / 2
-        dh = h * 0.72
+        dh = h * 0.66
         dy = y + h - dh
         canvas.add(Rect(dx, dy, dw, dh, L_COMPONENT, LW_MED))
         canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, L_COMPONENT, LW_THIN))
-        # Sliding direction arrows.
         my = dy + dh / 2
         canvas.add(Line(dx + dw * 0.18, my, dx + dw * 0.40, my, L_COMPONENT, LW_THIN),
                    Line(dx + dw * 0.60, my, dx + dw * 0.82, my, L_COMPONENT, LW_THIN))
@@ -267,15 +276,61 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
         # View panels either side of the door.
         for sx in (x + w * 0.10, x + w * 0.78):
-            canvas.add(Rect(sx, y + h * 0.22, w * 0.12, h * 0.20, L_COMPONENT, LW_THIN))
-        item(canvas, legend, x + w * 0.16, y + h * 0.16, "View glass panel")
+            canvas.add(Rect(sx, y + h * 0.26, w * 0.12, h * 0.18, L_COMPONENT, LW_THIN))
+        item(canvas, legend, x + w * 0.16, y + h * 0.20, "View glass panel")
 
         if lights:
             for i in range(min(lights, 6)):
                 lx = x + w * (0.14 + 0.72 * (i / max(1, min(lights, 6) - 1)))
-                canvas.add(Rect(lx - w * 0.035, y + h * 0.06, w * 0.07, h * 0.04,
+                canvas.add(Rect(lx - w * 0.035, y + h * 0.07, w * 0.07, h * 0.035,
                                 L_COMPONENT, LW_THIN))
-            item(canvas, legend, x + w * 0.5, y + h * 0.02, f"Flame-proof LED luminaire ({lights} nos)")
+            # Offset from the door balloon below it, which sits at dy - 5 mm.
+            item(canvas, legend, x + w * 0.36, y + h * 0.135,
+                 f"Flame-proof LED luminaire ({lights} nos)")
+
+        # Control panel against the side wall — a resolved rating, so the panel
+        # is a real item rather than assumed switchgear.
+        if panel:
+            pw, ph = w * 0.07, h * 0.22
+            px, py = x + w * 0.905, y + h * 0.52
+            canvas.add(Rect(px, py, pw, ph, L_COMPONENT, LW_MED))
+            canvas.add(Line(px, py + ph * 0.3, px + pw, py + ph * 0.3, L_COMPONENT, LW_THIN))
+            item(canvas, legend, px - 6.0, py + ph * 0.5, f"Control panel {panel}"[:52])
+
+    if side:
+        # The side elevation was an EMPTY BOX. It carries the extract face: the
+        # filter bank, the duct off the roof, a luminaire and the floor line, so
+        # the two elevations read as the same booth.
+        x, y, w, h = side.x, side.y, side.w, side.h
+        bank_w = w * 0.16
+        bx = x + w - bank_w
+        canvas.add(Rect(bx, y + h * 0.12, bank_w, h * 0.76, L_COMPONENT, LW_MED))
+        shown = min(filters, 8) if filters else 4
+        for i in range(1, shown):
+            fy = y + h * (0.12 + 0.76 * i / shown)
+            canvas.add(Line(bx, fy, bx + bank_w, fy, L_COMPONENT, LW_THIN))
+        item(canvas, legend, bx - 6.0, y + h * 0.30,
+             f"Extract face - arresting filters ({filters} nos)" if filters
+             else "Extract face - arresting filters")
+
+        # Exhaust duct off the extract end, drawn INSIDE the outline as a stub:
+        # hung off the envelope it would cross the height dimension.
+        if duct:
+            canvas.add(Rect(x + w * 0.60, y, w * 0.14, h * 0.09, L_COMPONENT, LW_MED))
+            airflow(canvas, [(x + w * 0.67, y + h * 0.14), (x + w * 0.67, y + h * 0.03)])
+            item(canvas, legend, x + w * 0.44, y + h * 0.05, f"Exhaust duct {duct}"[:52])
+
+        # Filtered air inlet on the opposite face.
+        if intake:
+            canvas.add(Rect(x, y + h * 0.18, w * 0.08, h * 0.30, L_HIDDEN, LW_THIN, DASH_HIDDEN))
+            item(canvas, legend, x + w * 0.16, y + h * 0.33, f"Air intake filter {intake}"[:52])
+
+        # Floor / working level, and the supporting structure the spec names.
+        canvas.add(Line(x, y + h * 0.94, x + w, y + h * 0.94, L_COMPONENT, LW_THIN))
+        canvas.add(Text(x + w * 0.30, y + h * 0.91, "FLOOR LEVEL", L_TEXT, 2.0, "middle"))
+        if construction:
+            item(canvas, legend, x + w * 0.30, y + h * 0.72,
+                 f"Enclosure {construction}"[:54])
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
@@ -287,14 +342,10 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             for i in range(1, min(filters, 12)):
                 fx = x + w * i / min(filters, 12)
                 canvas.add(Line(fx, by, fx, by + bank_d, L_COMPONENT, LW_THIN))
-            # Offset from centre: the blower symbol occupies the middle of the
-            # extract end, so a centred balloon would sit on top of it.
-            item(canvas, legend, x + w * 0.16, by - 5.0, f"Paint arresting filter bank ({filters} nos)")
+            item(canvas, legend, x + w * 0.16, by - 5.0,
+                 f"Paint arresting filter bank ({filters} nos)")
 
-        # Exhaust blower on the extract centre line, drawn INSIDE the envelope
-        # just ahead of the filter bank. Keeping it within the footprint leaves
-        # the area below the view clear for the dimension line and caption —
-        # a symbol overhanging the outline collides with both.
+        # Exhaust blower on the extract centre line, drawn INSIDE the envelope.
         bw = w * 0.16
         bh = bank_d * 1.4
         bx = x + (w - bw) / 2
@@ -302,17 +353,39 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Rect(bx, byy, bw, bh, L_COMPONENT, LW_MED))
         canvas.add(Circle(bx + bw / 2, byy + bh / 2, min(bw, bh) * 0.32,
                           L_COMPONENT, LW_THIN))
-        item(canvas, legend, bx + bw + 6.0, byy + bh / 2, f"Exhaust blower {blower} ({blower_qty} no)".replace("  ", " "))
+        item(canvas, legend, bx + bw + 6.0, byy + bh / 2,
+             " ".join(t for t in (f"Exhaust blower {blower}".strip(),
+                                  f"({blower_qty} no)",
+                                  f"{blower_hp} HP" if str(blower_hp).strip() else "") if t))
+
+        # Activated carbon chamber — a resolved item on a liquid-paint booth,
+        # sitting after the arresting bank in the extract path.
+        if carbon:
+            cw = w * 0.22
+            canvas.add(Rect(x + w * 0.06, byy - bh * 0.9, cw, bh * 0.8,
+                            L_COMPONENT, LW_THIN))
+            item(canvas, legend, x + w * 0.06 + cw + 5.5, byy - bh * 0.5,
+                 f"Activated carbon chamber {carbon}"[:52])
 
         # Air-inlet side (opposite the extract) shown as hidden detail.
         canvas.add(Line(x, y + h * 0.10, x + w, y + h * 0.10, L_HIDDEN, LW_THIN, DASH_HIDDEN))
         canvas.add(Text(x + w * 0.5, y + h * 0.075, "AIR INLET FILTER SIDE",
                         L_TEXT, 2.1, "middle"))
-        # Airflow across the booth: in at the filtered inlet, out through the
-        # arresting bank. Direction only — how the booth works, not a set-out.
-        airflow(canvas, [(x + w * 0.30, y + h * 0.16), (x + w * 0.30, y + h * 0.62)])
-        airflow(canvas, [(x + w * 0.70, y + h * 0.16), (x + w * 0.70, y + h * 0.62)],
-                "AIRFLOW")
+        # Airflow across the booth. The caption sits BESIDE the arrow, not on
+        # its tip, where it was printed over the arrowhead.
+        # Arrows moved inboard: at 0.30w the left one ran into the carbon
+        # chamber's balloon.
+        airflow(canvas, [(x + w * 0.42, y + h * 0.16), (x + w * 0.42, y + h * 0.52)])
+        airflow(canvas, [(x + w * 0.66, y + h * 0.16), (x + w * 0.66, y + h * 0.52)])
+        canvas.add(Text(x + w * 0.54, y + h * 0.38, "DOWN DRAFT", L_TEXT, 2.1, "middle"))
+
+    # Real resolved services with no engineered position, and the setting-out a
+    # production GA needs that the platform has not been given. Naming them
+    # turns each gap into a request rather than a silent absence.
+    if fire:
+        note_item(legend, f"Fire protection - {fire}"[:96])
+    note_item(legend, "Anchor bolt setting-out - requires the foundation layout")
+    note_item(legend, "Maintenance and access clearances - requires the client's standard")
     return legend
 
 
@@ -784,6 +857,13 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                          ("Control panel", panel), ("Explosion vent", vent)):
         if _resolved(value):
             note_item(legend, f"{label} - {value}")
+    # A production GA also needs the setting-out below, and each item needs a
+    # client standard the platform has not been given. Stated as a request
+    # rather than drawn at an invented position.
+    note_item(legend, "Support structure and discharge bin - arrangement to be confirmed")
+    note_item(legend, "Anchor bolt setting-out - requires the foundation layout")
+    note_item(legend, "Access platform and maintenance clearances - requires the "
+                      "client's access standard")
     return legend
 
 
