@@ -42,6 +42,67 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-05 (later) — ENGINEERING PACKAGE LAYER (`app/package/`): artifacts -> a reviewable set
+Purely ADDITIVE — no existing engine was changed, and the nine suites (new `tests_package.py`,
+**60 checks**) are green with goldens byte-identical. The platform produced four correct
+documents that had nothing to do with each other; this layer makes them one package.
+- **ONE resolution, seven documents.** `main._build_package` calls `_prepare` ONCE and every
+  document is composed from that single analysis — specification, GA drawing, BOM, quotation,
+  requirement summary, assumptions and review. That is what makes the package internally
+  consistent: there is no second resolution that could disagree with the first. **If a module
+  under `app/package/` ever computes an engineering number it is in the wrong place** — this
+  layer only composes, classifies and cross-references.
+- **`review.py` — the first document an engineer reads.** FAIL / WARNING / QUESTION / PASS,
+  worst first, from checks the engines ALREADY ran (`cross_validate`, `release_gate`, geometry,
+  provenance). **PASS entries are printed, not omitted** — a sheet showing only problems makes
+  "no warnings" and "never checked" look identical. An untraceable value is a **FAIL**, and the
+  verdict says what happens next ("NOT FOR ISSUE" / "ENGINEERING REVIEW REQUIRED" / "AWAITING
+  CUSTOMER"). `Released Design` stays unreachable from code.
+- **`assumptions.py` — a PARTITION, never a sample.** Five buckets (customer supplied /
+  engineering calculated / historical reused / customer confirmation / engineering review), and
+  a test asserts every row lands in exactly one. **Kept deliberately OUT of the specification**:
+  the spec says what the equipment IS, this says what that statement rests on — a caveat folded
+  into a spec table gets read as part of the design and quoted back. An **unrecognised origin is
+  sent to engineering review, not assumed sound**.
+- **`traceability.py` — joins resolved rows to the retrieval that produced them.** The resolver
+  always recorded origin/source/reason; what was missing is that "reused from OFF-CRI-PB-082406R4"
+  never said which DOCUMENT that is or how close the match was. Now every reused value carries
+  **source project + source drawing (`record.source_file`) + similarity score (`hit.score`)**,
+  and every calculated value its rule/standard. A value with no provenance is REPORTED.
+- **`identifiers.py` — a cross-reference schedule, NOT a renumbering.** Spec rows are the spine
+  (`VT-01`...); every other document keeps its own numbering. Forcing one scheme would mean
+  rewriting the balloon allocator, and a GA whose balloons skip numbers is worse than one reading
+  1, 2, 3. **Matching rule that matters:** the drawing legend is prose so it is matched on
+  contained words, but the BOM and quotation scope take their names FROM the spec labels, so
+  those match on EXACT slug — a near-match there ("Construction" vs "Construction material") is a
+  different line, not a loose spelling. First attempt used token-subset everywhere and produced
+  false links.
+  **Gotcha:** the first run reported "26 of 26 cross-linked", which looked like a bug and was
+  not — this quotation carries the whole machine as ONE scope list, so every row genuinely
+  appears in it. A single "linked" count read as a quality score when it was really a statement
+  about how the quotation is structured, so **per-document `coverage` is reported instead**.
+- **`export.py` — the project folder, and the same folder as one download.** `Review.md`
+  (read first), `Specification.pdf`, `Drawing_GA.pdf`/`.svg`, `Quotation.pdf`, `BOM.xlsx`,
+  `Assumptions.md`, `Project_Summary.md`, `Traceability.md`, `Cross_Reference.md`,
+  `package.json`. Every renderer is one that already exists, and the drawing PDF re-composes
+  from the carried `_source` through the SAME `compose()` the studio uses — **an export is never
+  a second rendering path**. `openpyxl` was already a declared dependency (the RAG loader reads
+  XLSX), so `BOM.xlsx` added nothing to the install; BOM rows carry their `VT-nn` id.
+- **A missing artifact is DECLARED, never faked.** No priced history -> no quotation, and the
+  manifest says why; the package still builds. Writing an empty PDF so the folder looks complete
+  would be the worst outcome. Verified: a wet scrubber with no derived envelope produces
+  `dimensioned: false` and a sheet reading "NO DIMENSIONED VIEWS" — and the package matches
+  `/api/tools/drawing` exactly for the same requirement (checked, because a divergence there
+  would have meant the package had its own resolution path).
+- **Endpoints:** `POST /api/package` (structured; `include_svg` opt-in) and
+  `POST /api/package/export` (zip, or `write: true` -> `PACKAGE_DIR`, default `data/packages`).
+  `_source` never leaves the process. The `generate_engineering_package` operation_id exists but
+  **is not wired into any chatflow** — the endpoint is heavy (spec + drawing + quote + retrieval)
+  and no agent calls it today.
+- **`completion` is document completeness, explicitly NOT a delivery date** — the platform has no
+  basis for manufacturing lead time, and a fabricated date is exactly the kind of number golden
+  rule #2 forbids.
+
 ### ▶ 2026-08-05 — DUST COLLECTOR + POWDER PLANT DRAWINGS, and CORRECTIONS THAT ACTUALLY CORRECT
 Reported as "we only have the paint booth; complete the other two categories" and "when I
 mention a correction it needs to correct". All eight suites green throughout, **goldens
