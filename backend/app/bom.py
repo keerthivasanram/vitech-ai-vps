@@ -21,6 +21,7 @@ uncosted list IS the answer to "what else do we need from you".
 import re
 from typing import Any, Optional
 
+from . import values
 from .engineering import rate_card
 
 # Sections in the order the client's own cost sheet works through a machine.
@@ -30,29 +31,23 @@ SECTIONS = ["Structure & panels", "Rotating plant", "Filtration", "Ducting",
 _SQM_PER_SQFT = 0.092903
 
 
-def _row(rows: list, *needles: str) -> Optional[dict]:
-    for r in rows or []:
-        label = str(r.get("label", "")).lower()
-        if all(n in label for n in needles):
-            return r
-    return None
+# Value readers shared with the drawing and the package (`app/values.py`), so the
+# specification, the BOM and the GA cannot drift in how they read a spec row.
+_row = values.find_row
 
 
 def _value(rows: list, *needles: str) -> str:
-    r = _row(rows, *needles)
-    v = str((r or {}).get("value", "")).strip()
-    return "" if v.lower() in ("", "to be determined", "to be confirmed with the customer") else v
+    v = str(values.row_value(rows, *needles) or "").strip()
+    return v if values.is_resolved(v) else ""
 
 
 def _num(text) -> Optional[float]:
-    m = re.search(r"-?\d+(?:\.\d+)?", str(text or "").replace(",", ""))
-    return float(m.group()) if m else None
+    return values.first_number(text)              # BOM reads "1,240 kg" as 1240
 
 
 def _nos(text) -> Optional[int]:
     """A stated count, never a bare number — the same rule the drawing uses."""
-    m = re.search(r"(\d+)\s*(?:nos?\b|no's|sets?\b)", str(text or ""), re.I)
-    return int(m.group(1)) if m else None
+    return values.stated_count(text)
 
 
 def _line(section: str, item: str, spec: str = "", qty=None, unit: str = "",

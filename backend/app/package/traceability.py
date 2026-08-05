@@ -17,7 +17,10 @@ This module joins the resolved rows to the retrieval hits that produced them:
 Nothing is inferred. A field the engine could not attribute is reported as
 unattributed, which is exactly the signal a reviewer needs.
 """
+from .. import values
 from typing import Any, Optional
+
+_clip = values.clip          # shared table-cell reader (app/values.py)
 
 # Origins that mean "this number came from a past project" rather than from a
 # rule or from the customer. Kept explicit because the legacy tags are still
@@ -122,18 +125,13 @@ def markdown(records: list[dict]) -> str:
     for r in records:
         score = r.get("similarity_score")
         lines.append(
-            f"| {r.get('label')} | {_clip(r.get('value'))} | {r.get('origin')} "
+            f"| {r.get('label')} | {_clip(r.get('value'), 60)} | {r.get('origin')} "
             f"| {r.get('source_project') or '-'} | {r.get('source_drawing') or '-'} "
             f"| {f'{score:.3f}' if isinstance(score, (int, float)) else '-'} "
-            f"| {_clip(r.get('calculation_reference')) or '-'} |")
+            f"| {_clip(r.get('calculation_reference'), 60) or '-'} |")
     missing = unattributed(records)
     if missing:
         lines += ["", f"**{len(missing)} value(s) carry no provenance** — "
                       "these must be attributed before release:"]
         lines += [f"- {m.get('label')}" for m in missing]
     return "\n".join(lines)
-
-
-def _clip(text, limit: int = 60) -> str:
-    text = str(text or "").replace("\n", " ").replace("|", "/")
-    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"

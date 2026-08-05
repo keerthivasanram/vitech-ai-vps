@@ -20,6 +20,7 @@ import math
 import re
 from typing import Callable, Optional
 
+from .. import values
 from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_MED, LW_THIN, L_COMPONENT,
                          L_HIDDEN, L_TEXT, Circle, Line, Rect, Text, poly)
 
@@ -84,29 +85,15 @@ def note_item(legend: list, description: str) -> str:
 
 def _int(value, default: int = 0) -> int:
     """First integer inside a spec value like '9 (dry)' or '2 sets/booth'."""
-    m = re.search(r"\d+", str(value or ""))
-    return int(m.group()) if m else default
+    return values.first_integer(value, default)
 
 
 def _nos(value, default: int = 0) -> int:
     """A COUNT, only when the value actually states one ('4 nos', '2 sets').
 
-    Needed because a descriptive spec value carries numbers that are not
-    quantities: "flame proof LED 700-800 LUX" would otherwise be read as 700
-    luminaires. Anything without an explicit nos/set marker returns `default`,
-    so the drawing omits the symbol rather than inventing a count.
+    See `values.stated_count` for why a bare number is refused.
     """
-    m = re.search(r"(\d+)\s*(?:nos?\b|no's|sets?\b)", str(value or ""), re.I)
-    return int(m.group(1)) if m else default
-
-
-def _find(rows, *needles) -> Optional[str]:
-    """Value of the first spec row whose label contains all the needles."""
-    for r in rows or []:
-        label = str(r.get("label", "")).lower()
-        if all(nd in label for nd in needles):
-            return r.get("value")
-    return None
+    return values.stated_count(value, default)
 
 
 def _resolved(value) -> bool:
@@ -115,17 +102,16 @@ def _resolved(value) -> bool:
     A TBD must never be drawn as though the equipment has it — that is the
     hallucination the TBD contract exists to prevent.
     """
-    text = str(value or "").strip()
-    return bool(text) and text.lower() != "to be determined"
+    return values.is_resolved(value)
 
 
-def _row(rows, *needles) -> Optional[dict]:
-    """The whole spec row (not just its value) matching all the needles."""
-    for r in rows or []:
-        label = str(r.get("label", "")).lower()
-        if all(nd in label for nd in needles):
-            return r
-    return None
+# `_row`/`_find` read a spec row the same way the BOM does — see `app/values.py`.
+_row = values.find_row
+
+
+def _find(rows, *needles) -> Optional[str]:
+    """Value of the first spec row whose label contains all the needles."""
+    return values.row_value(rows, *needles)
 
 
 def _part(rows, needles, *keys):

@@ -19,11 +19,14 @@ The buckets are the client's own review vocabulary:
     customer_confirmation ... theirs to decide, and still open
     engineering_review ...... ours to finish, and still open
 """
+from .. import values
 from typing import Any
+
+_clip = values.clip          # shared table-cell reader (app/values.py)
 
 from .traceability import CALCULATED, CUSTOMER, HISTORICAL
 
-TBD_VALUES = ("to be determined", "to be confirmed with the customer")
+TBD_VALUES = values.TBD_VALUES
 
 BUCKETS = [
     ("customer_supplied", "Customer supplied values",
@@ -101,29 +104,24 @@ def markdown(report: dict, title: str = "Engineering Assumptions") -> str:
         if key in ("customer_confirmation", "engineering_review"):
             lines += ["| Field | Why it is open |", "| --- | --- |"]
             for e in entries:
-                lines.append(f"| {e['field']} | {_clip(e.get('reason') or 'Needs input.')} |")
+                lines.append(f"| {e['field']} | {_clip(e.get('reason') or 'Needs input.', 90)} |")
         elif key == "historical_reused":
             lines += ["| Field | Value | Source project | Source document | Match |",
                       "| --- | --- | --- | --- | --- |"]
             for e in entries:
                 score = e.get("similarity_score")
                 lines.append(
-                    f"| {e['field']} | {_clip(e['value'])} | {e.get('source_project') or '-'} "
+                    f"| {e['field']} | {_clip(e['value'], 90)} | {e.get('source_project') or '-'} "
                     f"| {e.get('source_drawing') or '-'} "
                     f"| {f'{score:.3f}' if isinstance(score, (int, float)) else '-'} |")
         elif key == "engineering_calculated":
             lines += ["| Field | Value | Calculation reference |", "| --- | --- | --- |"]
             for e in entries:
-                lines.append(f"| {e['field']} | {_clip(e['value'])} "
-                             f"| {_clip(e.get('calculation_reference') or e.get('reason'))} |")
+                lines.append(f"| {e['field']} | {_clip(e['value'], 90)} "
+                             f"| {_clip(e.get('calculation_reference') or e.get('reason'), 90)} |")
         else:
             lines += ["| Field | Value |", "| --- | --- |"]
             for e in entries:
-                lines.append(f"| {e['field']} | {_clip(e['value'])} |")
+                lines.append(f"| {e['field']} | {_clip(e['value'], 90)} |")
         lines.append("")
     return "\n".join(lines)
-
-
-def _clip(text, limit: int = 90) -> str:
-    text = str(text or "").replace("\n", " ").replace("|", "/")
-    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
