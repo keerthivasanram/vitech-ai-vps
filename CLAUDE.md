@@ -42,6 +42,31 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ PRODUCTION READINESS — `docs/production-readiness-review.md` + the V1.0 CHECKLIST
+Full audit done 2026-08-05 (security, performance, tech debt, tests, observability) with the
+**Version 1.0 release checklist** at the end. Read it before production work. Headlines:
+- **No server-side auth at all** — `VITECH_API_KEY` unset means the middleware never engages, so
+  all 36 endpoints are open; the frontend password ships in the JS bundle; CORS is `*`; the
+  permission filter trusts a forgeable `X-Role` header. The LLM routes are unauthenticated and
+  unthrottled, which on a GPU box is an unbounded cost + DoS surface.
+- **Verified NOT vulnerable, so nobody re-audits them:** `.env` is untracked (only
+  `.env.example`); `GET /api/offers/by-source/{file}` matches on basename against stored
+  metadata and never touches the filesystem; the upload path strips directory components.
+- **`/api/query` + `llm.py` + `session.py` are LIVE, not dead code** — an earlier reading of this
+  file suggested otherwise. They are a real unauthenticated LLM surface.
+- **Nine full-collection scans** (`col.get(include=["metadatas"])` in main ×5, retriever,
+  analytics, pricing) parse every offer per request with no cache — invisible at 33 offers, the
+  dominant cost at the "thousands of documents" the README targets.
+- **34 of 36 endpoints are sync**, so ~40 concurrent 10-second LLM calls exhaust FastAPI's
+  threadpool and stall the whole API *including `/api/health`*.
+- **1,119 lines of customer-facing PDF renderers have ZERO tests**, and there are **no
+  HTTP-level tests at all** — a guard could be deleted and all nine suites would stay green.
+- **10 of 12 dependencies are unpinned** — the same version-drift trap already guarded on the
+  Flowise side with an `overrides` block, unguarded on the Python side (fpdf2 has bitten twice).
+- **`main.py` is 1,415 lines / 36 endpoints**; `_num` is defined 4x, `_row` 3x.
+- **`docs/developer_handbook.md` is substantially WRONG** (Gemini/Supabase/monolithic App.jsx);
+  it would give a new engineer the wrong mental model. Rewrite it before onboarding anyone.
+
 ### ▶ STATE AS OF 2026-08-05 (end of session) — and the NEXT objective
 **Done this session** (all committed + pushed on `fix/list-projects-category-filter`, PG backed
 up, **nine suites green, goldens byte-identical**): the two drawing categories completed, the
