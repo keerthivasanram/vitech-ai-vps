@@ -453,7 +453,12 @@ def _spec_for_drawing(q: str) -> dict:
         "geometry": _spec_geometry(a),
         "technical_details": [
             {"label": t.get("label"), "value": t.get("value"),
-             "origin": t.get("origin"), "kind": t.get("kind")}
+             "origin": t.get("origin"), "kind": t.get("kind"),
+             # `parts` carries a composite field's real sub-values (a powder
+             # plant's booth / oven / conveyor module sizes). Dropping it here
+             # would force the glyph to re-parse them back out of the display
+             # string — a second parser that could drift from the spec.
+             **({"parts": t["parts"]} if t.get("parts") else {})}
             for t in (a.get("technical_details") or [])
         ],
     }
@@ -545,7 +550,12 @@ def _studio_spec(payload: dict) -> tuple[Optional[dict], str, Optional[dict]]:
         "geometry": _spec_geometry(a),
         "technical_details": [
             {"label": t.get("label"), "value": t.get("value"),
-             "origin": t.get("origin"), "kind": t.get("kind")}
+             "origin": t.get("origin"), "kind": t.get("kind"),
+             # `parts` carries a composite field's real sub-values (a powder
+             # plant's booth / oven / conveyor module sizes). Dropping it here
+             # would force the glyph to re-parse them back out of the display
+             # string — a second parser that could drift from the spec.
+             **({"parts": t["parts"]} if t.get("parts") else {})}
             for t in (a.get("technical_details") or [])
         ],
     }

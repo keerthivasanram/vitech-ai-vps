@@ -388,6 +388,17 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         ],
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [],
+        # CASE-BASED, for the same reason ovens are (see hot_air_oven above).
+        # A dust collector has no closed-form sizing rule here yet (the client's
+        # pollution-control calculation document is still outstanding), but Vitech
+        # has 5 real collector offers. Without this the router consulted from
+        # scratch and returned a spec with ZERO technical details — which in turn
+        # gave the GA drawing an empty row list, so the sheet drew a bare casing
+        # with no filter elements, no airlock and a legend reading "ID fan HP"
+        # with no value. Reuse is deterministic and attributed ("reused from
+        # offer X"), and `validate.demote_unscalable` still refuses a
+        # size-dependent value copied across a >20% size gap.
+        "case_based": True,
         "field_labels": {"filter_area": "Filter area", "fan": "Fan",
                          "cleaning": "Cleaning system",
                          # reused-field labels, worded as on the client's
@@ -457,6 +468,14 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         ],
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [],
+        # CASE-BASED (see hot_air_oven / dust_collector above). HONEST LIMIT:
+        # there is exactly ONE powder-coating-plant offer on file, so reuse here
+        # is a copy of that single plant, not a choice between designs. That is
+        # still strictly better than the previous behaviour (an empty spec, and a
+        # GA sheet showing three empty boxes), because every reused value is
+        # attributed to its source offer and a size-dependent one is demoted to
+        # TBD beyond the tolerance. It improves the moment more plants are filed.
+        "case_based": True,
         "field_labels": {"booth": "Spray booth", "pulse_jet": "Powder recovery / pulse-jet",
                          "oven": "Curing oven", "conveyor": "Conveyor",
                          # keys as they actually appear on the historical plant

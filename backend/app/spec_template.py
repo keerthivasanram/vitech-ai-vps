@@ -70,6 +70,50 @@ def _keys_for(field, profile) -> list[str]:
     return keys
 
 
+def _num_text(value) -> str:
+    """A requirement number as an engineer wrote it: 9000, not 9000.0."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def _field_from_requirement(field, profile, params):
+    """The CLIENT'S OWN STATED VALUE for this field — checked before anything else.
+
+    This rung was MISSING from the ladder the module docstring describes, and the
+    gap was visible on a real sheet: asked for a 9000 m3/h dust collector, the
+    specification printed "Air volume (m3/h): To be determined" while separately
+    showing a DERIVED "Air volume cfm: 5297" as client-given. The stated duty was
+    on the page in the unit nobody asked for and absent in the unit they did.
+
+    The cause is that the template matches by LABEL: when the nearest offer
+    records the duty under a different key, the template's own field found no
+    resolved row and fell straight through to history and then TBD — never once
+    consulting the requirement that started the whole thing.
+
+    A value the customer stated is the most authoritative source in the system,
+    so it outranks history, and it can never be right to print it as a gap. It
+    is looked up through the same `field_labels` map history uses, so a category
+    gains this the moment it labels its keys.
+    """
+    if not params:
+        return None
+    for key in _keys_for(field, profile):
+        value = params.get(key)
+        if value in (None, "", []):
+            continue
+        return {
+            "label": field["label"],
+            "value": _num_text(value),
+            "origin": "given",
+            "origin_label": origin_label("given"),
+            "source": None,
+            "reason": "Client requirement (authoritative).",
+            "kind": field.get("kind"),
+        }
+    return None
+
+
 def _field_from_history(field, profile, offers, params):
     """Search comparable offers for THIS field before declaring it unknown.
 
@@ -141,10 +185,14 @@ def apply_template(profile, technical, offers=None, params=None):
             out.append(hit)
             used.add(id(hit))
             continue
-        # TBD is the LAST resort, not the first answer. A customer decision is
-        # never looked up — it is theirs to make, not ours to find.
-        found = (None if field.get("kind") == "customer_decision"
-                 else _field_from_history(field, profile, offers, params or {}))
+        # TBD is the LAST resort, not the first answer. The client's own stated
+        # value is consulted FIRST — including for a customer decision, because
+        # a decision the customer has already made is an answer, not a question.
+        # Only then history, which a customer decision is never looked up in:
+        # that one is theirs to make, not ours to find.
+        found = _field_from_requirement(field, profile, params or {})
+        if found is None and field.get("kind") != "customer_decision":
+            found = _field_from_history(field, profile, offers, params or {})
         out.append(found or _tbd_row(field))
     for it in technical:
         if id(it) not in used:

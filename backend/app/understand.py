@@ -194,11 +194,16 @@ _VALUE_FIRST = re.compile(rf"(\d+(?:\.\d+)?)\s*{_UNIT}?\s*(?:{_ANY_DIM_WORD})\b"
 _LABEL_FIRST = re.compile(rf"\b(?:{_ANY_DIM_WORD})\b\s*[:=-]?\s*\d", re.I)
 
 
-def _labelled_dims(q: str) -> dict:
+def _labelled_dims(q: str, min_labels: int = 2) -> dict:
     """Dimensions written as labels rather than a product: "Length: 0.9 meters,
     Width: 0.92 m, Height: 2" or "0.9 m long, 0.92 m wide, 2 m high". Returns
     metres. Only accepted when at least TWO labels are present, so a stray
-    "height 3" in prose cannot masquerade as a dimensioned requirement."""
+    "height 3" in prose cannot masquerade as a dimensioned requirement.
+
+    `min_labels=1` is used ONLY for the text after a correction phrase, where a
+    single dimension is the whole point ("make it 8 m long") and the surrounding
+    prose that the two-label guard protects against is not present.
+    """
     vf, lf = _VALUE_FIRST.search(q), _LABEL_FIRST.search(q)
     value_first = bool(vf) and (not lf or vf.start() < lf.start())
     primary = _LABELLED_DIM_SUFFIX if value_first else _LABELLED_DIM_PREFIX
@@ -216,7 +221,7 @@ def _labelled_dims(q: str) -> dict:
         elif unit.startswith("cm"):
             val /= 100.0
         out[key] = val
-    return out if len(out) >= 2 else {}
+    return out if len(out) >= min_labels else {}
 
 
 def _fallback(question: str) -> QueryUnderstanding:
@@ -414,9 +419,109 @@ def understand(question: str) -> QueryUnderstanding:
     if u.source == "llm":
         for k, v in _normalize_params(fb.parameters).items():
             params.setdefault(k, v)
+    # A stated correction wins over the value it corrects — applied BEFORE the
+    # unit fill so a corrected airflow recomputes its partner unit.
+    _apply_correction(question, params)
     _fill_air_volume_units(params)
     u.parameters = params
     return u
+
+
+# --- corrections -----------------------------------------------------------
+# "change it to", "now", "make it" ... — everything AFTER one of these phrases
+# supersedes the same parameter stated before it.
+_CORRECTION_RE = re.compile(
+    r"\b(?:changed?\s+(?:it\s+|them\s+|the\s+\w+\s+)?to|changed?\s+to|"
+    r"revised?\s+to|updated?\s+to|correct(?:ed|ion)?\s+to|"
+    r"increase[d]?\s+(?:it\s+)?to|reduce[d]?\s+(?:it\s+)?to|"
+    r"make\s+it|should\s+be|set\s+(?:it\s+)?to|now)\b", re.I)
+
+# Correcting one unit of a paired quantity must invalidate the other, or the
+# spec would carry the NEW cfm beside the OLD m3/h and quietly disagree with
+# itself. The dropped partner is recomputed by `_fill_air_volume_units`.
+_UNIT_PARTNERS = {"air_volume_cfm": "air_volume_cmh",
+                  "air_volume_cmh": "air_volume_cfm"}
+
+
+# "change the height to 6 m" / "make the length 8m" / "set the airflow to 9000 cmh"
+# — here the FIELD NAME sits inside the correction phrase and only a bare number
+# follows it, so re-reading the tail alone finds a value with nothing to attach
+# it to. This pattern keeps the two together.
+_FIELD_CORRECTION_RE = re.compile(
+    r"\b(?:chang(?:e|ed)|revis(?:e|ed)|updat(?:e|ed)|set|increase[d]?|reduce[d]?|make)\s+"
+    r"(?:it\s+|the\s+)?(length|width|height|depth|dia|diameter|airflow|air\s*volume)\s*"
+    r"(?:to|=|:|of)?\s*([\d.]+)\s*(mm|cm|m|cfm|cmh|m3/h)?\b", re.I)
+
+_DIM_FIELD_KEYS = {"length": "length_m", "width": "width_m",
+                   "height": "height_m", "depth": "width_m"}
+
+
+def _field_corrections(text: str) -> dict:
+    """Corrections that NAME the field they change, e.g. "change the height to 6m"."""
+    out: dict = {}
+    for m in _FIELD_CORRECTION_RE.finditer(text):
+        field = re.sub(r"\s+", "", m.group(1).lower())
+        value = float(m.group(2))
+        unit = (m.group(3) or "").lower()
+        if field in _DIM_FIELD_KEYS:
+            metres = value / 1000.0 if unit == "mm" else value / 100.0 if unit == "cm" else value
+            out[_DIM_FIELD_KEYS[field]] = metres
+        elif field in ("dia", "diameter"):
+            # A tower diameter is quoted in mm in every Vitech record; only an
+            # explicit m/cm changes that.
+            out["tower_diameter_mm"] = (value * 1000.0 if unit == "m"
+                                        else value * 10.0 if unit == "cm" else value)
+        else:                                   # airflow / air volume
+            key = "air_volume_cmh" if unit in ("cmh", "m3/h") else "air_volume_cfm"
+            out[key] = value
+    return out
+
+
+def _apply_correction(question: str, params: dict) -> None:
+    """Let a stated correction override the value it corrects.
+
+    Corrections arrive as ONE restated requirement, because the agent folds the
+    follow-up into the original before calling a tool — "paint booth 5m x 3m x
+    4m changed to 6m x 3m x 4m". Every extractor here uses `.search()`, which
+    takes the FIRST match, so the correction was silently discarded and the
+    drawing came back unchanged: the user saw their correction ignored.
+
+    Fixed deterministically rather than by prompting, because a prompt cannot
+    make an 8B model reliably rewrite a requirement, and the same phrasing must
+    always give the same drawing. Only text following a correction phrase is
+    re-read, so an ordinary requirement is parsed exactly as before.
+    """
+    named = _field_corrections(question)
+    matches = list(_CORRECTION_RE.finditer(question))
+    if not matches and not named:
+        return
+
+    if matches:
+        # The ORIGINAL requirement is re-read on its own. Parsing the whole
+        # sentence lets the correction's wording win the parser's own
+        # either/or choices — "5m x 3m x 4m ... now 7m long 4m wide" matched the
+        # labelled-dimension branch on the tail and never reached the triple, so
+        # the height silently vanished from the requirement altogether.
+        head = question[:matches[0].start()].strip(" ,.:;-")
+        if head:
+            for key, value in _normalize_params(_fallback(head).parameters).items():
+                params.setdefault(key, value)
+
+    tail = question[matches[-1].end():].strip(" ,.:;-") if matches else ""
+    corrected = _normalize_params(_fallback(tail).parameters) if tail else {}
+    if tail:
+        # "make it 8 m long" names ONE dimension, which the general parser
+        # rejects on purpose. After a correction phrase that guard is inverted:
+        # a single dimension is exactly what a correction usually is.
+        for key, value in _labelled_dims(tail.lower(), min_labels=1).items():
+            corrected.setdefault(key, value)
+    # A field-named correction is the most explicit form there is, so it wins.
+    corrected.update(named)
+    for key, value in corrected.items():
+        params[key] = value
+        partner = _UNIT_PARTNERS.get(key)
+        if partner and partner not in corrected:
+            params.pop(partner, None)
 
 
 # 1 CFM = 1.699 m3/h (CMH). Keep both so the airflow driver is always present

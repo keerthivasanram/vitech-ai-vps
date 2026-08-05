@@ -42,6 +42,68 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-05 — DUST COLLECTOR + POWDER PLANT DRAWINGS, and CORRECTIONS THAT ACTUALLY CORRECT
+Reported as "we only have the paint booth; complete the other two categories" and "when I
+mention a correction it needs to correct". All eight suites green throughout, **goldens
+byte-identical**, and every claim below was checked by RENDERING the sheet, not by reading SVG.
+- **THE GLYPHS WERE NOT THE PROBLEM.** All 14 categories already had glyph functions. The two
+  named categories drew nearly EMPTY sheets (powder plant = three empty boxes) because neither
+  is *adaptable* (`rules`/`field_rules`/`scale_driver`+`scalable` all absent), so the router
+  resolved them in **knowledge mode with ZERO technical rows** — and a glyph handed an empty row
+  list can only draw the casing. Both are now **`case_based: True`** in `catalog.py`, the same
+  fix ovens got in 2026-07-24. Rows went **0 -> 19 (collector)** and **0 -> 13 (plant)**; the
+  spec itself was equally empty before, so this fixes the specification too, not just the GA.
+- **A composite field leaked a raw Python dict into the customer-facing spec.** A powder plant
+  records a module as a nested object, and `engineering_planner._fmt` fell through to `str(v)`,
+  printing `{'booth_type': 'downside draft', ...}` — braces, quotes and all — into the spec table
+  AND the drawing legend. `_fmt` now flattens it to engineering text, `_sub_label` brackets the
+  unit and keeps trade acronyms (`MOC`, `Inner size (m)`, `Blower motor (HP)`), and `_item`
+  keeps the ORIGINAL mapping on the row as **`parts`** so the drawing reads a module's real size
+  from the same resolved value the table prints (no second, drifting parser).
+- **Both glyphs rebuilt.** Collector: tube sheet, pulse-jet header + real solenoid count, DP
+  gauge, dirty-air inlet, clean-air outlet, filter access door, inlet/outlet sides on plan
+  (legend 3 -> 12, BOM 0 -> 9). Plant: a real **PROCESS SEQUENCE** band (only stations that
+  actually resolved — a TBD pretreatment is never drawn), the module schedule with real values,
+  and a **true-scale BOOTH INNER OPENING overlay** using `View.model_w/model_h`. That overlay
+  earns its place: on the test case it **caught a genuine clash** — a 2.0 m component against the
+  reused 1.9 m booth opening — reported as `CHECK: ... confirm booth size`, never silently fixed.
+- **`sheet._wrap` (NEW)**: the legend hard-sliced at 72 chars, printing "confirm booth s" and
+  "Inner size (m): 3L x 1" — *a truncated engineering value looks like a wrong one*. Rows now
+  wrap at spaces (2-line cap so notes cannot be pushed off the sheet). Benefits every category.
+- **CORRECTIONS — the real bug was NOT what it looked like.** A correction reaches the engine as
+  ONE restated requirement ("...5m x 3m x 4m ... changed to 6m x 3m x 4m") because the agent
+  folds the follow-up in. **Every extractor uses `.search()`, which takes the FIRST match**, so
+  the correction was parsed away and the sheet came back unchanged. Fixed **deterministically**
+  (`understand._apply_correction`), not by prompting — a prompt cannot make an 8B model reliably
+  rewrite a requirement, and the same words must always give the same drawing (the same reasoning
+  that made `lookup_markdown` a code-rendered field). Handles "changed to", "now", "make it",
+  "set/increase/reduce to", plus `_field_corrections` for **"change the HEIGHT to 6m"** where the
+  field name sits *inside* the marker and only a bare number follows. A correction to one unit
+  **drops its partner so it is recomputed** (1200 CFM -> 2039 CMH), instead of leaving a spec
+  carrying the new CFM beside the old m3/h. **Proof: a corrected requirement now produces a
+  BYTE-IDENTICAL drawing to stating it cleanly.**
+  **Gotcha worth keeping:** an early live test appeared to pass because *the LLM* happened to
+  parse "8m long" — the deterministic path still returned 5.0. A green end-to-end agent run does
+  NOT prove the deterministic layer works; test `understand()` directly.
+- **A CLIENT-STATED VALUE WAS BEING PRINTED AS A GAP.** Found while chasing the above: asked for
+  a 9000 m3/h collector, the spec printed **"Air volume (m3/h): To be determined"** while showing
+  a *derived* "Air volume cfm: 5297" as client-given. `apply_template` matches by LABEL, so when
+  the nearest offer records the duty under another key the template fell straight through to
+  history and then TBD — **never once consulting the requirement that started the whole thing**.
+  `spec_template._field_from_requirement` adds the missing rung: **requirement -> history -> TBD**
+  (and it applies to a `customer_decision` too — a decision the customer has already made is an
+  answer, not a question). This was a platform-wide defect, not a drawing one.
+- **Studio: 2 presets -> all 14**, each carrying that category's REQUIRED inputs, and **all 14
+  verified to render**. **Gotcha:** the first attempt left 3 viewless — `dust_collector`,
+  `conveyor` and `fume_extraction` are duty-specified (no L/W/H in their profile), so a preset
+  must also carry the studio's optional overall-size inputs. Suggestions now demonstrate
+  corrections, which were the least discoverable capability in the product.
+- **Still open (deliberately):** component *positions* stay schematic and undimensioned — that
+  remains blocked on the client's setting-out rules, and the powder plant's front elevation is
+  legitimately sparse because its envelope is the max COMPONENT, not a plant footprint. Only ONE
+  powder-plant offer is on file, so its reuse is a copy of that single plant; it improves the
+  moment more are filed.
+
 ### ▶ 2026-08-02 (BOM) — BILL OF MATERIALS from the engineering model (`app/bom.py`)
 Roadmap Phase 3, purely additive — no architecture change. `POST /api/bom` (operation_id
 `generate_bom`) accepts a requirement, a studio `category`+`values`, OR a pasted specification;

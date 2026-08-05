@@ -109,6 +109,62 @@ def _find(rows, *needles) -> Optional[str]:
     return None
 
 
+def _resolved(value) -> bool:
+    """True when a spec value is a real answer rather than an admitted gap.
+
+    A TBD must never be drawn as though the equipment has it — that is the
+    hallucination the TBD contract exists to prevent.
+    """
+    text = str(value or "").strip()
+    return bool(text) and text.lower() != "to be determined"
+
+
+def _row(rows, *needles) -> Optional[dict]:
+    """The whole spec row (not just its value) matching all the needles."""
+    for r in rows or []:
+        label = str(r.get("label", "")).lower()
+        if all(nd in label for nd in needles):
+            return r
+    return None
+
+
+def _part(rows, needles, *keys):
+    """A SUB-VALUE of a composite spec field.
+
+    A powder-coating plant records a module as one nested object
+    (`{'oven_type': 'batch', 'inner_size_m': '3.0L x 1.8W x 2.5H', ...}`). The
+    resolver flattens that to readable text for the specification table but
+    keeps the original mapping on the row as `parts`, so the drawing reads the
+    module's real size from the SAME resolved value the table prints instead of
+    re-parsing it back out of prose.
+    """
+    parts = (_row(rows, *needles) or {}).get("parts") or {}
+    for k in keys:
+        if parts.get(k) not in (None, "", []):
+            return parts[k]
+    return None
+
+
+# "3L x 1.9W x 2.5H" / "2.4 L x 1.7 W x 5.5 H" -> (3.0, 1.9, 2.5) in metres.
+_LWH_RE = re.compile(r"([\d.]+)\s*L\s*[x*]\s*([\d.]+)\s*W\s*[x*]\s*([\d.]+)\s*H", re.I)
+
+
+def _lwh(value) -> Optional[tuple]:
+    """Parse a recorded 'L x W x H' size string into floats, else None.
+
+    Returns None rather than a partial guess: a module drawn from half a size
+    would be a fabricated dimension.
+    """
+    m = _LWH_RE.search(str(value or ""))
+    if not m:
+        return None
+    try:
+        out = tuple(float(g) for g in m.groups())
+    except ValueError:
+        return None
+    return out if all(v > 0 for v in out) else None
+
+
 def _count_in(rows, *needles) -> int:
     """A COUNT from a row whose label names a countable thing.
 
@@ -419,29 +475,42 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     fan_hp = _find(rows, "blower motor", "hp") or ""
     fan_type = _find(rows, "blower type") or ""
     airlock = _find(rows, "rotary airlock") or ""
+    solenoids = _nos(_find(rows, "solenoid"), 0)
+    suction = _find(rows, "suction duct") or ""
+    exhaust = _find(rows, "exhaust duct") or ""
+    panel = _find(rows, "control panel") or ""
+    vent = _find(rows, "explosion vent") or ""
+    moc = _find(rows, "casing") or ""
 
     front = views.get("front")
     plan = views.get("plan")
 
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
-        # Clean-air plenum across the top.
+        # Geometry first, balloons after. The plenum band is only 13% of the
+        # view height, which on a typical collector is THINNER THAN A BALLOON —
+        # placing item balloons inside it stacked three of them on top of each
+        # other and pushed one through the envelope edge. Every balloon for a
+        # plenum-mounted item is therefore parked in the roomy chamber below,
+        # which is normal GA practice and what the leader-free balloon needs.
         pl_h = h * 0.13
-        canvas.add(Rect(x, y, w, pl_h, L_COMPONENT, LW_MED))
-        item(canvas, legend, x + w * 0.10, y + pl_h * 0.5, "Clean air plenum / outlet manifold")
-
-        # Filter elements hanging in the chamber, drawn to the real count.
         hop_h = h * 0.30
         hop_y = y + h - hop_h
         bag_top = y + pl_h
         bag_bot = hop_y - 1.0
+        ch = bag_bot - bag_top                    # clear chamber height
+        canvas.add(Rect(x, y, w, pl_h, L_COMPONENT, LW_MED))
+        item(canvas, legend, x + w * 0.06, bag_top + ch * 0.08,
+             "Clean air plenum / outlet manifold")
+
+        # Filter elements hanging in the chamber, drawn to the real count.
         shown = min(bags, 12) if bags else 0
         for i in range(shown):
             bx = x + w * (i + 0.5) / shown
             canvas.add(Line(bx, bag_top, bx, bag_bot, L_COMPONENT, LW_THIN))
         if bags:
             # Off the vertical centre line, which the view already draws.
-            item(canvas, legend, x + w * 0.22, bag_top + (bag_bot - bag_top) * 0.28, f"Filter element ({bags} nos)")
+            item(canvas, legend, x + w * 0.30, bag_top + ch * 0.42, f"Filter element ({bags} nos)")
 
         # Hopper: a trapezoid narrowing to the discharge.
         canvas.add(poly([(x, hop_y), (x + w, hop_y),
@@ -470,7 +539,84 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         fcx, fcy = x + w * 0.78, y + pl_h * 0.5
         canvas.add(Circle(fcx, fcy, fr, L_COMPONENT, LW_MED))
         canvas.add(Line(fcx - fr, fcy, x + w * 0.60, fcy, L_COMPONENT, LW_THIN))
-        item(canvas, legend, x + w * 0.92, fcy, f"ID fan {fan_type} {fan_hp} HP".replace("  ", " ").strip())
+        # Only state what resolved: an empty type and HP printed a legend row
+        # reading a bare "ID fan HP", which looks like a missing value on the
+        # sheet — because it is one.
+        fan_desc = " ".join(t for t in ("ID fan", str(fan_type).strip(),
+                                        f"{fan_hp} HP" if str(fan_hp).strip() else "") if t)
+        item(canvas, legend, x + w * 0.92, fcy, fan_desc)
+
+        # Tube sheet — the plate the elements hang from, and the boundary
+        # between dirty and clean air. It is what makes the section readable as
+        # a filter rather than an empty box.
+        canvas.add(Line(x, y + pl_h, x + w, y + pl_h, L_COMPONENT, LW_MED))
+
+        # Pulse-jet cleaning: compressed-air header across the tube sheet with a
+        # blow pipe per solenoid. Drawn only when the spec actually resolved a
+        # pulse-jet/solenoid arrangement, so a shaker or reverse-air collector
+        # never gets a header it does not have.
+        if solenoids or "pulse" in str(cleaning).lower():
+            hdr_y = y + pl_h * 0.34
+            canvas.add(Line(x + w * 0.06, hdr_y, x + w * 0.62, hdr_y, L_COMPONENT, LW_MED))
+            n_sol = max(1, min(solenoids or 4, 8))
+            for i in range(n_sol):
+                sx = x + w * (0.10 + 0.48 * (i / max(1, n_sol - 1)))
+                canvas.add(Line(sx, hdr_y, sx, y + pl_h, L_COMPONENT, LW_THIN))
+                canvas.add(Rect(sx - w * 0.011, hdr_y - pl_h * 0.20,
+                                w * 0.022, pl_h * 0.20, L_COMPONENT, LW_THIN))
+            desc = "Pulse-jet compressed air header"
+            if solenoids:
+                desc += f", solenoid valve ({solenoids} nos)"
+            item(canvas, legend, x + w * 0.28, bag_top + ch * 0.08, desc)
+
+        # Differential-pressure gauge across the tube sheet: the instrument that
+        # tells the operator when the elements are blinding.
+        dpr = min(pl_h * 0.26, w * 0.028)
+        dpx, dpy = x + w * 0.06, bag_top + ch * 0.40
+        canvas.add(Circle(dpx, dpy, dpr, L_COMPONENT, LW_THIN))
+        canvas.add(Line(dpx, dpy, dpx + dpr * 0.7, dpy - dpr * 0.7, L_COMPONENT, LW_THIN))
+        item(canvas, legend, dpx + dpr + 4.5, dpy, "Differential pressure gauge")
+
+    side = views.get("side")
+    if side:
+        x, y, w, h = side.x, side.y, side.w, side.h
+        pl_h = h * 0.13
+        hop_h = h * 0.30
+        hop_y = y + h - hop_h
+        canvas.add(Line(x, y + pl_h, x + w, y + pl_h, L_COMPONENT, LW_MED))
+        canvas.add(poly([(x, hop_y), (x + w, hop_y),
+                         (x + w * 0.62, y + h), (x + w * 0.38, y + h)],
+                        L_COMPONENT, LW_MED, closed=True))
+
+        # Dirty-air inlet into the chamber, and the clean-air outlet off the
+        # plenum. Both are drawn INSIDE the outline as wall stubs: a duct hung
+        # off the envelope overhangs the dimension line (the collision this
+        # file's header warns about). Direction only, never dimensioned.
+        ch2 = hop_y - y - pl_h
+        in_y = y + pl_h + ch2 * 0.20
+        canvas.add(Rect(x, in_y - h * 0.040, w * 0.14, h * 0.08, L_COMPONENT, LW_MED))
+        airflow(canvas, [(x + w * 0.16, in_y), (x + w * 0.34, in_y)], "DIRTY AIR IN")
+        # Balloon BELOW the stub: above it is the arrow's own caption.
+        item(canvas, legend, x + w * 0.07, in_y + ch2 * 0.20,
+             f"Dirty air inlet {suction}".strip() if suction else "Dirty air inlet")
+
+        # Outlet arrow runs HORIZONTALLY inside the plenum and carries no
+        # caption. Drawn vertically it needed a label above the tip, which
+        # landed OUTSIDE the envelope's top edge; the balloon already names it.
+        canvas.add(Rect(x + w * 0.80, y, w * 0.16, pl_h, L_COMPONENT, LW_MED))
+        airflow(canvas, [(x + w * 0.60, y + pl_h * 0.5), (x + w * 0.78, y + pl_h * 0.5)])
+        if exhaust:
+            item(canvas, legend, x + w * 0.46, y + pl_h * 0.5, f"Exhaust duct {exhaust}"[:52])
+
+        # Access door, kept in the LOWER half of the chamber so it clears the
+        # inlet arrow and its caption, which sit in the upper third.
+        dw2, dh2 = w * 0.30, ch2 * 0.34
+        dx2 = x + w * 0.34
+        dy2 = y + pl_h + ch2 * 0.52
+        canvas.add(Rect(dx2, dy2, dw2, dh2, L_COMPONENT, LW_THIN))
+        canvas.add(Circle(dx2 + dw2 * 0.86, dy2 + dh2 * 0.5, min(dw2, dh2) * 0.09,
+                          L_COMPONENT, LW_THIN))
+        item(canvas, legend, dx2 + dw2 + 5.0, dy2 + dh2 * 0.5, "Filter access door")
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
@@ -489,8 +635,20 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             canvas.add(Text(x + w * 0.5, y - 2.5,
                             f"{bags} FILTER ELEMENTS - ARRANGEMENT INDICATIVE",
                             L_TEXT, 2.1, "middle"))
-        if cleaning:
-            note_item(legend, f"Cleaning - {str(cleaning)[:56]}")
+        # Inlet and outlet SIDES on plan, matching the side elevation, so the
+        # two views read as the same machine. Sides, not positions.
+        canvas.add(Line(x, y + h * 0.30, x + w * 0.14, y + h * 0.30,
+                        L_HIDDEN, LW_THIN, DASH_HIDDEN))
+        canvas.add(Text(x + w * 0.02, y + h * 0.24, "INLET SIDE", L_TEXT, 2.0, "start"))
+        canvas.add(Text(x + w * 0.98, y + h * 0.24, "OUTLET SIDE", L_TEXT, 2.0, "end"))
+
+    # Real resolved hardware with no engineered position on this sheet is
+    # SCHEDULED (lettered) rather than drawn — the sheet must still tell the
+    # engineer the collector has a panel, a vent and a stated casing gauge.
+    for label, value in (("Cleaning", cleaning), ("Casing & hopper", moc),
+                         ("Control panel", panel), ("Explosion vent", vent)):
+        if _resolved(value):
+            note_item(legend, f"{label} - {value}")
     return legend
 
 
@@ -509,14 +667,56 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
     recovery = _find(rows, "powder recovery") or ""
     oven = _find(rows, "curing oven") or ""
     handling = _find(rows, "material handling") or _find(rows, "conveyor") or ""
+    pretreat = _find(rows, "pretreatment") or ""
+
+    # Real module sizes, read from the composite field's own sub-values rather
+    # than re-parsed out of the printed sentence.
+    booth_m = _lwh(_part(rows, ("powder coating booth",), "inner_size_m", "size_m")
+                   or (booth if "inner size" in str(booth).lower() else ""))
+    oven_m = _lwh(_part(rows, ("curing oven",), "inner_size_m", "size_m")
+                  or (oven if "inner size" in str(oven).lower() else ""))
+    track = _part(rows, ("material handling",), "track_length_m")
 
     front = views.get("front")
     plan = views.get("plan")
+    side = views.get("side")
+
+    def _opening(v, size_m, caption):
+        """Overlay a module's INNER OPENING on a component-envelope view, at the
+        view's own scale.
+
+        Both numbers are real — the component envelope is the client's stated
+        requirement and the opening is the reused module's recorded inner size —
+        so showing them concentrically is a clearance comparison, not an
+        invented set-out. It is deliberately left undimensioned, and it is
+        skipped when it would coincide with the envelope (a dashed line exactly
+        on the outline reads as a rendering fault, not as information).
+        """
+        if not size_m or not v.model_w or not v.model_h:
+            return None
+        axis = {"length": size_m[0] * 1000.0, "width": size_m[1] * 1000.0,
+                "height": size_m[2] * 1000.0}
+        mw, mh = axis.get(v.w_axis), axis.get(v.h_axis)
+        if not mw or not mh:
+            return None
+        ow = mw * (v.w / v.model_w)
+        oh = mh * (v.h / v.model_h)
+        if abs(ow - v.w) < v.w * 0.02 and abs(oh - v.h) < v.h * 0.02:
+            return "coincident"
+        oy = v.y + (v.h - oh) / 2
+        canvas.add(Rect(v.x + (v.w - ow) / 2, oy, ow, oh,
+                        L_HIDDEN, LW_THIN, DASH_HIDDEN))
+        # Caption INSIDE the overlay when it nearly fills the view: placed above
+        # it, a near-full-height opening pushed the text past the envelope's top
+        # edge, which is the overhang this file's other glyphs already guard.
+        ty = oy - 2.2 if (oy - v.y) > 3.4 else oy + 3.0
+        canvas.add(Text(v.x + v.w * 0.5, ty, caption, L_TEXT, 2.0, "middle"))
+        return "drawn"
 
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
-        canvas.add(Text(x + w * 0.5, y + h * 0.62, "MAXIMUM COMPONENT ENVELOPE",
-                        L_TEXT, 2.6, "middle", bold=True))
+        canvas.add(Text(x + w * 0.5, y + h * 0.92, "MAXIMUM COMPONENT ENVELOPE",
+                        L_TEXT, 2.4, "middle", bold=True))
         # Hook / hanging point at the top centre: the component hangs from the
         # conveyor, so the envelope top IS the hook line.
         hx = x + w * 0.5
@@ -525,28 +725,90 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
         canvas.add(Line(hx, y - 2.0, hx, y + h * 0.06, L_COMPONENT, LW_THIN))
         canvas.add(Line(x - 6.0, y - hr - 2.0, x + w + 6.0, y - hr - 2.0,
                         L_COMPONENT, LW_THIN, DASH_CENTRE))
-        item(canvas, legend, x + w * 0.16, y + h * 0.12, f"Conveyor hook line - {handling}".strip(" -") or
-                       "Conveyor hook line")
+        track_txt = f" ({track} m track)" if track else ""
+        item(canvas, legend, x + w * 0.14, y + h * 0.10,
+             (f"Conveyor hook line - {handling}".strip(" -") or "Conveyor hook line")[:54] + track_txt)
+        _opening(front, booth_m, "BOOTH INNER OPENING")
+
+    if side:
+        _opening(side, booth_m, "BOOTH INNER OPENING")
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
-        # Direction of travel through the line.
-        # Kept INSIDE the outline — the right-hand side carries the height
-        # dimension, and an arrow overhanging the view collided with it.
+        # PROCESS SEQUENCE. What is real here is the ORDER the component passes
+        # through the plant — the same class of fact as an airflow arrow. The
+        # module POSITIONS and spacings are not engineered (Vitech has supplied
+        # no setting-out rules), so the blocks are equal-width, captioned
+        # SCHEMATIC and never dimensioned. Only stations the spec actually
+        # resolved appear; a TBD pretreatment is not drawn as if it existed.
+        stations = ["LOAD"]
+        if _resolved(pretreat):
+            stations.append("PRETREATMENT")
+        if _resolved(booth):
+            stations.append("POWDER BOOTH")
+        if _resolved(oven):
+            stations.append("CURING OVEN")
+        stations.append("UNLOAD")
+
         cy = y + h * 0.30
-        canvas.add(Line(x + w * 0.12, cy, x + w * 0.84, cy, L_COMPONENT, LW_THIN, DASH_CENTRE))
-        canvas.add(poly([(x + w * 0.88, cy), (x + w * 0.84, cy - 1.6),
-                         (x + w * 0.84, cy + 1.6)], L_COMPONENT, LW_THIN, "currentColor"))
-        canvas.add(Text(x + w * 0.5, cy - 2.2, "DIRECTION OF TRAVEL", L_TEXT, 2.1, "middle"))
-        item(canvas, legend, x + w * 0.16, cy + 5.5, "Plant line direction")
+        # Below ~60 mm of drawn width the blocks cannot hold legible text, so
+        # the view falls back to the plain direction arrow rather than emitting
+        # a row of unreadable boxes.
+        if len(stations) >= 3 and w >= 60.0:
+            band_h = min(h * 0.24, 13.0)
+            band_y = cy - band_h / 2
+            gap = w * 0.03
+            span = w * 0.90
+            bw = (span - gap * (len(stations) - 1)) / len(stations)
+            bx0 = x + (w - span) / 2
+            for i, name in enumerate(stations):
+                bx = bx0 + i * (bw + gap)
+                canvas.add(Rect(bx, band_y, bw, band_h, L_COMPONENT, LW_MED))
+                canvas.add(Text(bx + bw / 2, band_y + band_h * 0.60,
+                                name[:max(3, int(bw / 1.25))], L_TEXT, 1.9, "middle"))
+                if i:
+                    canvas.add(poly([(bx, cy), (bx - gap * 0.85, cy - 1.4),
+                                     (bx - gap * 0.85, cy + 1.4)],
+                                    L_COMPONENT, LW_THIN, "currentColor"))
+            canvas.add(Text(x + w * 0.5, band_y - 2.6,
+                            "PROCESS SEQUENCE - SCHEMATIC, NOT TO SCALE",
+                            L_TEXT, 2.1, "middle"))
+            item(canvas, legend, x + w * 0.06, band_y + band_h + 5.0,
+                 f"Plant process line ({len(stations)} stations)")
+        else:
+            canvas.add(Line(x + w * 0.12, cy, x + w * 0.84, cy,
+                            L_COMPONENT, LW_THIN, DASH_CENTRE))
+            canvas.add(poly([(x + w * 0.88, cy), (x + w * 0.84, cy - 1.6),
+                             (x + w * 0.84, cy + 1.6)], L_COMPONENT, LW_THIN, "currentColor"))
+            canvas.add(Text(x + w * 0.5, cy - 2.2, "DIRECTION OF TRAVEL", L_TEXT, 2.1, "middle"))
+            item(canvas, legend, x + w * 0.16, cy + 5.5, "Plant line direction")
+
+    # A reused module SMALLER than the component it must accept is a real
+    # engineering finding, and the sheet is where an engineer will notice it.
+    # Reported as a question, never silently corrected — the fix is the client's
+    # to make (a bigger booth, or a different source design).
+    env_m = None
+    if front and front.model_w and front.model_h:
+        env_m = {front.w_axis: front.model_w / 1000.0, front.h_axis: front.model_h / 1000.0}
+        if side and side.model_w:
+            env_m.setdefault(side.w_axis, side.model_w / 1000.0)
+    if booth_m and env_m:
+        named = {"length": booth_m[0], "width": booth_m[1], "height": booth_m[2]}
+        tight = [a for a, v in env_m.items() if named.get(a) and named[a] < v - 0.01]
+        if tight:
+            note_item(legend, "CHECK: component exceeds reused booth opening on "
+                              f"{', '.join(tight)} - confirm booth size")
 
     # The modules themselves are real resolved values but have no engineered
     # setting-out, so they are scheduled in the legend rather than drawn.
+    # No truncation here: the sheet's own column wraps these, and cutting the
+    # text early is what printed half-values like "Operating temp (".
     for label, value in (("Powder coating booth", booth),
                          ("Powder recovery", recovery),
-                         ("Curing oven", oven)):
-        if value:
-            note_item(legend, f"{label}: {str(value)[:52]} (not to scale)")
+                         ("Curing oven", oven),
+                         ("Material handling", handling)):
+        if _resolved(value):
+            note_item(legend, f"{label}: {value}")
     return legend
 
 

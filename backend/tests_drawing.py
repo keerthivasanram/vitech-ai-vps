@@ -436,6 +436,99 @@ coords = [float(v) for v in re.findall(r'(?:x|cx|x1|x2)="(-?\d+\.?\d*)"', full["
 check(min(coords) >= 0 and max(coords) <= 420,
       "airflow arrows and the pump stay inside the sheet")
 
+# --- Dust collector and powder coating plant -------------------------------
+# Both categories drew an almost EMPTY sheet, and the cause was not the glyphs:
+# neither is "adaptable", so the router resolved them from knowledge and handed
+# the drawing an empty row list. These pin the component set that reaching the
+# glyph with real rows produces.
+DUST = {
+    "category": "dust_collector", "category_label": "Dust Collector",
+    "geometry": {"envelope_mm": {"length": 2500, "width": 1200, "height": 1200},
+                 "ready": True},
+    "technical_details": [
+        {"label": "Filter bags", "value": "cartridge polyester, Dia 225 x 1000mm - 24 nos"},
+        {"label": "Solenoid valve", "value": "2 inch - 4 nos"},
+        {"label": "Blower type", "value": "centrifugal"},
+        {"label": "Blower motor (HP)", "value": "25"},
+        {"label": "Rotary airlock", "value": "0.5 HP"},
+        {"label": "Suction ducts", "value": "MS 2mm Dia 114 to 400mm - 135m"},
+        {"label": "Exhaust duct", "value": "MS 2mm Dia 500mm - 6m"},
+        {"label": "Casing & hopper MOC", "value": "MS 3mm"},
+        {"label": "Control panel", "value": "VFD ABB, PLC Delta"},
+        {"label": "Cleaning system", "value": "To be determined", "origin": "tbd"},
+    ],
+}
+dust = build_drawing(DUST)
+dust_desc = " | ".join(d for _, d in
+                       [(l["tag"], l["description"]) for l in dust["legend"]])
+check("Filter element (24 nos)" in dust_desc,
+      "the dust collector draws its REAL filter-element count")
+check("solenoid valve (4 nos)" in dust_desc.lower() and "pulse-jet" in dust_desc.lower(),
+      "pulse-jet header and solenoid count come from the spec")
+check("Differential pressure gauge" in dust_desc, "the collector carries its DP gauge")
+check("Rotary airlock 0.5 HP" in dust_desc, "the rotary airlock states its rating")
+check("ID fan centrifugal 25 HP" in dust_desc,
+      "the ID fan names type and rating -- it printed a bare 'ID fan HP' when neither resolved")
+check("DIRTY AIR IN" in dust["svg"], "dirty-air inlet direction is shown")
+check(len(dust["legend"]) >= 10,
+      f"the collector sheet is populated, not a bare casing ({len(dust['legend'])} legend rows)")
+
+# A value that did NOT resolve must not be dressed up as equipment.
+thin = build_drawing({**DUST, "technical_details": [
+    {"label": "Blower type", "value": "To be determined", "origin": "tbd"}]})
+thin_desc = " | ".join(l["description"] for l in thin["legend"])
+check("ID fan HP" not in thin_desc and "ID fan" in thin_desc,
+      "with no fan data the legend never prints a bare 'ID fan HP' with a missing value")
+
+PLANT = {
+    "category": "powder_coating_plant", "category_label": "Powder Coating Plant",
+    "geometry": {"envelope_mm": {"length": 3000, "width": 2000, "height": 2500},
+                 "ready": True},
+    "technical_details": [
+        {"label": "Powder coating booth",
+         "value": "Booth type: downside draft; Inner size (m): 3L x 1.9W x 2.5H",
+         "parts": {"booth_type": "downside draft", "inner_size_m": "3L x 1.9W x 2.5H"}},
+        {"label": "Curing oven", "value": "Oven type: batch; Inner size (m): 3.0L x 1.8W x 2.5H",
+         "parts": {"oven_type": "batch", "inner_size_m": "3.0L x 1.8W x 2.5H"}},
+        {"label": "Material handling", "value": "Type: overhead manual push-pull; Track length (m): 35",
+         "parts": {"type": "overhead manual push-pull", "track_length_m": 35}},
+        {"label": "Pretreatment", "value": "To be determined", "origin": "tbd"},
+    ],
+}
+plant = build_drawing(PLANT)
+plant_desc = " | ".join(l["description"] for l in plant["legend"])
+check("PROCESS SEQUENCE" in plant["svg"] and "POWDER BOOTH" in plant["svg"]
+      and "CURING OVEN" in plant["svg"],
+      "the plant draws its process line, not an empty component box")
+check("PRETREATMENT" not in plant["svg"],
+      "a TBD station is NOT drawn as though the plant has it")
+check("35 m track" in plant_desc, "the conveyor track length reaches the sheet")
+check("component exceeds reused booth opening" in plant_desc.lower(),
+      "a component larger than the reused booth opening is FLAGGED, not silently drawn")
+check("Inner size (m): 3L x 1.9W x 2.5H" in plant_desc,
+      "a composite module reads as engineering text, never a Python dict repr")
+check("{" not in plant_desc and "'" not in plant_desc,
+      "no raw dict punctuation leaks into the legend")
+
+# A module opening equal to the envelope must not be drawn on top of the outline.
+same = build_drawing({**PLANT, "technical_details": [
+    {"label": "Powder coating booth", "value": "Inner size (m): 3L x 2W x 2.5H",
+     "parts": {"inner_size_m": "3L x 2W x 2.5H"}}]})
+same_desc = " | ".join(l["description"] for l in same["legend"])
+check("exceeds reused booth" not in same_desc.lower(),
+      "a booth that DOES clear the component raises no false clash")
+
+# --- Sheet text ------------------------------------------------------------
+check(sheet._wrap("short line", 40) == ["short line"], "a short description is left alone")
+long_wrap = sheet._wrap("Powder coating booth: Booth type: downside draft; "
+                        "Inner size (m): 3L x 1.9W x 2.5H; MOC: mild steel panels", 60)
+check(len(long_wrap) == 2 and all(len(l) <= 60 for l in long_wrap),
+      "a long description wraps within the column instead of being sliced")
+check(not any(l.endswith(("boo", "Inne", "mil")) for l in long_wrap),
+      "wrapping breaks at spaces, never mid-word")
+check(sheet._wrap("a " * 200, 40)[-1].endswith("..."),
+      "text beyond the cap runs out with an ellipsis, so it reads as continuing")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} DRAWING TEST FAIL")

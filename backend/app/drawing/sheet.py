@@ -19,6 +19,54 @@ DEFAULT_SIZE = "A3"
 
 MARGIN = 10.0          # outer edge to frame
 NOTE_W = 148.0         # notes/legend column width (matches the title block)
+# Characters that fit one legend/TBD line at 2.4 mm text in a 148 mm column.
+# Measured off a render rather than assumed: the previous hard cut of 72 left
+# roughly a third of the column empty AND still sliced words in half.
+LEGEND_CHARS = 96
+
+
+def _wrap(text: str, limit: int, max_lines: int = 2) -> list[str]:
+    """Break a description at SPACES so a sheet never cuts a word in half.
+
+    The column used to hard-slice at a fixed character count, which printed
+    legend rows reading "... confirm booth s" and "Inner size (m): 3L x 1" —
+    a truncated engineering value looks like a wrong one. Wrapping is capped at
+    `max_lines` so a long row cannot push the notes off the bottom of the sheet;
+    anything still over runs out with an ellipsis, which reads as "continues"
+    rather than as a value.
+    """
+    words = str(text or "").split()
+    if not words:
+        return [""]
+    lines: list[str] = []
+    cur = ""
+    for i, word in enumerate(words):
+        while len(word) > limit:               # a single unbreakable long token
+            if cur:
+                lines.append(cur)
+                cur = ""
+            if len(lines) >= max_lines:
+                break
+            lines.append(word[:limit])
+            word = word[limit:]
+        if len(lines) >= max_lines:
+            break
+        candidate = f"{cur} {word}".strip()
+        if len(candidate) <= limit:
+            cur = candidate
+        else:
+            lines.append(cur)
+            cur = word
+            if len(lines) >= max_lines:
+                cur = ""
+                break
+    if cur and len(lines) < max_lines:
+        lines.append(cur)
+    used = len(" ".join(lines).split())
+    if used < len(words):
+        tail = lines[-1]
+        lines[-1] = (tail if len(tail) + 4 <= limit else tail[:limit - 4].rstrip()) + " ..."
+    return lines or [""]
 
 
 def frame(canvas, w: float, h: float) -> None:
@@ -58,8 +106,8 @@ def _item_table(canvas, x: float, y: float, bom: list, limit: int = 8) -> float:
     canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
     for i, row in enumerate(bom[:limit], 1):
         canvas.add(Text(x, y, str(i), L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 6.0, y, str(row.get("item", ""))[:30], L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 62.0, y, str(row.get("spec", ""))[:42], L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 6.0, y, str(row.get("item", ""))[:42], L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 62.0, y, str(row.get("spec", ""))[:62], L_TEXT, 2.3, "start"))
         y += line_h
     if len(bom) > limit:
         canvas.add(Text(x + 6.0, y, f"... and {len(bom) - limit} more", L_TEXT, 2.2, "start"))
@@ -102,8 +150,9 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
         y += line_h + 1.0
         for tag, desc in legend:
             canvas.add(Text(x, y, f"{tag}.", L_TEXT, 2.4, "start", bold=True))
-            canvas.add(Text(x + 7.0, y, str(desc)[:72], L_TEXT, 2.4, "start"))
-            y += line_h
+            for part in _wrap(desc, LEGEND_CHARS):
+                canvas.add(Text(x + 7.0, y, part, L_TEXT, 2.4, "start"))
+                y += line_h
         y += 3.0
 
     if tbd:
@@ -112,8 +161,9 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
         y += line_h + 1.0
         for item in tbd[:12]:
             canvas.add(Text(x, y, "—", L_TEXT, 2.4, "start"))
-            canvas.add(Text(x + 5.0, y, str(item)[:70], L_TEXT, 2.4, "start"))
-            y += line_h
+            for part in _wrap(item, LEGEND_CHARS):
+                canvas.add(Text(x + 5.0, y, part, L_TEXT, 2.4, "start"))
+                y += line_h
         if len(tbd) > 12:
             canvas.add(Text(x + 5.0, y, f"... and {len(tbd) - 12} more", L_TEXT, 2.3, "start"))
             y += line_h

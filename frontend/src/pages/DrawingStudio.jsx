@@ -28,16 +28,66 @@ const MAX_ZOOM = 8;
 const ZOOM_SENSITIVITY = 0.00033;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
+/**
+ * One starting point per catalog category, each carrying that category's REQUIRED
+ * inputs so a click always produces a drawable sheet rather than a prompt for more
+ * information. Previously only two existed, which made the studio look as though
+ * paint booths and scrubbers were the only equipment it could draw — the category
+ * dropdown has always been catalog-driven and offered all fourteen.
+ *
+ * The values are ordinary starting sizes to be edited, never engineering advice.
+ */
 const PRESETS = [
   { label: "Paint booth", hint: "5 × 3 × 4 m, liquid", category: "paint_booth",
     values: { length_m: 5, width_m: 3, height_m: 4, paint_type: "liquid" } },
   { label: "Wet scrubber", hint: "800 CFM, 750 mm tower", category: "wet_scrubber",
     values: { air_volume_cfm: 800, tower_diameter_mm: 750, qty: 1 } },
+  // Duty-specified categories are sized by airflow or track length, not by an
+  // L/W/H in their profile, so a preset that gave only the duty produced a
+  // correct but VIEWLESS sheet. Each therefore also carries the studio's
+  // optional overall-size inputs — the casing//envelope the client states — which
+  // are drawing inputs only and never enter the catalog profile.
+  { label: "Dust collector", hint: "6000 m³/h, 2.5 × 1.2 × 1.2 m", category: "dust_collector",
+    values: { air_volume_cmh: 6000, dust_type: "dry industrial dust",
+              length_m: 2.5, width_m: 1.2, height_m: 1.2 } },
+  { label: "Powder coating plant", hint: "3 × 2 × 2.5 m component", category: "powder_coating_plant",
+    values: { length_m: 3, width_m: 2, height_m: 2.5, booth_type: "dry down draft",
+              painting_method: "manual", throughput: "100 components/shift" } },
+  { label: "Hot air oven", hint: "3 × 2 × 2 m, 200 °C", category: "hot_air_oven",
+    values: { length_m: 3, width_m: 2, height_m: 2, operating_temp: "200" } },
+  { label: "Paint drying oven", hint: "4 × 2 × 2.5 m", category: "paint_drying_oven",
+    values: { length_m: 4, width_m: 2, height_m: 2.5 } },
+  { label: "Pretreatment plant", hint: "6 × 2 × 2 m, 7 tank", category: "pretreatment_plant",
+    values: { length_m: 6, width_m: 2, height_m: 2, process_stages: "7 tank",
+              throughput: "100 components/shift" } },
+  { label: "Cleaning room", hint: "4 × 3 × 3 m", category: "cleaning_room",
+    values: { length_m: 4, width_m: 3, height_m: 3 } },
+  { label: "Buffing booth", hint: "3 × 2 × 2.5 m", category: "buffing_booth",
+    values: { length_m: 3, width_m: 2, height_m: 2.5 } },
+  { label: "Flash off zone", hint: "4 × 2 × 2.5 m", category: "flash_off_zone",
+    values: { length_m: 4, width_m: 2, height_m: 2.5 } },
+  { label: "Blast booth", hint: "5 × 3 × 3 m, steel grit", category: "blast_booth",
+    values: { length_m: 5, width_m: 3, height_m: 3, blast_media: "steel grit",
+              recovery_type: "mechanical" } },
+  { label: "Fume extraction", hint: "4000 m³/h, welding", category: "fume_extraction",
+    values: { air_volume_cmh: 4000, source_process: "welding", capture_points: "4",
+              length_m: 2, width_m: 1.2, height_m: 2.5 } },
+  { label: "Conveyor", hint: "overhead, 35 m track", category: "conveyor",
+    values: { conveyor_type: "overhead", track_length_m: 35, load_capacity: "500 kg",
+              length_m: 35, width_m: 0.6, height_m: 3 } },
+  { label: "Ducting", hint: "6000 m³/h, 20 m run", category: "ducting",
+    values: { air_volume_cmh: 6000, layout_length_m: 20, material: "MS 2mm" } },
 ];
 
+// Chat starters. The last two demonstrate CORRECTION, which is the studio's
+// least discoverable capability: a follow-up amends the sheet as a new revision
+// instead of starting a fresh drawing.
 const SUGGESTIONS = [
   "draw a paint booth 6m x 4m x 3m",
-  "wet scrubber 800 cfm 750 mm tower",
+  "dust collector 6000 cmh pulse jet",
+  "powder coating plant component 3m x 2m x 2.5m",
+  "change the length to 8m",
+  "make it 9000 cmh instead",
 ];
 
 /** A collapsible parameter section. The panel carries a lot of ground now, so

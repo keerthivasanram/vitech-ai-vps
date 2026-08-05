@@ -23,11 +23,45 @@ def _num(v):
     return float(v) if isinstance(v, (int, float)) else None
 
 
+# Sub-keys of a composite field are raw record keys ("blower_motor_hp"), so a
+# plain .capitalize() printed "Moc" and "Inner size m". These are read by an
+# engineer on a specification table, so the unit is bracketed and the trade
+# acronyms keep their casing.
+_ACRONYMS = {"moc", "hp", "cfm", "cmh", "kw", "rpm", "lpg", "plc", "hmi", "vfd",
+             "ms", "ss", "gi", "id", "od", "ip", "ach", "lux", "nflp", "flp"}
+_UNIT_SUFFIX = {"m": "m", "mm": "mm", "cm": "cm", "kg": "kg", "hp": "HP",
+                "c": "deg C", "cmh": "m3/h", "cfm": "CFM", "kw": "kW",
+                "min": "min", "hr": "hr", "l": "litre", "pct": "%"}
+
+
+def _sub_label(key: str) -> str:
+    parts = str(key).split("_")
+    unit = ""
+    # A trailing unit token becomes a bracketed unit, not a dangling word.
+    if len(parts) > 1 and parts[-1].lower() in _UNIT_SUFFIX:
+        unit = _UNIT_SUFFIX[parts.pop().lower()]
+    words = [p.upper() if p.lower() in _ACRONYMS else p for p in parts]
+    text = " ".join(words)
+    text = text[:1].upper() + text[1:] if text else text
+    return f"{text} ({unit})" if unit else text
+
+
 def _fmt(v):
     if isinstance(v, float):
         if v.is_integer():
             return str(int(v))
         return f"{round(v, 2):g}"        # 1.0346... -> 1.03, never raw float noise
+    # A composite field (a powder-coating plant records its booth / oven /
+    # recovery module as a nested object) must NOT fall through to str(): that
+    # printed a raw Python dict repr — braces, quotes and all — straight into
+    # the customer-facing specification table and the drawing legend. Flatten it
+    # into readable engineering text instead. No value is dropped or reworded;
+    # only the punctuation between them changes.
+    if isinstance(v, dict):
+        return "; ".join(f"{_sub_label(k)}: {_fmt(sv)}"
+                         for k, sv in v.items() if sv not in (None, "", []))
+    if isinstance(v, (list, tuple)):
+        return ", ".join(_fmt(x) for x in v if x not in (None, "", []))
     return str(v)
 
 
@@ -48,8 +82,16 @@ def _same(a, b):
 # --- spec generation with source + reason ----------------------------------
 
 def _item(label, value, origin, source, reason):
-    return {"label": label, "value": _fmt(value), "origin": origin,
+    item = {"label": label, "value": _fmt(value), "origin": origin,
             "origin_label": origin_label(origin), "source": source, "reason": reason}
+    # Keep the ORIGINAL sub-values of a composite field alongside the flattened
+    # display string. The GA drawing needs the plant's real module sizes
+    # (booth `inner_size_m`, oven `inner_size_m`, conveyor `track_length_m`) and
+    # re-parsing them back out of prose would be a second, drifting parser.
+    # Display and geometry therefore read the SAME resolved values.
+    if isinstance(value, dict):
+        item["parts"] = {str(k): value[k] for k in value}
+    return item
 
 
 def _short_std(s):
