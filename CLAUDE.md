@@ -49,6 +49,15 @@ correction pipeline made deterministic, a client-stated value no longer printed 
 the **engineering package layer** built (see the two entries below for the detail).
 **Next objective: a DEVELOPER / ADMIN console** — log + error inspection, file-process
 visibility, database access, and the security work that has to come with it.
+**PLAN: `docs/admin-console-plan.md`** (read it before starting). Decisions taken with the
+product owner: **read-only observability first**, **office LAN only**, and **application data +
+Flowise config with secrets masked server-side**. Two findings in there shape everything:
+(a) the database is **SHARED with Flowise** — it already owns `user`, `role`, `credential`,
+`apikey`, so our auth tables must be namespaced `vitech_*` or a rebuild could break the agents,
+which are the one asset not reproducible from git; (b) **there is no logging layer at all**
+(no `basicConfig`, no `getLogger` anywhere in `app/`), so structured logging is the first build,
+not a refinement — the console cannot surface what the application never recorded. Also
+`app/jobs.py` is in-memory, so ingestion history dies on restart.
 
 > **READ THIS BEFORE BUILDING ANY ADMIN FEATURE.** The platform has **no backend
 > authentication at all** today. Verified 2026-08-05, not assumed:
