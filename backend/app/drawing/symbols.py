@@ -318,61 +318,210 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
 # --------------------------------------------------------------------------
 def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
-    """Wet scrubber GA: spray tower, recirculation tank, demister, blower."""
+    """Wet scrubber GA: gas path, contact stage, demister, sump, pump and blower.
+
+    Everything drawn here is either a value the spec resolved (nozzle count, tank
+    capacity, blower rating, demister size) or a fact of how the machine type
+    WORKS (gas enters low, leaves through the demister; a recirculating sump has
+    a drain and an overflow). What the platform cannot yet supply — anchor-bolt
+    setting-out, maintenance clearances, connection sizes — is SCHEDULED on the
+    sheet rather than drawn at an invented position.
+    """
     legend: list[tuple[str, str]] = []
     nozzles = _int(_find(rows, "spray", "nozzle"), 0)
     pump = _find(rows, "pump", "capacity") or ""
+    pump_make = _find(rows, "pump", "make") or ""
     tank = _find(rows, "tank", "capacity") or ""
+    blower = _find(rows, "blower", "type") or ""
+    blower_hp = _find(rows, "blower motor", "hp") or ""
+    demister = _find(rows, "eliminator") or _find(rows, "demister") or ""
+    chamber = _find(rows, "scrubber chamber") or ""
+    supports = _find(rows, "scrubber tank") or ""
+    stype = str(_find(rows, "scrubber type") or "").lower()
+
+    # The CONTACT STAGE follows the scrubber type the spec resolved. Vitech's
+    # scrubbers are baffle-plate units, so drawing a packed bed would be adding
+    # a component this machine does not have — the packing only appears when the
+    # spec actually says packed.
+    contact = ("baffle" if "baffle" in stype
+               else "packing" if ("pack" in stype or "random" in stype)
+               else "")
 
     front = views.get("front")
+    side = views.get("side")
+    plan = views.get("plan")
+
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
-        # Recirculation tank occupies the lower portion of the envelope.
         tank_h = h * 0.26
         ty = y + h - tank_h
-        canvas.add(Rect(x, ty, w, tank_h, L_COMPONENT, LW_MED))
-        canvas.add(Line(x, ty + tank_h * 0.45, x + w, ty + tank_h * 0.45,
-                        L_COMPONENT, LW_THIN, DASH_HIDDEN))
-        item(canvas, legend, x + w * 0.82, ty + tank_h * 0.5,
-             f"Recirculation tank {tank}".strip())
+        base_h = tank_h * 0.16                    # MS base / supports
 
-        # Spray headers inside the tower.
+        # --- outlet duct + blower over the scrubber ------------------------
+        # The spec's own scrubber type says the blower is mounted over the unit,
+        # so this is the machine's arrangement rather than a chosen position.
+        duct_w = w * 0.16
+        ox = x + w * 0.74
+        canvas.add(Rect(ox, y, duct_w, h * 0.10, L_COMPONENT, LW_MED))
+        br = min(duct_w * 0.42, h * 0.045)
+        canvas.add(Circle(ox + duct_w / 2, y + h * 0.05, br, L_COMPONENT, LW_MED))
+        item(canvas, legend, x + w * 0.50, y + h * 0.06,
+             " ".join(t for t in ("Outlet duct + blower", str(blower).strip(),
+                                  f"{blower_hp} HP" if str(blower_hp).strip() else "") if t))
+
+        # --- demister --------------------------------------------------------
+        dy = y + h * 0.16
+        dh = h * 0.07
+        canvas.add(Rect(x + w * 0.10, dy, w * 0.80, dh, L_COMPONENT, LW_MED))
+        for i in range(1, 8):
+            hx = x + w * (0.10 + 0.80 * i / 8)
+            canvas.add(Line(hx, dy, hx - h * 0.03, dy + dh, L_COMPONENT, LW_THIN))
+        item(canvas, legend, x + w * 0.16, dy + dh + 4.5,
+             f"Demister / eliminator {demister}".strip()[:60])
+
+        # --- contact stage ---------------------------------------------------
+        if contact:
+            cy = y + h * 0.26
+            ch = h * 0.05
+            canvas.add(Rect(x + w * 0.10, cy, w * 0.80, ch, L_COMPONENT, LW_MED))
+            if contact == "baffle":
+                for i in range(1, 9):
+                    bx = x + w * (0.10 + 0.80 * i / 9)
+                    canvas.add(Line(bx, cy, bx, cy + ch, L_COMPONENT, LW_THIN))
+                item(canvas, legend, x + w * 0.94, cy + ch / 2, "Baffle plate contact stage")
+            else:
+                for i in range(1, 6):
+                    canvas.add(Line(x + w * 0.10, cy + ch * i / 6, x + w * 0.90,
+                                    cy + ch * i / 6, L_COMPONENT, LW_THIN, DASH_HIDDEN))
+                item(canvas, legend, x + w * 0.94, cy + ch / 2, "Packing bed")
+
+        # --- spray headers ---------------------------------------------------
         for i in range(3):
-            sy = y + h * (0.30 + 0.14 * i)
+            sy = y + h * (0.36 + 0.11 * i)
             canvas.add(Line(x + w * 0.12, sy, x + w * 0.88, sy, L_COMPONENT, LW_THIN))
             for j in range(4):
                 nx = x + w * (0.20 + 0.20 * j)
                 canvas.add(poly([(nx, sy), (nx - 1.4, sy + 2.6), (nx + 1.4, sy + 2.6)],
                                 L_COMPONENT, LW_THIN))
-        item(canvas, legend, x + w * 0.90, y + h * 0.37, f"Spray nozzle header ({nozzles} nozzles)" if nozzles
-                       else "Spray nozzle header")
+        item(canvas, legend, x + w * 0.94, y + h * 0.42,
+             f"Spray nozzle header ({nozzles} nozzles)" if nozzles else "Spray nozzle header")
 
-        # Demister pad near the top.
-        dy = y + h * 0.16
-        canvas.add(Rect(x + w * 0.10, dy, w * 0.80, h * 0.07, L_COMPONENT, LW_MED))
-        for i in range(1, 8):
-            hx = x + w * (0.10 + 0.80 * i / 8)
-            canvas.add(Line(hx, dy, hx - h * 0.03, dy + h * 0.07, L_COMPONENT, LW_THIN))
-        item(canvas, legend, x + w * 0.20, dy + h * 0.07 + 4.5,
-             "Demister / eliminator pad")
+        # --- inlet duct ------------------------------------------------------
+        in_y = y + h * 0.66
+        canvas.add(Rect(x, in_y - h * 0.045, w * 0.14, h * 0.09, L_COMPONENT, LW_MED))
+        # ABOVE the stub: below it the balloon crossed the sump's top edge.
+        item(canvas, legend, x + w * 0.42, in_y + h * 0.04, "Inlet duct (gas entry)")
 
-        # Circulation pump ON the tank with its delivery riser to the headers.
-        # It used to be drawn outside the outline entirely, which read as a
-        # stray circle floating beside the drawing with a balloon attached to
-        # nothing — visible immediately on the sheet, invisible in the markup.
-        pr = min(w * 0.05, tank_h * 0.34)
-        pcx, pcy = x + w * 0.12, ty + tank_h * 0.5
+        # --- sump, water level, base -----------------------------------------
+        canvas.add(Rect(x, ty, w, tank_h, L_COMPONENT, LW_MED))
+        wl = ty + tank_h * 0.42
+        canvas.add(Line(x, wl, x + w, wl, L_COMPONENT, LW_THIN, DASH_HIDDEN))
+        canvas.add(Text(x + w * 0.5, wl - 2.0, "WORKING LEVEL", L_TEXT, 2.0, "middle"))
+        item(canvas, legend, x + w * 0.66, ty + tank_h * 0.24,
+             f"Recirculation sump {tank}".strip())
+
+        # MS base / supports — stated by the spec's own tank row, so the legs are
+        # a resolved value rather than an assumed detail.
+        canvas.add(Rect(x, y + h - base_h, w, base_h, L_COMPONENT, LW_MED))
+        for i in range(1, 4):
+            lx = x + w * i / 4
+            canvas.add(Line(lx, y + h - base_h, lx, y + h, L_COMPONENT, LW_THIN))
+        # ABOVE the base band: centred on it the balloon dipped below the
+        # envelope's bottom outline.
+        item(canvas, legend, x + w * 0.22, y + h - base_h - 4.5,
+             f"Base frame / supports {supports}".strip()[:52] if supports
+             else "Base frame / supports")
+
+        # --- sump connections -------------------------------------------------
+        # A recirculating sump necessarily has a drain, an overflow and a
+        # make-up feed; the SIZES are not engineered yet and are scheduled below
+        # rather than dimensioned here.
+        cr = min(w * 0.016, tank_h * 0.11)
+        for frac, tag in ((0.86, "OF"), (0.94, "MU")):
+            canvas.add(Circle(x + w * frac, ty + tank_h * 0.22, cr, L_COMPONENT, LW_THIN))
+            canvas.add(Text(x + w * frac, ty + tank_h * 0.22 - cr - 1.6, tag,
+                            L_TEXT, 1.9, "middle"))
+        canvas.add(Circle(x + w * 0.50, y + h - base_h - cr - 0.6, cr, L_COMPONENT, LW_THIN))
+        canvas.add(Text(x + w * 0.545, y + h - base_h - cr - 0.6, "DR", L_TEXT, 1.9, "start"))
+
+        # --- circulation pump -------------------------------------------------
+        pr = min(w * 0.05, tank_h * 0.30)
+        pcx, pcy = x + w * 0.12, ty + tank_h * 0.45   # clears the base frame below
         canvas.add(Circle(pcx, pcy, pr, L_COMPONENT, LW_MED))
-        canvas.add(Line(pcx, pcy - pr, pcx, y + h * 0.30, L_COMPONENT, LW_THIN))
-        item(canvas, legend, pcx + pr + 5.5, pcy, f"Circulation pump {pump}".strip())
+        canvas.add(Line(pcx, pcy - pr, pcx, y + h * 0.36, L_COMPONENT, LW_THIN))
+        item(canvas, legend, pcx + pr + 5.5, pcy,
+             " ".join(t for t in ("Circulation pump", str(pump).strip() and f"{pump} HP",
+                                  str(pump_make).strip()) if t))
 
-        # Airflow through the tower: in low, up through the spray zone and the
-        # demister, out at the top. This is how the machine works, not a
-        # position we invented, so it is drawn as direction only.
-        airflow(canvas, [(x + w * 0.06, y + h * 0.66), (x + w * 0.06, y + h * 0.13)],
-                "AIR IN")
-        airflow(canvas, [(x + w * 0.88, y + h * 0.34), (x + w * 0.88, y + h * 0.13)],
-                "AIR OUT")
+        # --- gas path ---------------------------------------------------------
+        airflow(canvas, [(x + w * 0.18, in_y), (x + w * 0.30, in_y)], "GAS IN")
+        # Arrow to the LEFT of the blower and unlabelled: drawn through it the
+        # arrowhead read as part of the fan, and the caption straddled the
+        # envelope's top edge. The balloon and legend already name the outlet.
+        airflow(canvas, [(x + w * 0.66, y + h * 0.15), (x + w * 0.66, y + h * 0.05)])
+
+    if side:
+        # The side elevation was an EMPTY BOX — a third of the sheet showing
+        # nothing. It carries the sump, the working level, the gas entry and the
+        # access door, so the two elevations read as the same machine.
+        x, y, w, h = side.x, side.y, side.w, side.h
+        tank_h = h * 0.26
+        ty = y + h - tank_h
+        base_h = tank_h * 0.16
+        canvas.add(Rect(x, ty, w, tank_h, L_COMPONENT, LW_MED))
+        canvas.add(Line(x, ty + tank_h * 0.42, x + w, ty + tank_h * 0.42,
+                        L_COMPONENT, LW_THIN, DASH_HIDDEN))
+        canvas.add(Rect(x, y + h - base_h, w, base_h, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x + w * 0.10, y + h * 0.16, w * 0.80, h * 0.07,
+                        L_COMPONENT, LW_MED))
+
+        in_y = y + h * 0.66
+        canvas.add(Rect(x, in_y - h * 0.045, w * 0.18, h * 0.09, L_COMPONENT, LW_MED))
+        airflow(canvas, [(x + w * 0.22, in_y), (x + w * 0.42, in_y)], "GAS IN")
+
+        # Access door: every scrubber needs the spray bank and demister reached
+        # for cleaning. Drawn undimensioned, like every other component here.
+        # Kept ABOVE the gas entry: at its first position the door bottom landed
+        # exactly on the inlet centre line, so the arrow and its caption were
+        # drawn inside the door.
+        dw2, dh2 = w * 0.44, h * 0.24
+        dx2, dy2 = x + w * 0.28, y + h * 0.28
+        canvas.add(Rect(dx2, dy2, dw2, dh2, L_COMPONENT, LW_THIN))
+        canvas.add(Circle(dx2 + dw2 * 0.86, dy2 + dh2 * 0.5, min(dw2, dh2) * 0.10,
+                          L_COMPONENT, LW_THIN))
+        item(canvas, legend, dx2 + dw2 + 5.0, dy2 + dh2 * 0.5, "Access / inspection door")
+
+    if plan:
+        # Also empty before. Shows the header runs across the tower, the sump
+        # outline and which side the gas enters and leaves.
+        x, y, w, h = plan.x, plan.y, plan.w, plan.h
+        canvas.add(Rect(x + w * 0.06, y + h * 0.10, w * 0.88, h * 0.80,
+                        L_COMPONENT, LW_THIN, DASH_HIDDEN))
+        runs = 3
+        for i in range(runs):
+            hy = y + h * (0.28 + 0.22 * i)
+            canvas.add(Line(x + w * 0.12, hy, x + w * 0.88, hy, L_COMPONENT, LW_MED))
+            per = max(1, nozzles // runs) if nozzles else 4
+            for j in range(min(per, 8)):
+                nx = x + w * (0.16 + 0.68 * (j / max(1, min(per, 8) - 1)))
+                canvas.add(Circle(nx, hy, min(w, h) * 0.012, L_COMPONENT, LW_THIN))
+        canvas.add(Text(x + w * 0.5, y + h * 0.20,
+                        f"{nozzles} NOZZLES ON {runs} HEADERS - ARRANGEMENT INDICATIVE"
+                        if nozzles else "SPRAY HEADERS - ARRANGEMENT INDICATIVE",
+                        L_TEXT, 2.0, "middle"))
+        canvas.add(Text(x + w * 0.02, y + h * 0.955, "GAS IN", L_TEXT, 2.0, "start"))
+        canvas.add(Text(x + w * 0.98, y + h * 0.955, "GAS OUT", L_TEXT, 2.0, "end"))
+
+    # --- what a production GA still needs, stated rather than invented -------
+    # These are real omissions, not oversights: each needs a client standard or
+    # a setting-out rule the platform has not been given. Naming them turns the
+    # gap into a request instead of a silent absence.
+    if chamber:
+        note_item(legend, f"Chamber / tank MOC - {chamber}")
+    note_item(legend, "Connection schedule (OF overflow, MU make-up, DR drain) - "
+                      "sizes and orientations to be confirmed")
+    note_item(legend, "Anchor bolt setting-out - requires the foundation layout")
+    note_item(legend, "Maintenance clearances - requires the client's access standard")
     return legend
 
 

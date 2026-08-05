@@ -412,8 +412,15 @@ check(full["title_block"]["duty"] == "Exhaust airflow: 10000 m3/h",
       f"({full['title_block'].get('duty')})")
 check("MS" in full["svg"] and "ABC Engineering" in full["svg"],
       "checked-by and client reach the title block")
-check("AIR IN" in full["svg"] and "AIR OUT" in full["svg"],
-      "flow direction is shown - how the machine works, never a set-out")
+# Gas path. The captions read GAS rather than AIR on a scrubber, and the OUTLET
+# arrow is deliberately UNLABELLED — captioned, its text straddled the envelope's
+# top edge and its arrowhead was drawn through the blower. The balloon and the
+# legend name the outlet, so the direction is still stated without the collision.
+check("GAS IN" in full["svg"],
+      "gas entry direction is shown - how the machine works, never a set-out")
+check(full["svg"].count("stroke-dasharray") > 0 and "Outlet duct" in
+      " ".join(l["description"] for l in full["legend"]),
+      "the outlet is identified by its balloon rather than a clipped caption")
 
 bare = build_drawing(SCRUB)
 check("REVISIONS" not in bare["svg"],
