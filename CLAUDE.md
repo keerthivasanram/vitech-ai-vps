@@ -42,6 +42,33 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ STATE AS OF 2026-08-05 (end of session) — and the NEXT objective
+**Done this session** (all committed + pushed on `fix/list-projects-category-filter`, PG backed
+up, **nine suites green, goldens byte-identical**): the two drawing categories completed, the
+correction pipeline made deterministic, a client-stated value no longer printed as a gap, and
+the **engineering package layer** built (see the two entries below for the detail).
+**Next objective: a DEVELOPER / ADMIN console** — log + error inspection, file-process
+visibility, database access, and the security work that has to come with it.
+
+> **READ THIS BEFORE BUILDING ANY ADMIN FEATURE.** The platform has **no backend
+> authentication at all** today. Verified 2026-08-05, not assumed:
+> 1. `frontend/src/auth/AuthProvider.jsx` matches credentials **in the browser** against a
+>    hard-coded list (`admin` / `vitech@123`). The JS bundle ships the password to every
+>    visitor. `role` is decorative — nothing server-side reads it.
+> 2. **`VITECH_API_KEY` is NOT set**, so the `_api_key_guard` middleware in `main.py` is
+>    INACTIVE. Every `/api/*` route is open to anyone who can reach port 8000.
+> 3. `CORS_ORIGINS` defaults to `*`.
+> 4. The permission hook reads its role from the **client-supplied `X-Role` header**, which
+>    anyone can forge, and `RESTRICTED_DOC_CATEGORIES` is empty (allow-all).
+> 5. The one existing admin route, `POST /api/admin/reload-index`, has no auth of its own.
+>
+> Today that exposes engineering data on a trusted LAN — tolerable, and the documented Phase-2
+> VPN blocker. An admin console changes the blast radius entirely: logs carry paths and
+> connection details, database access reaches Flowise's `credential` table and every offer, and
+> file-process access reaches the server itself. **A real auth backend is therefore not a
+> parallel task, it is the precondition** — building the console first would hand a full
+> operator seat to anyone who loads the login page.
+
 ### ▶ 2026-08-05 (later) — ENGINEERING PACKAGE LAYER (`app/package/`): artifacts -> a reviewable set
 Purely ADDITIVE — no existing engine was changed, and the nine suites (new `tests_package.py`,
 **60 checks**) are green with goldens byte-identical. The platform produced four correct
