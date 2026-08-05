@@ -151,25 +151,32 @@ def _spec_geometry(a: dict) -> dict:
     have = [x for x in (L, W, H) if x is not None]
     src = "given" if len(have) == 3 else ("partial" if have else "tbd")
 
-    # Some categories never state L x W x H — a wet scrubber is specified by
-    # airflow and tower diameter, with its height computed by the rule engine.
-    # Compose the envelope from those already-resolved numbers so the drawing
-    # engine has something true to draw. Only complete envelopes are accepted,
-    # and only from client-given or rule-computed values.
-    if len(have) < 3:
-        from ..drawing.envelope import derive_envelope
-        derived = derive_envelope(a.get("category"),
-                                  a.get("technical_details") or [], params)
-        if derived:
-            env, src = derived, "derived"
+    # Some categories never state L x W x H — a vertical spray tower is
+    # specified by tower diameter with its height computed by the rule engine.
+    # The ENGINEERING layer owns that model (it also decides WHICH machine the
+    # category holds), so the specification and the drawing consume one resolved
+    # geometry instead of each deciding for itself.
+    from ..engineering.geometry_service import resolve_geometry
+    geo = resolve_geometry(a.get("category"), a.get("technical_details") or [], params)
+    if len(have) < 3 and geo.envelope:
+        env, src = geo.envelope, "derived"
     fields = [
         {"label": t.get("label"), "value": t.get("value"),
          "status": "tbd" if t.get("origin") == "tbd" else "resolved"}
         for t in (a.get("technical_details") or []) if t.get("kind") == "geometry"
     ]
     ready = all(env.get(k) is not None for k in ("length", "width", "height"))
-    return {"envelope_mm": env, "envelope_source": src,
-            "ready": ready, "fields": fields}
+    out = {"envelope_mm": env, "envelope_source": src,
+           "ready": ready, "fields": fields}
+    # The resolved equipment TYPE travels with the geometry so the renderer never
+    # has to infer what it is drawing from spec row labels.
+    if geo.equipment_type:
+        out["equipment_type"] = geo.equipment_type
+    if geo.basis and src == "derived":
+        out["basis"] = geo.basis
+    if geo.conflicts:
+        out["conflicts"] = list(geo.conflicts)
+    return out
 
 def _spec_for_drawing(q: str, analysis: Optional[dict] = None) -> dict:
     """Resolve a requirement into the subset of the spec the drawing consumes.

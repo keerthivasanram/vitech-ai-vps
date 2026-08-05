@@ -232,7 +232,60 @@ def _generate_spec_inner(profile, category, params, chosen, offers, policy=ATS):
             reason = (f"Reused from nearest design {cid} (exact {driver_label} match)."
                       if exact_driver else f"Reused from nearest design {cid}.")
             items.append(_item(label_for(category, k), val, "reused", cid, reason))
+
+    items += _declared_but_unmatched(profile, category, params, rule_map,
+                                     target_to_given, base)
     return items, rules_list
+
+
+def _declared_but_unmatched(profile, category, params, rule_map, target_to_given,
+                            base) -> list:
+    """Client-given and rule-computed fields the NEAREST OFFER happens not to carry.
+
+    The loop above walks the nearest offer's field set, so a field that offer
+    lacks is never even considered — and a value the CLIENT STATED or a RULE
+    COMPUTED then vanishes from the specification entirely. Not as a TBD: gone.
+
+    That is a reuse policy deciding what engineering exists. It bit the wet
+    scrubber hardest, because Vitech's archive holds four vertical spray towers
+    (`tower_diameter_mm` + `tower_height_m`) and ONE horizontal baffle unit that
+    records neither. A 750 mm tower requirement whose nearest offer was the
+    baffle unit lost both the client's diameter and the rule's computed height,
+    which left the GA with no envelope and a blank sheet.
+
+    The PROFILE declares which fields a category has — `from_given` and
+    `rule_covers` are exactly that declaration — so the profile decides the
+    field set and history only fills it. Nothing is invented here: a field is
+    emitted only when the client supplied it or a rule computed it.
+    """
+    if not profile:
+        return []
+    out = []
+    seen = set(base or {})
+
+    # Client-stated values first: the requirement is authoritative everywhere
+    # else in this function, and it must be here too.
+    for target, given_key in (profile.get("from_given") or {}).items():
+        if target in seen or given_key not in params:
+            continue
+        value = params[given_key]
+        if isinstance(value, dict):
+            continue
+        out.append(_item(label_for(category, target), value, "given", "requirement",
+                         "Client requirement (authoritative)."))
+        seen.add(target)
+
+    # Then rule outputs, in the profile's declared order so the spec is stable.
+    for target in (profile.get("rule_covers") or []):
+        if target in seen or target not in rule_map:
+            continue
+        rc = rule_map[target]
+        snapped, note = _snap(profile, target, rc["value"])
+        out.append(_item(label_for(category, target), snapped, "rule",
+                         _short_std(rc["standard"]),
+                         f"{rc['formula']} ({rc['standard']}){note}."))
+        seen.add(target)
+    return out
 
 
 def _support_count(field, value, offers):

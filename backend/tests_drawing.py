@@ -10,6 +10,7 @@ import re
 import sys
 
 from app.drawing import sheet, views
+from app.api.support import _spec_for_drawing
 from app.drawing.drawing_service import build_drawing
 from app.drawing.primitives import Canvas, Dim, LAYER_ORDER, Line, Text, n
 from app.drawing.symbols import SYMBOLS, _find, _int, _nos
@@ -213,6 +214,75 @@ derived_drawing = build_drawing({
     "technical_details": [{"label": "Spray nozzles (nos)", "value": "19"}]})
 check(len(derived_drawing["views"]) == 3 and derived_drawing["scale"] != "NTS",
       "a derived envelope produces a real scaled drawing, not an NTS blank")
+
+# --- Equipment TYPE is resolved by engineering, not sniffed by the renderer --
+# A wet scrubber is two different machines in Vitech's archive. Which one it is
+# decides the geometry model, so the type is an ENGINEERING output that travels
+# with the envelope — the drawing must never re-decide it from row labels.
+from app.engineering.geometry_service import (TYPE_HORIZONTAL_BAFFLE,
+                                              TYPE_SPRAY_TOWER, resolve_geometry)
+
+g = resolve_geometry("wet_scrubber", SCRUBBER_ROWS)
+check(g.equipment_type == TYPE_SPRAY_TOWER and g.envelope == {"length": 750, "width": 750, "height": 4000},
+      f"a stated tower diameter resolves a VERTICAL SPRAY TOWER ({g.equipment_type})")
+check(g.basis.get("height", "").startswith("tower height"),
+      "the envelope reports the basis of each axis, not just the number")
+
+# THE DEFECT THIS FIXES. The archive holds one horizontal baffle unit, and when
+# it is the nearest offer its wording reaches the spec as a REUSED row. A client
+# who stated a tower diameter has specified a vertical tower, so the requirement
+# wins and the contradiction is REPORTED rather than silently resolved.
+g2 = resolve_geometry("wet_scrubber", SCRUBBER_ROWS + [
+    {"label": "Scrubber type", "value": "horizontal baffle plate - blower mounted over scrubber",
+     "origin": "reused"}])
+check(g2.equipment_type == TYPE_SPRAY_TOWER and g2.envelope == g.envelope,
+      "a client-stated tower outranks a REUSED baffle description")
+check(any("confirm the scrubber type" in c for c in g2.conflicts),
+      f"the type contradiction is reported to the engineer ({g2.conflicts})")
+
+# A horizontal baffle unit with no engineered height must NOT be drawn. Vitech
+# has supplied no height rule for this type and the archived casing belongs to a
+# different machine, so the honest answer is no envelope plus a stated reason.
+g3 = resolve_geometry("wet_scrubber", [
+    {"label": "Scrubber type", "value": "horizontal baffle plate", "origin": "reused"},
+    {"label": "Scrubber dimension", "value": "700mm W x 1700mm L", "origin": "reused"}])
+check(g3.equipment_type == TYPE_HORIZONTAL_BAFFLE and g3.envelope is None,
+      "a horizontal baffle unit with no height rule yields NO envelope")
+check(any("no height rule" in c for c in g3.conflicts),
+      f"and says why, so the gap is a request rather than a silence ({g3.conflicts})")
+
+# --- A client-stated value must survive a nearest offer that lacks the field --
+# THE ROOT CAUSE of the blank scrubber sheet: the planner walked the nearest
+# offer's field set, so a value the CLIENT STATED or a RULE COMPUTED vanished
+# whenever that offer did not carry the field. The profile declares the field
+# set; history only fills it.
+from app.resolver import ATS, resolve
+from app.retriever import retrieve
+from app.schema import QueryUnderstanding
+
+_u = QueryUnderstanding(intent="specification", category="wet_scrubber",
+                        parameters={"air_volume_cfm": 800, "tower_diameter_mm": 750, "qty": 4},
+                        source="regex")
+_a = resolve("wet scrubber for 800 cfm 750mm tower 4 nos",
+             retrieve("wet scrubber for 800 cfm 750mm tower 4 nos", top_k=10,
+                      where={"category": "wet_scrubber"}), _u, ATS)
+_rows = {r["label"]: r for r in _a.get("technical_details") or []}
+check(_rows.get("Tower diameter (mm)", {}).get("origin") == "given",
+      "the client's stated tower diameter reaches the spec even when the nearest "
+      "offer has no such field")
+check(_rows.get("Tower height (m)", {}).get("origin") == "rule",
+      "and the rule-computed tower height with it")
+
+_geom = _a.get("geometry") or {}
+_env = build_drawing({"category": "wet_scrubber", "category_label": "Wet Scrubber",
+                      "geometry": {"envelope_mm": resolve_geometry(
+                          "wet_scrubber", _a.get("technical_details") or []).envelope,
+                                   "ready": True},
+                      "technical_details": _a.get("technical_details") or []})
+check(len(_env["views"]) == 3 and _env["scale"] != "NTS",
+      "so the flagship wet scrubber draws a real GA instead of a blank sheet")
+check(len(_env["legend"]) > 5,
+      f"and its component glyph actually runs ({len(_env['legend'])} legend rows)")
 
 # --- The input-field contract (studio form <-> render endpoint) ------------
 from app.drawing import fields as fieldspec
@@ -537,6 +607,95 @@ check(sheet._wrap("a " * 200, 40)[-1].endswith("..."),
       "text beyond the cap runs out with an ellipsis, so it reads as continuing")
 
 print()
+# --- DESIGN DATA table + KEY DIMENSIONS (composed, never computed) ----------
+from app.drawing.drawing_service import _design_data, _key_dimensions
+from app.drawing import sheet as _sheet, title_block as _tb
+from app.drawing.primitives import Text as _Text, L_TEXT as _L_TEXT
+
+_SCRUB = _spec_for_drawing("wet scrubber 800 cfm 750mm tower 4 nos")
+_d = build_drawing(_SCRUB)
+
+check(len(_d["design_data"]) > 0, "the sheet carries a DESIGN DATA block")
+check("DESIGN DATA" in _d["svg"], "and it is actually drawn on the sheet")
+
+# PARTITION, not a sample: every resolved row is in exactly one of the two
+# tables, so no resolved value is silently dropped from the drawing.
+_bom_labels = {r["item"] for r in _d["bom"]}
+_data_labels = {r["label"] for r in _d["design_data"]}
+check(not (_bom_labels & _data_labels),
+      "design data and the item list never contain the same row twice")
+_resolved = {str(r["label"]) for r in _SCRUB["technical_details"]
+             if str(r.get("value", "")).strip().lower() not in ("", "to be determined")
+             and r.get("origin") != "tbd"}
+check(_resolved <= (_bom_labels | _data_labels),
+      f"every resolved row lands in one of the two tables "
+      f"(missing: {sorted(_resolved - (_bom_labels | _data_labels))})")
+check(not any(str(r["value"]).lower() == "to be determined" for r in _d["design_data"]),
+      "a TBD is never printed as design data - it is scheduled separately")
+
+# The engineering engine owns every printed value; the table composes only.
+for _r in _d["design_data"]:
+    _src = [t for t in _SCRUB["technical_details"] if t["label"] == _r["label"]]
+    check(bool(_src) and str(_src[0]["value"]).strip() == _r["value"],
+          f"design data value for {_r['label']!r} is reproduced verbatim from the spec")
+    break
+
+# --- Diameter annotation comes from the resolved TYPE, not a label guess ----
+check(any(r["value"].startswith("\u00d8") for r in _d["key_dimensions"]),
+      f"a stated bore is scheduled with the diameter symbol ({_d['key_dimensions']})")
+check("\u00d8750" in _d["svg"],
+      "a circular footprint is DIMENSIONED as a diameter, not as a square casing")
+
+_booth = build_drawing(_spec_for_drawing("paint booth 5m x 3m x 4m"))
+check(not any("\u00d8" in str(v) for v in
+              [_l for _l in re.findall(r'>([^<]*)</text>', _booth["svg"])
+               if _l.strip().isdigit()]),
+      "a rectangular booth's overall dimensions are NOT marked as diameters")
+_duct = [r for r in _booth["key_dimensions"] if "duct" in r["label"].lower()]
+check(_duct and "dia" not in _duct[0]["value"].lower(),
+      f"the symbol replaces the word - never '\u00d8 600 mm dia' ({_duct})")
+
+# A historical-only dimension must never be scheduled: it is a different
+# machine's casing, which is exactly what the trust rule exists to refuse.
+check(_key_dimensions({"technical_details": [
+        {"label": "Collector size (m)", "value": "2.15L x 1.15W x 4.95H",
+         "origin": "reused"}]}) == [],
+      "a REUSED size is never presented as a dimension of this machine")
+check(len(_key_dimensions({"technical_details": [
+        {"label": "Collector size (m)", "value": "2.15L x 1.15W x 4.95H",
+         "origin": "given"}]})) == 1,
+      "the same size stated by the CLIENT is scheduled")
+check(_key_dimensions({"technical_details": [
+        {"label": "Spray nozzles (nos)", "value": "19", "origin": "rule"}]}) == [],
+      "a COUNT is not mistaken for a dimension")
+
+# --- The side column is bounded by the title block --------------------------
+# Verified defect: on A4 the notes printed straight over the title block.
+for _size in ("A4", "A3"):
+    _c, _pkg = compose(_spec_for_drawing("dust collector 9000 m3/h casing 3m x 2m x 5m"),
+                       sheet_size=_size)
+    _sw, _sh = _sheet.SHEET_SIZES[_size]
+    _top = _sh - _sheet.MARGIN - _tb.TB_H
+    _left = _sw - _sheet.MARGIN - _tb.TB_W
+    _bad = [s for s in _c.shapes if isinstance(s, _Text) and s.layer == _L_TEXT
+            and s.y > _top and s.x > _left - 2]
+    check(not _bad, f"{_size}: the notes column never prints over the title block "
+                    f"({len(_bad)} intruding)")
+
+# The standing notes are NOT optional: they state that positions are indicative
+# and that the sheet is a draft not released for construction (golden rule #3).
+# A full column dropped them, because they were drawn last. Their space is now
+# reserved, so a busier sheet truncates a schedule instead of a safety statement.
+from app.drawing.drawing_service import STANDING_NOTES as _NOTES
+for _q in ("paint booth 5m x 3m x 4m",
+           "dust collector 9000 m3/h casing 3m x 2m x 5m",
+           "wet scrubber 800 cfm 750mm tower 4 nos"):
+    for _size in ("A4", "A3"):
+        _pkg = build_drawing(_spec_for_drawing(_q), sheet_size=_size)
+        check(all(_n[:40] in _pkg["svg"] for _n in _NOTES),
+              f"{_size}: every standing note survives a full column ({_q[:26]})")
+
+
 if FAILS:
     print(f"{len(FAILS)} DRAWING TEST FAIL")
     for f in FAILS:

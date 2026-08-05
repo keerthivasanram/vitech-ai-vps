@@ -73,6 +73,22 @@ def airflow(canvas, points, label: str = "") -> None:
         canvas.add(Text(tx, ty - 2.4, label, L_TEXT, 2.0, "middle"))
 
 
+def _clip(text: str, limit: int = 54) -> str:
+    """Bound a legend description WITHOUT cutting a word in half.
+
+    The glyphs used to hard-slice at a character count, which printed rows like
+    "Base frame / supports SS-304 2mm (MS painted base/su". The sheet's own
+    `_wrap` is word-safe, but it never got the chance — the string arrived
+    already mangled. A truncated engineering value reads as a wrong one, so the
+    cut moves to the last space and marks itself as continuing.
+    """
+    s = str(text or "").strip()
+    if len(s) <= limit:
+        return s
+    cut = s[:limit].rsplit(" ", 1)[0].rstrip(" ,;:-/")
+    return (cut or s[:limit]) + " ..."
+
+
 def note_item(legend: list, description: str) -> str:
     """A legend row with NO balloon: something the spec resolved but that has no
     engineered position to draw. Lettered, so a reader can tell at a glance that
@@ -295,7 +311,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             px, py = x + w * 0.905, y + h * 0.52
             canvas.add(Rect(px, py, pw, ph, L_COMPONENT, LW_MED))
             canvas.add(Line(px, py + ph * 0.3, px + pw, py + ph * 0.3, L_COMPONENT, LW_THIN))
-            item(canvas, legend, px - 6.0, py + ph * 0.5, f"Control panel {panel}"[:52])
+            item(canvas, legend, px - 6.0, py + ph * 0.5, _clip(f"Control panel {panel}"))
 
     if side:
         # The side elevation was an EMPTY BOX. It carries the extract face: the
@@ -318,19 +334,19 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         if duct:
             canvas.add(Rect(x + w * 0.60, y, w * 0.14, h * 0.09, L_COMPONENT, LW_MED))
             airflow(canvas, [(x + w * 0.67, y + h * 0.14), (x + w * 0.67, y + h * 0.03)])
-            item(canvas, legend, x + w * 0.44, y + h * 0.05, f"Exhaust duct {duct}"[:52])
+            item(canvas, legend, x + w * 0.44, y + h * 0.05, _clip(f"Exhaust duct {duct}"))
 
         # Filtered air inlet on the opposite face.
         if intake:
             canvas.add(Rect(x, y + h * 0.18, w * 0.08, h * 0.30, L_HIDDEN, LW_THIN, DASH_HIDDEN))
-            item(canvas, legend, x + w * 0.16, y + h * 0.33, f"Air intake filter {intake}"[:52])
+            item(canvas, legend, x + w * 0.16, y + h * 0.33, _clip(f"Air intake filter {intake}"))
 
         # Floor / working level, and the supporting structure the spec names.
         canvas.add(Line(x, y + h * 0.94, x + w, y + h * 0.94, L_COMPONENT, LW_THIN))
         canvas.add(Text(x + w * 0.30, y + h * 0.91, "FLOOR LEVEL", L_TEXT, 2.0, "middle"))
         if construction:
             item(canvas, legend, x + w * 0.30, y + h * 0.72,
-                 f"Enclosure {construction}"[:54])
+                 _clip(f"Enclosure {construction}"))
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
@@ -365,7 +381,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             canvas.add(Rect(x + w * 0.06, byy - bh * 0.9, cw, bh * 0.8,
                             L_COMPONENT, LW_THIN))
             item(canvas, legend, x + w * 0.06 + cw + 5.5, byy - bh * 0.5,
-                 f"Activated carbon chamber {carbon}"[:52])
+                 _clip(f"Activated carbon chamber {carbon}"))
 
         # Air-inlet side (opposite the extract) shown as hidden detail.
         canvas.add(Line(x, y + h * 0.10, x + w, y + h * 0.10, L_HIDDEN, LW_THIN, DASH_HIDDEN))
@@ -450,7 +466,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             hx = x + w * (0.10 + 0.80 * i / 8)
             canvas.add(Line(hx, dy, hx - h * 0.03, dy + dh, L_COMPONENT, LW_THIN))
         item(canvas, legend, x + w * 0.16, dy + dh + 4.5,
-             f"Demister / eliminator {demister}".strip()[:60])
+             _clip(f"Demister / eliminator {demister}", 60))
 
         # --- contact stage ---------------------------------------------------
         if contact:
@@ -489,7 +505,10 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Rect(x, ty, w, tank_h, L_COMPONENT, LW_MED))
         wl = ty + tank_h * 0.42
         canvas.add(Line(x, wl, x + w, wl, L_COMPONENT, LW_THIN, DASH_HIDDEN))
-        canvas.add(Text(x + w * 0.5, wl - 2.0, "WORKING LEVEL", L_TEXT, 2.0, "middle"))
+        # Right-anchored just inside the wall. Centred, it was overprinted by the
+        # pump balloon on a NARROW view (a 750 mm tower is only ~30 mm of sheet at
+        # 1:25), which made both illegible.
+        canvas.add(Text(x + w - 1.0, wl - 2.0, "WORKING LEVEL", L_TEXT, 2.0, "end"))
         item(canvas, legend, x + w * 0.66, ty + tank_h * 0.24,
              f"Recirculation sump {tank}".strip())
 
@@ -502,18 +521,23 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # ABOVE the base band: centred on it the balloon dipped below the
         # envelope's bottom outline.
         item(canvas, legend, x + w * 0.22, y + h - base_h - 4.5,
-             f"Base frame / supports {supports}".strip()[:52] if supports
+             _clip(f"Base frame / supports {supports}") if supports
              else "Base frame / supports")
 
         # --- sump connections -------------------------------------------------
         # A recirculating sump necessarily has a drain, an overflow and a
         # make-up feed; the SIZES are not engineered yet and are scheduled below
         # rather than dimensioned here.
+        # STACKED, not side by side. Spaced as a fraction of the view width they
+        # sat ~2 mm apart on a narrow tower and the two captions printed over each
+        # other as one illegible blob. Stacking is also the truer arrangement:
+        # the overflow sits above the working level and the make-up feeds at it.
         cr = min(w * 0.016, tank_h * 0.11)
-        for frac, tag in ((0.86, "OF"), (0.94, "MU")):
-            canvas.add(Circle(x + w * frac, ty + tank_h * 0.22, cr, L_COMPONENT, LW_THIN))
-            canvas.add(Text(x + w * frac, ty + tank_h * 0.22 - cr - 1.6, tag,
-                            L_TEXT, 1.9, "middle"))
+        ocx = x + w - cr - 1.5
+        for frac, tag in ((0.16, "OF"), (0.40, "MU")):
+            ocy = ty + tank_h * frac
+            canvas.add(Circle(ocx, ocy, cr, L_COMPONENT, LW_THIN))
+            canvas.add(Text(ocx - cr - 1.2, ocy + 0.7, tag, L_TEXT, 1.9, "end"))
         canvas.add(Circle(x + w * 0.50, y + h - base_h - cr - 0.6, cr, L_COMPONENT, LW_THIN))
         canvas.add(Text(x + w * 0.545, y + h - base_h - cr - 0.6, "DR", L_TEXT, 1.9, "start"))
 
@@ -814,7 +838,7 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Rect(x + w * 0.80, y, w * 0.16, pl_h, L_COMPONENT, LW_MED))
         airflow(canvas, [(x + w * 0.60, y + pl_h * 0.5), (x + w * 0.78, y + pl_h * 0.5)])
         if exhaust:
-            item(canvas, legend, x + w * 0.46, y + pl_h * 0.5, f"Exhaust duct {exhaust}"[:52])
+            item(canvas, legend, x + w * 0.46, y + pl_h * 0.5, _clip(f"Exhaust duct {exhaust}"))
 
         # Access door, kept in the LOWER half of the chamber so it clears the
         # inlet arrow and its caption, which sit in the upper third.
@@ -942,7 +966,7 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
                         L_COMPONENT, LW_THIN, DASH_CENTRE))
         track_txt = f" ({track} m track)" if track else ""
         item(canvas, legend, x + w * 0.14, y + h * 0.10,
-             (f"Conveyor hook line - {handling}".strip(" -") or "Conveyor hook line")[:54] + track_txt)
+             _clip(f"Conveyor hook line - {handling}".strip(" -") or "Conveyor hook line") + track_txt)
         _opening(front, booth_m, "BOOTH INNER OPENING")
 
     if side:

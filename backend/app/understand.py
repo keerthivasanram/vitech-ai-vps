@@ -394,6 +394,11 @@ def _llm_understand(question: str) -> QueryUnderstanding | None:
         return None
 
 
+# The three overall-size axes, resolved together or not at all: a triple is only
+# trustworthy as a set, because its meaning is positional.
+_DIM_AXES = ("length_m", "width_m", "height_m")
+
+
 def understand(question: str) -> QueryUnderstanding:
     fb = _fallback(question)
     # Fast path: a clear spec request (known equipment category + numeric inputs)
@@ -417,8 +422,20 @@ def understand(question: str) -> QueryUnderstanding:
     params = _normalize_params(u.parameters)
     # regex backfill: fill any given-data fields the LLM missed (LLM values win)
     if u.source == "llm":
-        for k, v in _normalize_params(fb.parameters).items():
+        fb_params = _normalize_params(fb.parameters)
+        for k, v in fb_params.items():
             params.setdefault(k, v)
+        # ...EXCEPT the dimension triple, where the REGEX is authoritative when
+        # it read a complete one. Axis assignment is precisely what the model
+        # gets wrong: asked for "overhead conveyor 60 m track 3m x 1m x 4m" it
+        # returned 60 x 3 x 1 — it took the TRACK LENGTH as the length, shifted
+        # the stated triple along, and silently dropped the 4 m height. The
+        # regex reads "A x B x C" positionally from what the customer actually
+        # wrote, so on a complete triple it cannot be improved on, and a wrong
+        # envelope draws a wrong GA (golden rule #2).
+        if all(k in fb_params for k in _DIM_AXES):
+            for k in _DIM_AXES:
+                params[k] = fb_params[k]
     # A stated correction wins over the value it corrects — applied BEFORE the
     # unit fill so a corrected airflow recomputes its partner unit.
     _apply_correction(question, params)

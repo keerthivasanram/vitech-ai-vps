@@ -90,29 +90,82 @@ def header(canvas, w: float, title: str, subtitle: str) -> None:
     canvas.add(Line(MARGIN, MARGIN + 10.0, w - MARGIN, MARGIN + 10.0, L_BORDER, LW_THIN))
 
 
-def _item_table(canvas, x: float, y: float, bom: list, limit: int = 8) -> float:
+def _item_table(canvas, x: float, y: float, bom: list,
+                limit_y: float = 1e9) -> float:
     """The parts list a real GA carries, so the sheet stands on its own.
 
     Reading a drawing should not require the studio panel beside it: an item
     table is how an engineer finds out WHAT the balloons refer to when the sheet
     is printed or emailed. Rows come from the resolved specification, so nothing
     here is drawing-only invention.
+
+    The row count is bounded by the SPACE LEFT rather than a fixed cap. A hard
+    cap of 8 silently dropped a third of a paint booth's 12 parts; letting the
+    sheet decide prints every row that fits and says how many did not.
     """
     if not bom:
         return y
     line_h = 4.0
+    if y + line_h * 3 > limit_y:
+        return y
     canvas.add(Text(x, y, f"ITEM LIST ({len(bom)})", L_TEXT, 2.9, "start", bold=True))
     y += line_h + 1.0
     canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
-    for i, row in enumerate(bom[:limit], 1):
+    shown = 0
+    for i, row in enumerate(bom, 1):
+        if y + line_h > limit_y:
+            break
         canvas.add(Text(x, y, str(i), L_TEXT, 2.3, "start"))
         canvas.add(Text(x + 6.0, y, str(row.get("item", ""))[:42], L_TEXT, 2.3, "start"))
         canvas.add(Text(x + 62.0, y, str(row.get("spec", ""))[:62], L_TEXT, 2.3, "start"))
         y += line_h
-    if len(bom) > limit:
-        canvas.add(Text(x + 6.0, y, f"... and {len(bom) - limit} more", L_TEXT, 2.2, "start"))
+        shown += 1
+    if shown < len(bom) and y + line_h <= limit_y:
+        canvas.add(Text(x + 6.0, y, f"... and {len(bom) - shown} more",
+                        L_TEXT, 2.2, "start"))
         y += line_h
     return y + 3.0
+
+
+def _kv_block(canvas, x: float, y: float, heading: str, data: list,
+              limit_y: float) -> float:
+    """A titled label/value table — DESIGN DATA and KEY DIMENSIONS share this.
+
+    A production GA states its duty on the sheet (airflow, static pressure,
+    motor rating, material, finish) and schedules the dimensions the engine
+    owns, so the drawing can be read without the specification beside it. Every
+    value was already resolved by the engineering engine; this composes, it
+    never computes.
+
+    An EMPTY block draws nothing at all — a heading over no rows reads as data
+    that failed to load, which is worse than not offering the block.
+    """
+    if not data:
+        return y
+    line_h = 4.0
+    if y + line_h * 3 > limit_y:            # no room for a header + a row
+        return y
+    canvas.add(Text(x, y, heading, L_TEXT, 2.9, "start", bold=True))
+    y += line_h + 1.0
+    canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
+    shown = 0
+    for row in data:
+        if y + line_h > limit_y:
+            break
+        canvas.add(Text(x, y, str(row.get("label", ""))[:34], L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 60.0, y, str(row.get("value", ""))[:56], L_TEXT, 2.3, "start"))
+        y += line_h
+        shown += 1
+    if shown < len(data) and y + line_h <= limit_y:
+        canvas.add(Text(x, y, f"... and {len(data) - shown} more (see specification)",
+                        L_TEXT, 2.2, "start"))
+        y += line_h
+    return y + 3.0
+
+
+def _data_table(canvas, x: float, y: float, data: list, limit_y: float) -> float:
+    """The DESIGN DATA block. See `_kv_block`."""
+    return _kv_block(canvas, x, y, "DESIGN DATA", data, limit_y)
 
 
 def revision_block(canvas, w: float, h: float, revisions: list) -> None:
@@ -138,40 +191,80 @@ def revision_block(canvas, w: float, h: float, revisions: list) -> None:
 
 
 def side_column(canvas, w: float, h: float, legend: list, notes: list,
-                tbd: list, bom: list | None = None) -> None:
-    """Legend, item list, general notes and the TBD schedule, stacked above the
-    title block."""
+                tbd: list, bom: list | None = None, data: list | None = None,
+                reserve: float = 0.0, key_dims: list | None = None) -> None:
+    """Legend, design data, item list, general notes and the TBD schedule.
+
+    EVERY SECTION IS BOUNDED. The column used to advance `y` with no reference
+    to the title block, so on an A4 sheet the notes printed straight over it —
+    verified, 6 stray text elements on a dust collector. The bound matters more
+    now that the column carries a design-data table too: an unbounded column
+    would turn a fuller sheet into an unreadable one.
+    """
     x = w - MARGIN - NOTE_W
     y = MARGIN + 16.0
     line_h = 4.0
+    # Everything must finish above the title block (and the revision strip that
+    # sits on top of it, when there is one).
+    bottom = h - MARGIN - tb.TB_H - 2.0 - reserve
+    # THE NOTES ARE NOT OPTIONAL. They carry the standing engineering statements
+    # — that positions are indicative, and that the sheet is a draft not released
+    # for construction (golden rule #3). Drawn last, they were the first thing a
+    # full column dropped. Their space is therefore reserved UP FRONT and the
+    # schedules above them absorb the truncation instead.
+    notes_h = (line_h * (len(notes) + 1) + 4.0) if notes else 0.0
+    limit_y = bottom - notes_h
+
+    def room(need: float = line_h) -> bool:
+        return y + need <= limit_y
 
     if legend:
-        canvas.add(Text(x, y, "LEGEND", L_TEXT, 2.9, "start", bold=True))
-        y += line_h + 1.0
-        for tag, desc in legend:
-            canvas.add(Text(x, y, f"{tag}.", L_TEXT, 2.4, "start", bold=True))
-            for part in _wrap(desc, LEGEND_CHARS):
-                canvas.add(Text(x + 7.0, y, part, L_TEXT, 2.4, "start"))
+        if room(line_h * 2):
+            canvas.add(Text(x, y, "LEGEND", L_TEXT, 2.9, "start", bold=True))
+            y += line_h + 1.0
+            dropped = 0
+            for tag, desc in legend:
+                parts = _wrap(desc, LEGEND_CHARS)
+                if not room(line_h * len(parts)):
+                    dropped += 1
+                    continue
+                canvas.add(Text(x, y, f"{tag}.", L_TEXT, 2.4, "start", bold=True))
+                for part in parts:
+                    canvas.add(Text(x + 7.0, y, part, L_TEXT, 2.4, "start"))
+                    y += line_h
+            if dropped and room():
+                canvas.add(Text(x + 7.0, y, f"... and {dropped} more item(s)",
+                                L_TEXT, 2.3, "start"))
                 y += line_h
-        y += 3.0
+            y += 3.0
 
-    if tbd:
+    if tbd and room(line_h * 2):
         canvas.add(Text(x, y, f"TO BE DETERMINED ({len(tbd)})", L_TEXT, 2.9,
                         "start", bold=True))
         y += line_h + 1.0
-        for item in tbd[:12]:
+        shown = 0
+        for item in tbd:
+            parts = _wrap(item, LEGEND_CHARS)
+            if not room(line_h * len(parts)):
+                break
             canvas.add(Text(x, y, "—", L_TEXT, 2.4, "start"))
-            for part in _wrap(item, LEGEND_CHARS):
+            for part in parts:
                 canvas.add(Text(x + 5.0, y, part, L_TEXT, 2.4, "start"))
                 y += line_h
-        if len(tbd) > 12:
-            canvas.add(Text(x + 5.0, y, f"... and {len(tbd) - 12} more", L_TEXT, 2.3, "start"))
+            shown += 1
+        if shown < len(tbd) and room():
+            canvas.add(Text(x + 5.0, y, f"... and {len(tbd) - shown} more",
+                            L_TEXT, 2.3, "start"))
             y += line_h
         y += 3.0
 
-    y = _item_table(canvas, x, y, bom or [])
+    y = _kv_block(canvas, x, y, "KEY DIMENSIONS", key_dims or [], limit_y)
+    y = _data_table(canvas, x, y, data or [], limit_y)
+    y = _item_table(canvas, x, y, bom or [], limit_y)
 
     if notes:
+        # Into the reserved strip: every standing note prints, always.
+        y = max(y, bottom - notes_h)
         canvas.add(Text(x, y, "NOTES", L_TEXT, 2.9, "start", bold=True))
         y += line_h + 1.0
         for i, note in enumerate(notes, 1):

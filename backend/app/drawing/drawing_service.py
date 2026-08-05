@@ -8,6 +8,7 @@ The LLM contributes nothing here. It receives `drawing_markdown` (a short human
 summary) and the studio receives the SVG; neither the model nor the canvas ever
 invents a dimension.
 """
+import re
 from datetime import date
 from typing import Any, Optional
 
@@ -23,13 +24,90 @@ STANDING_NOTES = [
 ]
 
 
-def _dim_labels(env: dict) -> dict:
+# Equipment whose FOOTPRINT is a circle, so its plan dimensions are a diameter
+# and must be annotated as one. The type comes from the engineering layer's
+# geometry model — the renderer never decides it from row labels.
+_CIRCULAR_PLAN = {"vertical_spray_tower", "round_duct"}
+
+DIA = "Ø"
+
+
+def _dim_labels(env: dict, equipment_type: str = "") -> dict:
     """Axis -> printed dimension text. A missing axis prints TBD, never a
-    number, so the drawing cannot imply a dimension nobody has computed."""
+    number, so the drawing cannot imply a dimension nobody has computed.
+
+    A circular footprint is dimensioned with the diameter symbol. "750" on the
+    plan of a spray tower reads as a square 750 mm casing; the machine is a
+    750 mm BORE, and on a drawing that difference is the whole shape. Which
+    equipment this is comes from `geometry.equipment_type`, resolved once by
+    the engineering layer.
+    """
+    circular = equipment_type in _CIRCULAR_PLAN
     out = {}
     for axis in ("length", "width", "height"):
         v = env.get(axis)
-        out[axis] = f"{int(v)}" if isinstance(v, (int, float)) and v else "TBD"
+        if not (isinstance(v, (int, float)) and v):
+            out[axis] = "TBD"
+            continue
+        # Height is a height on any equipment; only the plan axes are a bore.
+        prefix = DIA if (circular and axis in ("length", "width")) else ""
+        out[axis] = f"{prefix}{int(v)}"
+    return out
+
+
+# Dimensional values the ENGINE owns, worth scheduling beside the views. A row
+# qualifies only when it carries a real dimension AND a trusted origin — a size
+# reused from a historical offer describes a different machine and must never be
+# presented as a dimension of this one.
+_DIM_TRUSTED = {"given", "rule", "requirement", "standard"}
+_DIM_LABELS = ("tower diameter", "duct", "filter", "collector size",
+               "scrubber dimension", "inner size", "tank size", "job size")
+# A value that actually states a size: "1800 mm dia", "600 x 600 x 50 mm",
+# "2.15L x 1.15W x 4.95H". A bare integer ("19") is a count, not a dimension.
+# The axis-suffixed form needs its own branch — the letter between the number
+# and the separator defeats a plain "number x number".
+_DIM_VALUE = re.compile(
+    r"(\d+(?:\.\d+)?\s*(?:mm|m)\b)"
+    r"|(\d+(?:\.\d+)?\s*[xX*]\s*\d+)"
+    r"|(\d+(?:\.\d+)?\s*[LWHDlwhd]\s*[xX*])"
+    r"|(\bdia\b)", re.I)
+
+
+def _key_dimensions(spec: dict) -> list[dict]:
+    """Engine-owned dimensions, formatted with the right symbol.
+
+    These are values the specification ALREADY resolved — a duct bore from the
+    client's own transport-velocity standard, a filter element size, a stated
+    casing. Scheduling them puts real dimensions on the sheet without inventing
+    a setting-out position for anything, which is the line golden rule #2 draws.
+    """
+    out = []
+    for row in spec.get("technical_details") or []:
+        label = str(row.get("label", ""))
+        value = str(row.get("value", "")).strip()
+        origin = str(row.get("origin", "")).lower()
+        if not value or value.lower() == "to be determined":
+            continue
+        if not any(t in origin for t in _DIM_TRUSTED):
+            continue
+        low = label.lower()
+        if not any(nd in low for nd in _DIM_LABELS):
+            continue
+        # The unit may sit in the VALUE ("1800 mm dia") or in the LABEL
+        # ("Tower diameter (mm)" = "750"). Reading only the value dropped every
+        # dimension the engine states the tidy way.
+        unit_in_label = re.search(r"\((mm|m|cm)\)", low)
+        if not _DIM_VALUE.search(value) and not (unit_in_label and re.match(r"^[\d.]+$", value)):
+            continue
+        if unit_in_label and re.match(r"^[\d.]+$", value):
+            value = f"{value} {unit_in_label.group(1)}"
+        # A bore is annotated once. "Ø 600 mm dia" says diameter twice, so the
+        # redundant word goes when the symbol takes its place.
+        if "dia" in low or "dia" in value.lower():
+            if DIA not in value:
+                value = re.sub(r"\s*\bdia\b\.?", "", value, flags=re.I).strip(" ,")
+                value = f"{DIA}{value}"
+        out.append({"label": label, "value": value})
     return out
 
 
@@ -64,6 +142,31 @@ def _bom(spec: dict) -> list[dict]:
             continue
         if row.get("manual") or any(k in label.lower() for k in keep):
             out.append({"item": label, "spec": value, "origin": row.get("origin")})
+    return out
+
+
+def _design_data(spec: dict, bom: list[dict]) -> list[dict]:
+    """The duty and construction rows: what the equipment is RATED for.
+
+    A PARTITION of the resolved specification, not a selection. `_bom` takes the
+    rows that name hardware; this takes everything else that resolved, so each
+    value appears on the sheet exactly once and none is silently dropped. A TBD
+    is excluded because the sheet already schedules it separately — printing it
+    in both places would read as two different gaps.
+
+    Nothing is computed here. Every value was resolved by the engineering engine
+    and is reproduced verbatim.
+    """
+    in_bom = {str(r.get("item", "")) for r in bom}
+    out = []
+    for row in spec.get("technical_details") or []:
+        label = str(row.get("label", ""))
+        value = str(row.get("value", "")).strip()
+        if not label or label in in_bom:
+            continue
+        if row.get("origin") == "tbd" or value.lower() in ("", "to be determined"):
+            continue
+        out.append({"label": label, "value": value, "origin": row.get("origin")})
     return out
 
 
@@ -114,7 +217,7 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
 
     legend: list = []
     if placed:
-        labels = _dim_labels(env)
+        labels = _dim_labels(env, str(geom.get("equipment_type") or ""))
         for v in placed:
             views.draw_view(canvas, v, labels)
         legend = symbols.draw_components(canvas, category,
@@ -130,7 +233,13 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
 
     tbd = _tbd_items(spec)
     bom = _bom(spec)
-    sheet.side_column(canvas, sw, sh, legend, STANDING_NOTES, tbd, bom)
+    data = _design_data(spec, bom)
+    key_dims = _key_dimensions(spec)
+    # Reserve the strip the revision block occupies so the column stops above it
+    # rather than printing through it.
+    reserve = (4.4 * len(revisions[-3:]) + 4.0) if revisions else 0.0
+    sheet.side_column(canvas, sw, sh, legend, STANDING_NOTES, tbd, bom, data,
+                      reserve, key_dims)
     # Anything the caller states wins; everything else is derived. The block
     # still invents nothing — an unstated field simply keeps its default.
     info = {
@@ -167,6 +276,8 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "layers": [{"id": l, "label": LAYER_LABELS.get(l, l), "on": True} for l in present],
         "legend": [{"tag": t, "description": d} for t, d in legend],
         "bom": bom,
+        "design_data": data,
+        "key_dimensions": key_dims,
         "tbd": tbd,
         "notes": STANDING_NOTES,
         "title_block": info,

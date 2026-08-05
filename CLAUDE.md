@@ -42,6 +42,61 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-05 (drawing correctness) — THE WET SCRUBBER DREW A BLANK SHEET. Root cause was the PLANNER.
+Priority order set by the product owner: **correctness before presentation**. All twelve suites
+green; goldens and the 28 contract fingerprints re-recorded (both intended, both proven additive
+first). Gap analysis that started this: **`docs/drawing-quality-gap-analysis.md`**.
+- **THE DEFECT.** `wet scrubber 800 cfm 750mm tower 4 nos` — the platform's own anchor case —
+  produced `envelope_mm {null,null,null}`, scale `NTS`, **zero views**. The 209-line scrubber
+  glyph, the richest in the codebase, had **never once executed** on a chat requirement.
+- **THE ROOT CAUSE WAS NOT THE RENDERER, AND NOT A MISSING RULE.** `engineering_planner`
+  Track B iterates `base = _tech(chosen)` — the NEAREST OFFER'S field set. **A value the CLIENT
+  STATED or a RULE COMPUTED was silently dropped whenever that offer lacked the field.** Not
+  shown as TBD: gone. Vitech's archive holds four vertical spray towers (`tower_diameter_mm` +
+  `tower_height_m`) and ONE horizontal baffle unit recording neither; at 800 CFM the baffle unit
+  is nearest, so the client's 750 mm tower AND the rule's computed 4 m height both vanished.
+  **The profile declares the field set (`from_given` + `rule_covers`); history only fills it** —
+  `_declared_but_unmatched()` now emits what the offer lacks. **PROVEN PURELY ADDITIVE**: across
+  7 ATS golden cases, 3 recovered values (2 scrubber tower rows, 1 rule-computed tank capacity
+  on a different case), **0 existing values changed**, all paint booth cases byte-identical.
+- **`app/engineering/geometry_service.py` (NEW) — geometry is an ENGINEERING output.** It used to
+  be derived in `app/drawing/envelope.py`, i.e. **the renderer decided what machine it was
+  drawing by pattern-matching spec ROW LABELS**. Spec and drawing could disagree, and the rule
+  was invisible to the BOM/package. Now resolved ONCE and both consume it. `drawing/envelope.py`
+  is a shim.
+- **THE TYPE IS PART OF THE ANSWER.** A wet scrubber is two machines: `vertical_spray_tower`
+  (tower diameter -> footprint, rule height) and `horizontal_baffle` (stated casing). The
+  resolved `equipment_type` is published on `geometry` so **nothing downstream re-decides it from
+  prose**. A client-stated tower outranks a REUSED baffle description and the contradiction is
+  REPORTED (the standing B0b item, now real). A baffle unit with no height rule still yields **no
+  envelope and says why** — Vitech has supplied no height rule for that type.
+- **DESIGN DATA + KEY DIMENSIONS on the sheet**, composed from already-resolved values, never
+  computed. Design data is the **PARTITION complement of the item list** (pinned by a test: every
+  resolved row lands in exactly one). Ø annotates a circular footprint **from the resolved type**,
+  not a label guess — a spray tower plan now reads `Ø750`, and a reused size is never scheduled
+  as a dimension of this machine.
+- **RENDERING FOUND WHAT SOURCE-READING COULD NOT** (the standing lesson, again): `OF`/`MU`
+  printed as one illegible blob and a balloon overprinted `WORKING LEVEL` — both because the
+  glyph's fractional offsets collapse on a NARROW view (a 750 mm tower is ~30 mm at 1:25). Also
+  fixed: legend rows cut mid-word ("base/su") now clip at a space.
+- **THE SIDE COLUMN IS NOW BOUNDED** — it advanced `y` with no reference to the title block, so
+  A4 printed the notes straight over it (verified: 6 stray elements). **The STANDING NOTES are
+  reserved FIRST**: drawn last they were the first thing a full column dropped, and losing
+  "not released for construction" is a golden-rule-#3 statement, not a layout nicety. Schedules
+  truncate instead, and say how many rows they dropped (the item list no longer hard-caps at 8,
+  which had been silently hiding a third of a booth's parts).
+- **CONVEYOR EXTRACTION FIXED, and it was the LLM overriding a correct parse.** "overhead
+  conveyor 60 m track 3m x 1m x 4m" resolved to 60 x 3 x 1 — the model took the TRACK as the
+  length, shifted the stated triple and **dropped the 4 m height**; `_fallback` had it right all
+  along. `understand()` said "LLM values win"; now a **COMPLETE regex L/W/H triple is
+  authoritative**, because axis assignment is exactly what the model gets wrong. 4 regression
+  checks in `tests_lookup.py`.
+- **STILL OPEN, deliberately:** the horizontal baffle scrubber needs a **height rule from
+  Vitech** (chase it — it is the one thing blocking that type from drawing); the ten thin glyphs
+  (`cleaning_room` draws ZERO ballooned components) are next per the agreed order; no isometric,
+  section views, break lines, north arrow or APPROVED field yet — all catalogued in the gap
+  analysis with priorities.
+
 ### ▶ 2026-08-05 (Phase C) — DEVOPS BACKEND: tracing, jobs, artifacts, metrics, admin surface
 **Twelve suites green, and the 28 engineering fingerprints matched WITHOUT re-recording** — only
 `/openapi.json` moved, from 15 additive admin routes, with all agent `operation_id`s intact.

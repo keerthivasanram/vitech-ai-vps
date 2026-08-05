@@ -15,8 +15,8 @@
     "status": 200
   },
   "drawing.render": {
-    "bytes": 29237,
-    "sha256": "f12c4fc57c6521de4882c09b6abd4cf73cf721797b891f18da4a0a09989051db",
+    "bytes": 35752,
+    "sha256": "498fefcc8f69e185b052a23ee535d0bd6e5f98578a6ede2142ce400ca319201b",
     "status": 200
   },
   "guard.bom": {
@@ -75,8 +75,8 @@
     "status": 200
   },
   "package.booth": {
-    "bytes": 72826,
-    "sha256": "c57d9e6935570cba7f6e1d6e4bd15617ec45b2eae86d0a4b465093a11d983c7b",
+    "bytes": 74203,
+    "sha256": "81558f6388f9df7a0f0d185684cfb4471a61713a96550d59132b266e844d13e4",
     "status": 200
   },
   "records": {
@@ -85,13 +85,13 @@
     "status": 200
   },
   "tools.drawing.booth": {
-    "bytes": 29133,
-    "sha256": "ae0b9c2bc8249136bc74fe8018eeda8d8f6c913bf22b9e69533124f4d46c28f2",
+    "bytes": 35656,
+    "sha256": "cf98161cf6040ee2e92d9675f9445c98f22463dc8048a4b4600f905f382d3746",
     "status": 200
   },
   "tools.drawing.dust": {
-    "bytes": 32116,
-    "sha256": "c89abddf8d75808ac29870439e0f6b75b73b8e9e61bc4ce4d599d756c481cae9",
+    "bytes": 34224,
+    "sha256": "54167e0e0be4643f3ab485422d496e2574a287d0eb354f23e24468966438caef",
     "status": 200
   },
   "tools.filters": {
@@ -110,8 +110,8 @@
     "status": 200
   },
   "tools.quote.scrub": {
-    "bytes": 10719,
-    "sha256": "f4e260dbd566b3b20d92647d267342877c930a1f113bb485d9696f04d91acb7a",
+    "bytes": 10861,
+    "sha256": "df1829db262fcd04170e2e0d32823cc4090dd36fdfaec30bfe883e1a58ba2521",
     "status": 200
   },
   "tools.retrieve": {
@@ -125,13 +125,13 @@
     "status": 200
   },
   "tools.spec.dust": {
-    "bytes": 14799,
-    "sha256": "79a17e5f4b465aea4f4941dc7ee9e268507d6141db21cc4357f66c9e78970cb0",
+    "bytes": 14829,
+    "sha256": "249db2f58e2a4e22a7c1615b070728f79efc5f5c1944a228cb548e69b7a62286",
     "status": 200
   },
   "tools.spec.scrub": {
-    "bytes": 12702,
-    "sha256": "9526669f497c6b12f3f2ca4875f43f2219b12a9bfee37d91ea22cbb17c3dd49f",
+    "bytes": 14189,
+    "sha256": "fcba21f577ee077ae72b14553cdfc50219c4f299c210e64f0436306f31c4cae1",
     "status": 200
   },
   "uploads.list": {

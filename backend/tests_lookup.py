@@ -141,6 +141,30 @@ check("a correction word with NO value changes nothing",
       _dims(f"{BASE} handled now by the day shift")["length_m"] == 5.0,
       _dims(f"{BASE} handled now by the day shift"))
 
+# 9b) THE STATED TRIPLE IS THE REGEX'S TO OWN. A requirement that also mentions
+#     another length ("60 m track") gave the LLM extractor a second candidate,
+#     and it took the track as the length, shifted the stated triple along and
+#     DROPPED the height entirely: "3m x 1m x 4m" came back as 60 x 3 x 1. The
+#     regex reads "A x B x C" positionally from what the customer wrote, so a
+#     COMPLETE triple from it is authoritative. A wrong envelope draws a wrong
+#     GA, which is golden rule #2 territory.
+from app.understand import _fallback            # noqa: E402
+
+_CONV = "overhead conveyor 60 m track 3m x 1m x 4m"
+check("a stated triple survives a second length in the same requirement",
+      _dims(_CONV) == {"length_m": 3.0, "width_m": 1.0, "height_m": 4.0}, _dims(_CONV))
+check("and the deterministic parser agreed all along (it was overridden)",
+      {k: _fallback(_CONV).parameters.get(k)
+       for k in ("length_m", "width_m", "height_m")}
+      == {"length_m": 3.0, "width_m": 1.0, "height_m": 4.0},
+      dict(_fallback(_CONV).parameters))
+check("no axis is silently dropped from a complete triple",
+      all(_dims(_CONV).get(k) is not None for k in ("length_m", "width_m", "height_m")),
+      _dims(_CONV))
+_BOOTH_T = "paint booth 5m x 3m x 4m for a 60 m long production line"
+check("the same guard holds for any category",
+      _dims(_BOOTH_T) == {"length_m": 5.0, "width_m": 3.0, "height_m": 4.0}, _dims(_BOOTH_T))
+
 _scrub = dict(understand("wet scrubber 800 cfm 750mm tower change to 1200 cfm").parameters)
 check("a corrected airflow supersedes the original",
       _scrub.get("air_volume_cfm") == 1200.0, _scrub.get("air_volume_cfm"))
