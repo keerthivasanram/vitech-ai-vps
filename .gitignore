@@ -29,3 +29,7 @@ vitech-critical-backup-*.tar.gz
 
 # Generated engineering packages (regenerable from the requirement)
 backend/data/packages/
+
+# Auth database — password hashes, session and service-key hashes, audit trail.
+backend/data/auth.db
+backend/data/auth.db-*

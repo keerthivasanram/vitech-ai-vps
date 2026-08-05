@@ -11,8 +11,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config
-from .api import (admin, bom, data, documents, drawing, health, ingest,
+from .api import (admin, auth, bom, data, documents, drawing, health, ingest,
                   package, query, session, tools, uploads)
+from .auth.middleware import auth_middleware
 
 app = FastAPI(title="ATS Engineering Assistant")
 
@@ -24,26 +25,12 @@ app.add_middleware(
 )
 
 
-# --- Optional API-key auth --------------------------------------------------
-# Off by default (config.API_KEY == "") so a trusted LAN/pod is unaffected. When
-# set, every /api request must carry the key (X-API-Key or Bearer); health and
-# CORS preflight stay open. This is the wired seam for exposure beyond the LAN.
-_AUTH_OPEN = {"/api/health"}
-
-
-@app.middleware("http")
-async def _api_key_guard(request, call_next):
-    if config.API_KEY and request.method != "OPTIONS":
-        path = request.url.path
-        if path.startswith("/api/") and path not in _AUTH_OPEN:
-            provided = request.headers.get("x-api-key") or ""
-            auth = request.headers.get("authorization") or ""
-            if auth.lower().startswith("bearer "):
-                provided = provided or auth[7:].strip()
-            if provided != config.API_KEY:
-                from fastapi.responses import JSONResponse
-                return JSONResponse({"error": "unauthorized"}, status_code=401)
-    return await call_next(request)
+# --- Authentication, authorization and audit --------------------------------
+# One middleware for every route, so a route added later without a thought for
+# access control is still covered — `auth/policy.py` defaults an unclassified
+# path to administrator. The coarse `VITECH_API_KEY` guard this replaces was
+# all-or-nothing and, because the variable was never set, never engaged at all.
+app.middleware("http")(auth_middleware)
 
 
 @app.on_event("startup")
@@ -59,6 +46,6 @@ def _warm_llm():
 # `/api/offers/by-source/...` path) must be registered before anything that
 # could capture it as `/api/offers/{offer_id}`. The order below reproduces the
 # order the single-module version declared its routes in.
-for _router in (health, session, ingest, query, documents, data, tools,
+for _router in (health, auth, session, ingest, query, documents, data, tools,
                 drawing, bom, package, uploads, admin):
     app.include_router(_router.router)

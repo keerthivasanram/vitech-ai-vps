@@ -45,8 +45,8 @@
     "status": 200
   },
   "health": {
-    "bytes": 120,
-    "sha256": "c2c6020b3c51bf7a9c9d420da9ae55a9838da0cff82515a2c0e3a5649d1aed69",
+    "bytes": 15,
+    "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
     "status": 200
   },
   "knowledge.overview": {
@@ -70,8 +70,8 @@
     "status": 200
   },
   "openapi": {
-    "bytes": 21793,
-    "sha256": "87e3220cf0217964a768629404e5a161a57af55104bf79420164065e96c264e8",
+    "bytes": 23741,
+    "sha256": "069098e59729973e27bc14634efb46456cc461cb7c2431be1c55a6aee9d9f638",
     "status": 200
   },
   "package.booth": {

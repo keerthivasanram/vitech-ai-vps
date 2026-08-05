@@ -17,6 +17,7 @@ Requires the backend running on :8000.
 """
 import hashlib
 import json
+import os
 import re
 import sys
 import urllib.error
@@ -24,6 +25,33 @@ import urllib.request
 
 BASE = "http://localhost:8000"
 BASELINE = "tests_api_contract.json"
+
+# Since Phase B every route except /api/health requires a credential. The point
+# of this suite is that the ENGINEERING OUTPUT did not move when auth was added,
+# so it authenticates and compares against the SAME pre-auth baseline hashes.
+# `tests_auth.py` is what proves the routes are actually closed.
+VT_USER = os.getenv("VT_TEST_USER", "")
+VT_PASS = os.getenv("VT_TEST_PASSWORD", "")
+_TOKEN: str | None = None
+
+
+def _token() -> str:
+    """Log in once and reuse the session for the whole run."""
+    global _TOKEN
+    if _TOKEN is None:
+        if not (VT_USER and VT_PASS):
+            _TOKEN = ""
+        else:
+            req = urllib.request.Request(
+                BASE + "/api/auth/login",
+                data=json.dumps({"username": VT_USER, "password": VT_PASS}).encode(),
+                headers={"Content-Type": "application/json"}, method="POST")
+            try:
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    _TOKEN = json.loads(r.read()).get("token") or ""
+            except Exception:
+                _TOKEN = ""
+    return _TOKEN
 
 # Deterministic requirements reused across endpoints, so a fingerprint change
 # points at the endpoint rather than at a different question being asked.
@@ -99,9 +127,12 @@ def _canon(body: str) -> str:
 
 def fingerprint(method: str, path: str, payload: dict | None) -> dict:
     data = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(
-        BASE + path, data=data, method=method,
-        headers={"Content-Type": "application/json"} if data else {})
+    headers = {"Content-Type": "application/json"} if data else {}
+    token = _token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(BASE + path, data=data, method=method,
+                                 headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=600) as r:
             status, body = r.status, r.read().decode("utf-8", "replace")

@@ -42,6 +42,50 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-05 (Phase B) — PRODUCTION AUTHENTICATION IS LIVE. Read this before touching the API.
+**Every route except `/api/health` now requires a credential.** Eleven suites green, and
+`tests_api_contract.py` proves **all 28 engineering endpoints are byte-identical** to the
+pre-auth baseline — the only two responses that moved are the two that were meant to.
+- **HOW TO GET IN.** Accounts live in **SQLite at `backend/data/auth.db`** (override with
+  `AUTH_DB`), gitignored. Create them with `.venv/bin/python -m app.auth.bootstrap
+  admin|user|service|list|password`. A generated password prints ONCE. **There is no default
+  account and no seeded password** — an empty user table locks everyone out, which is the
+  correct failure, and the bootstrap command is the way in.
+- **WHY SQLITE, NOT THE FLOWISE POSTGRES** (this reverses `docs/admin-console-plan.md`): the
+  backend has **no Postgres client at all** — no psycopg, no SQLAlchemy — so Postgres would have
+  meant a new dependency in a stack the review already flagged as under-pinned, AND writing into
+  the database where the three agents live, the one asset not reproducible from git. All SQL is
+  in `auth/store.py`, so moving later is one module.
+- **THREE PRINCIPAL KINDS.** `engineer` < `admin` are humans; **`service` is NOT in that ladder**
+  — it has its own route allow-list. That is the important property: **a leaked agent key can
+  call `/api/tools/*` and NOTHING else** (403 on the offer corpus, ingest, uploads, audit).
+  Pinned by tests.
+- **`auth/policy.py` IS the security matrix, executable.** One central table, not per-route
+  decorators, because deny-by-default only means something for the route nobody remembered to
+  decorate: **an unclassified path defaults to administrator**. `docs/endpoint-security-matrix.md`
+  is the same policy in prose.
+- **THE FLOWISE AGENTS WOULD HAVE BROKEN** — they send `X-API-Key` now, written into all six
+  tool rows by `ops/flowise/set-service-key.sh`. All three verified calling their tools after
+  the change. **Rotation runbook: `ops/rotate-service-key.md`.** If an agent ever says "I don't
+  have the ability to call external tools", that is the SAME signature as the backend being
+  down — run `bash ops/flowise/set-service-key.sh --check` before anything else.
+- **`X-Role` IS NO LONGER TRUSTED.** It was client-supplied and decided the retrieval permission
+  filter; the role now comes from the credential and nowhere else.
+- **`/api/health` is status-only.** It used to hand out `llm_model`, `ollama_host` and the
+  document count to anyone who could reach the port. Diagnostics moved to
+  `GET /api/admin/health/detail`.
+- **The frontend password is GONE from the JS bundle** (verified by grepping the built asset).
+  `lib/api.js` attaches the token in ONE interceptor rather than at 23 `fetch` call sites —
+  a missed call site would be a page that silently 401s. A 401 clears the session and drops to
+  the login screen.
+- **Sessions are stored, not JWTs**, so logout revokes immediately (pinned by a test). Login
+  never reveals whether the USERNAME or the PASSWORD was wrong, and hashes even for an unknown
+  user so response time is not an enumeration oracle. 5 failures = 15-minute lockout.
+- **Every non-public request is audited, reads included** (`GET /api/admin/audit`).
+- **`/api/query*` and `/api/session/*` are administrator-only and hidden from the OpenAPI
+  schema** (`include_in_schema=False`) — still reachable, decision on deleting them deferred
+  past 1.0. **The seven agent `operation_id`s are unchanged**, verified in the schema fingerprint.
+
 ### ▶ 2026-08-05 (Phase A) — REFACTOR ONLY, byte-identical: routers, shared value readers, cache
 Production-readiness Phase A, agreed as pure refactoring ahead of authentication. **All nine
 suites green, goldens byte-identical, and 28 HTTP fingerprints unchanged** (see below).

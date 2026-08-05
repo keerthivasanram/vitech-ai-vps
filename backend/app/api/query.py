@@ -18,7 +18,7 @@ class QueryRequest(BaseModel):
     top_k: int | None = None
     session_id: str | None = None
 
-@router.post("/api/query")
+@router.post("/api/query", include_in_schema=False)
 def query(req: QueryRequest):
     sid = req.session_id or uuid.uuid4().hex[:12]
     history = session.get_history(sid)
@@ -29,7 +29,7 @@ def query(req: QueryRequest):
     session.append(sid, "assistant", result["answer"])
     return {**_meta(req.question, sid, hits, analysis, grounded), **result}
 
-@router.post("/api/query/stream")
+@router.post("/api/query/stream", include_in_schema=False)
 def query_stream(req: QueryRequest):
     """Same pipeline, but streams the answer token-by-token (Server-Sent Events).
     Emits {type:'token',v:...} chunks, then a {type:'done', payload:{...}} event
