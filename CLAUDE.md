@@ -98,8 +98,14 @@ npx playwright install chromium && npx playwright install-deps chromium`).
   same chat — it does NOT reproduce on a freshly restarted Flowise. The documented trigger is
   process degradation from rapid-fire predictions, and this session made a great many of them
   (agent verification after the service-key rotation, auth tests, trace demos).
-- **Guarded at the CHAT BOUNDARY** (`frontend/src/lib/agentReply.js`, used by `useAgentChat`
-  and the studio dock). A reply that is ENTIRELY tool-call mechanics is replaced with a real
+- **Guarded at the CHAT BOUNDARY** (`frontend/src/lib/agentReply.js`). **THE FIRST ATTEMPT DID
+  NOT WORK and the user saw the leak again** — the guard was wired only to the NON-STREAMING
+  fallback, while the chat's PRIMARY path is SSE streaming (`streaming: true`). The stream
+  finalises in TWO places (the `end` event and after the reader drains) and both now run it.
+  **Lesson: a unit test on the helper proved nothing about the wiring — the miss was only found
+  by driving the real UI.** Verified by intercepting the agent call and replaying the exact
+  leaked text as a real SSE stream: the user sees the fallback greeting, and the guard logs a
+  warning. Used by `useAgentChat` A reply that is ENTIRELY tool-call mechanics is replaced with a real
   greeting and the raw text is `console.warn`ed so the defect stays visible.
   **NOT a prompt change — deliberately.** Prompt tuning for this has already backfired
   (a standalone rule fixed one case and broke greetings 5/5), and the project's own conclusion

@@ -226,6 +226,11 @@ export function useAgentChat(view, health) {
         });
         if (!resp.ok || !resp.body) throw new Error("no stream");
 
+        // STREAMING is the primary path. The guard has to run where the stream
+        // FINALISES, not only in the non-streaming fallback — guarding just the
+        // fallback is why the leaked greeting still reached the user.
+        const clean = (t) => sanitizeAgentReply(t,
+          (rawLeak) => console.warn("[agent] tool-call mechanics suppressed:", rawLeak));
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buf = "", acc = "", calls = [];
@@ -257,9 +262,10 @@ export function useAgentChat(view, health) {
               calls = evt.data.filter((t) => t && t.tool);
             } else if (evt.event === "end") {
               if (raf) { cancelAnimationFrame(raf); raf = 0; }
+              const finalText = clean(acc);
               patch({
-                text: acc,
-                data: agentData(acc, calls, health?.llm_model),
+                text: finalText,
+                data: agentData(finalText, calls, health?.llm_model),
                 streaming: false,
                 time: fmtTime(),
               });
@@ -268,9 +274,10 @@ export function useAgentChat(view, health) {
         }
         if (raf) cancelAnimationFrame(raf);
         if (!acc) throw new Error("empty stream");
+        const drained = clean(acc);
         patch({
-          text: acc,
-          data: agentData(acc, calls, health?.llm_model),
+          text: drained,
+          data: agentData(drained, calls, health?.llm_model),
           streaming: false,
           time: fmtTime(),
         });
