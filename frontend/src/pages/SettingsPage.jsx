@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useKnowledgeStats } from "../hooks/useKnowledgeStats";
 import {
   Bot, Check, Database, LogOut, Moon, Palette, ReceiptText,
   ShieldCheck, Sun, Trash2, Wifi, WifiOff,
@@ -15,6 +16,7 @@ const APP_VERSION = "0.9.0";
  * (health, configured agent ids, theme) — it invents no account fields.
  */
 export function SettingsPage({ user, health, sessionId, isDark, onToggleTheme, onLogout }) {
+  const kb = useKnowledgeStats();
   const [cleared, setCleared] = useState(false);
 
   const online = health ? health.status === "ok" : false;
@@ -33,10 +35,13 @@ export function SettingsPage({ user, health, sessionId, isDark, onToggleTheme, o
   ];
 
   const system = [
+    // Infrastructure detail (model, memory backend, index internals) moved to
+    // the service provider's operations console when public health was reduced
+    // to a status probe. What remains is what a Vitech engineer needs.
     { k: "Status", v: online ? "All services online" : "Backend unreachable" },
-    { k: "Language model", v: health?.llm_model || "unknown" },
-    { k: "Conversation memory", v: health?.memory || "unknown" },
-    { k: "Documents indexed", v: health?.documents_indexed != null ? String(health.documents_indexed) : "—" },
+    { k: "Historical projects", v: kb ? String(kb.stats.records) : "—" },
+    { k: "Reference documents", v: kb ? String(kb.stats.documents) : "—" },
+    { k: "Equipment types", v: kb ? String(kb.stats.equipment_types) : "—" },
   ];
 
   return (

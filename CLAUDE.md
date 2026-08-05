@@ -84,6 +84,39 @@ Design reviewed first in `docs/observability-design.md`.
   `purge()` never touches them (pinned by a test).
 - **FOUND BY THE NEW TRACING, AND NOW FIXED (see the entry below).**
 
+### ▶ 2026-08-05 (frontend) — Package Center, password gate, role-aware nav, DevOps console
+Frontend phase. Verified in a REAL BROWSER (Playwright, reinstalled on the container disk) —
+engineer and admin flows, zero console errors throughout. Twelve suites green, 28 contract
+fingerprints byte-identical.
+- **WHO IS WHO (corrected by the product owner — do not confuse these again).**
+  **ENGINEERS are Vitech's own staff who USE the application** (agents, studio, Package Center).
+  **ADMIN is US, the service provider** — the DevOps console is our operations view for logs,
+  traces and security, NOT a Vitech-facing feature. The account named `vitechadmin` is
+  misleadingly named for that reason; consider renaming it to something like `vitech-support`.
+- **Package Center** (`pages/PackageCenter.jsx`) — every specification, drawing, BOM, quotation
+  and package, with search/filter/sort, a detail drawer showing the customer requirement and
+  engineering outcome, and checksum-verified artifact downloads. Verified: 78 jobs, a
+  14-artifact package downloaded through the UI.
+- **NEW BACKEND ROUTES were required**: job history was administrator-only, so an engineer got
+  **403 on every request** — a Package Center they cannot open is not one. `app/api/jobs.py`
+  adds engineer-class `GET /api/jobs`, `/api/jobs/{id}`, `/api/jobs/{id}/artifact/{name}`;
+  `/api/admin/jobs` is unchanged. Recorded in `docs/endpoint-security-matrix.md`.
+- **Mandatory password change** renders INSTEAD of the app, not beside it. **`/api/auth/me` now
+  returns `must_change_password`** — without it a page REFRESH dropped the flag and walked
+  straight past the gate, so the server has to re-assert it on every identity check.
+- **Role-aware nav** — `navForRole()` in `lib/constants.js`; an item carries `roles: ["admin"]`.
+  Presentation only, `auth/policy.py` still decides. Verified an engineer cannot see DevOps.
+- **REGRESSION I CAUSED AND FIXED:** reducing public `/api/health` to a status probe (Phase B)
+  broke **three pages** — Dashboard, Settings and Profile read `llm_model` and
+  `documents_indexed` from it and silently showed "unknown" and "0 records", which reads as a
+  FAILED system. Corpus numbers now come from `/api/knowledge/overview` via the new
+  `useKnowledgeStats` hook; model and memory backend were dropped from the engineer-facing
+  pages entirely, because which model runs is infrastructure and belongs on our console.
+  **Lesson: trimming a response is an API change — grep every consumer.**
+- **DevOps Console** (`pages/DevOpsConsole.jsx`) — 7 tabs (health, metrics, requests, jobs,
+  logs, audit, cache) plus a trace viewer that renders the execution path as proportional bars.
+  Verified rendering an 8-span package trace.
+
 ### ▶ 2026-08-05 (final) — ONE resolution per package. BACKEND IS FEATURE-COMPLETE FOR V1.0.
 The duplicate the execution trace found is gone. **Twelve suites green, 28 fingerprints
 byte-identical** — the optimisation is invisible in every output, which is the point.

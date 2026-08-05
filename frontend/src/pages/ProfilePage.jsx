@@ -20,9 +20,9 @@ export function ProfilePage({ user, health, sessionId, conversationCount, isDark
   ];
 
   const session = [
+    // Model and memory backend removed with the public-health reduction: they
+    // are infrastructure, and they are on the operations console instead.
     { k: "Session id", v: sessionId, mono: true },
-    { k: "Language model", v: health?.llm_model || "unknown" },
-    { k: "Conversation memory", v: health?.memory || "unknown" },
     { k: "Saved conversations", v: String(conversationCount) },
   ];
 

@@ -42,11 +42,15 @@ export function Dashboard({ setView }) {
   const [health, setHealth] = useState(null);
   const [offers, setOffers] = useState(null);
   const [agentUp, setAgentUp] = useState(null);
+  // The index size comes from the knowledge overview, an authenticated
+  // endpoint. Public health no longer reports it.
+  const [kb, setKb] = useState(null);
 
   useEffect(() => {
     fetch("/api/health").then((r) => r.json()).then(setHealth).catch(() => setHealth({ status: "down" }));
     fetch("/api/offers").then((r) => r.json()).then(setOffers).catch(() => setOffers({ count: 0, offers: [] }));
     fetch("/flowise/api/v1/ping").then((r) => setAgentUp(r.ok)).catch(() => setAgentUp(false));
+    fetch("/api/knowledge/overview").then((r) => r.json()).then(setKb).catch(() => setKb(null));
   }, []);
 
   const derived = useMemo(() => {
@@ -80,9 +84,13 @@ export function Dashboard({ setView }) {
       detail: backendOk ? "Deterministic engine online" : "Not reachable — run start-all.sh" },
     { name: "AI Agents", ok: agentUp === true,
       detail: agentUp === null ? "Checking…" : agentUp ? "Engineering + Quotation live on Flowise" : "Flowise not reachable on :3000" },
-    { name: "Language model", ok: !!health?.llm_model, detail: health?.llm_model || "unknown" },
-    { name: "Knowledge index", ok: (health?.documents_indexed || 0) > 0,
-      detail: `${health?.documents_indexed ?? 0} records in ChromaDB` },
+    // The language-model row was dropped deliberately: which model runs is
+    // infrastructure, and infrastructure belongs on the service provider's
+    // operations console, not on an engineer's dashboard.
+    { name: "Knowledge index", ok: (kb?.stats?.records || 0) > 0,
+      detail: kb
+        ? `${kb.stats.records} historical projects, ${kb.stats.documents} documents`
+        : "Checking…" },
   ];
 
   return (
