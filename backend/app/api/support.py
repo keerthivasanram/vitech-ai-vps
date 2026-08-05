@@ -171,9 +171,21 @@ def _spec_geometry(a: dict) -> dict:
     return {"envelope_mm": env, "envelope_source": src,
             "ready": ready, "fields": fields}
 
-def _spec_for_drawing(q: str) -> dict:
-    """Resolve a requirement into the subset of the spec the drawing consumes."""
-    _, a, _ = _prepare(q, top_k=8, history=[])
+def _spec_for_drawing(q: str, analysis: Optional[dict] = None) -> dict:
+    """Resolve a requirement into the subset of the spec the drawing consumes.
+
+    `analysis` lets a caller that has ALREADY resolved the requirement hand the
+    result in rather than paying for a second resolution. The package builder
+    does exactly that: it resolves once and derives the specification, the
+    drawing, the BOM and the quotation from that one analysis.
+
+    That is not only faster. The package layer's whole guarantee is that its
+    documents cannot disagree because they come from ONE resolution — and
+    resolving twice quietly reintroduced the possibility they might, since
+    `understand()` can take an LLM path for a requirement the regex cannot fully
+    parse. Reusing the analysis makes the guarantee true by construction.
+    """
+    a = analysis if analysis is not None else _prepare(q, top_k=8, history=[])[1]
     return {
         "category": a.get("category"),
         "category_label": a.get("category_label"),

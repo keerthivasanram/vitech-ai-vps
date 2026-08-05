@@ -82,12 +82,33 @@ Design reviewed first in `docs/observability-design.md`.
   `jobs/{id}/artifact/{name}`, `logs`, `cache`, `retention/purge`.
 - **Retention**: requests+spans 90 days; **jobs, artifacts and audit are PERMANENT** and
   `purge()` never touches them (pinned by a test).
-- **FOUND BY THE NEW TRACING, NOT YET FIXED:** `/api/package` **resolves the requirement TWICE**
-  — `_build_package` calls `_prepare(q)` and then `_spec_for_drawing(q)` calls it again, so the
-  trace shows `retrieve.offers`/`rules.apply`/`resolve.spec` duplicated and roughly doubles the
-  package's retrieval cost. Deliberately NOT fixed in Phase C (additive only). The fix is to
-  pass the already-resolved analysis into `_spec_for_drawing`; do it as its own change with the
-  contract fingerprints as the check.
+- **FOUND BY THE NEW TRACING, AND NOW FIXED (see the entry below).**
+
+### ▶ 2026-08-05 (final) — ONE resolution per package. BACKEND IS FEATURE-COMPLETE FOR V1.0.
+The duplicate the execution trace found is gone. **Twelve suites green, 28 fingerprints
+byte-identical** — the optimisation is invisible in every output, which is the point.
+- `/api/package` resolved the requirement **twice** (`_build_package` called `_prepare`, then
+  `_spec_for_drawing(q)` called it again) **and parsed it a THIRD time** for the quotation via
+  `understand(q)` — even though `analysis.py` already stores the understanding it resolved with.
+  `_spec_for_drawing(q, analysis=None)` now accepts an already-resolved analysis, and the
+  quotation reads `a["understanding"]["parameters"]`.
+- **This is a correctness fix as much as a speed one.** The package layer's guarantee is that
+  its documents cannot disagree because they come from ONE resolution — and resolving twice
+  quietly reintroduced the possibility they might, since `understand()` can take an LLM path for
+  a requirement the regex cannot fully parse. The guarantee is now true by construction.
+- Measured: `retrieval_count` 16 -> 8 and `rule_count` 32 -> 16 on a paint booth (exactly half,
+  which is what confirmed the duplication was real); package latency ~250-290 ms.
+- **Pinned by a test** in `tests_observability.py` that reads the trace back and asserts
+  `retrieve.offers`, `resolve.spec` and `rules.apply` each appear EXACTLY ONCE per package.
+
+> **THE BACKEND IS NOW IN STABILISATION, NOT FEATURE DEVELOPMENT.** Remaining V1.0 work is
+> limited to: **PDF renderer tests, dependency pinning, CI, HTTPS deployment, documentation**
+> (`docs/developer_handbook.md` is substantially WRONG — see the readiness review). No further
+> engineering features or infrastructure changes unless a PRODUCTION DEFECT is found.
+> After V1.0 the priority moves off the backend entirely: (1) engineering knowledge expansion —
+> more historical projects, drawings, quotations and specifications, which is also the standing
+> fix for `retrieve_knowledge` returning `count:0`; (2) frontend polish and usability;
+> (3) customer-facing portal features.
 
 ### ▶ 2026-08-05 (Phase B) — PRODUCTION AUTHENTICATION IS LIVE. Read this before touching the API.
 **Every route except `/api/health` now requires a credential.** Eleven suites green, and

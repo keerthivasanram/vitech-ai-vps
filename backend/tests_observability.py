@@ -220,6 +220,25 @@ else:
     st, _, _ = call("/api/admin/metrics")
     check(st == 401, "the DevOps surface is not public")
 
+    # --- single resolution per package -------------------------------------
+    # The trace found /api/package resolving the same requirement twice, and
+    # parsing it a third time for the quotation. This pins the fix: reuse of the
+    # one analysis is what makes the package's "documents cannot disagree"
+    # guarantee true by construction, not merely faster.
+    st, _, headers = call("/api/package", token, "POST",
+                          {"question": "paint booth 5m x 3m x 4m liquid down draft"})
+    pkg_rid = headers.get("X-Request-ID") or headers.get("x-request-id")
+    check(st == 200 and pkg_rid, "package generation traced")
+    writer.flush(10)
+    time.sleep(0.5)
+    st, tr, _ = call(f"/api/admin/trace/{pkg_rid}", token)
+    names = [s["name"] for s in tr.get("spans") or []]
+    for stage in ("retrieve.offers", "resolve.spec", "rules.apply"):
+        check(names.count(stage) == 1,
+              f"{stage} runs EXACTLY ONCE per package (got {names.count(stage)})")
+    check(any(n.startswith("package.") for n in names),
+          "the package stages are still traced")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} OBSERVABILITY TEST FAIL")

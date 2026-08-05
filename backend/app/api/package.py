@@ -2,7 +2,6 @@
 from fastapi import APIRouter
 from ..agent_router import prepare as _prepare
 from ..quotation import build_quotation
-from ..understand import understand
 from fastapi import Body
 from fastapi.responses import JSONResponse
 from fastapi.responses import Response
@@ -52,7 +51,9 @@ def _build_package(payload: dict):
     }
 
     geometry = _spec_geometry(a)
-    drawing_spec = _spec_for_drawing(q)
+    # Reuse the analysis resolved above — the drawing is derived from the
+    # SAME engineering result as the specification, not a second one.
+    drawing_spec = _spec_for_drawing(q, a)
     options = {"sheet_size": str(payload.get("sheet_size") or "A3"),
                "client": str(payload.get("client") or ""),
                "ref": str(payload.get("ref") or ""),
@@ -63,7 +64,12 @@ def _build_package(payload: dict):
     # rather than opening a second, drifting rendering path.
     drawing["_source"] = {"spec": drawing_spec, "options": options}
 
-    quote = build_quotation(a, dict(understand(q).parameters)) or None
+    # The parsed requirement parameters are already on the analysis
+    # (`analysis.py` stores the understanding it resolved with), so calling
+    # understand() again re-parsed the requirement for a third time — and on
+    # a requirement the regex cannot fully parse, that is a second LLM call.
+    params = dict((a.get("understanding") or {}).get("parameters") or {})
+    quote = build_quotation(a, params) or None
 
     _obs.note(tool="generate_engineering_package", equipment=a.get("category"))
     job = _jobs.create("package", requirement=q,
