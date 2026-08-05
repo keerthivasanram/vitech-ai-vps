@@ -14,6 +14,8 @@ from . import config
 from .api import (admin, auth, bom, data, documents, drawing, health, ingest,
                   package, query, session, tools, uploads)
 from .auth.middleware import auth_middleware
+from .observability import writer as obs_writer
+from .observability.middleware import trace_middleware
 
 app = FastAPI(title="ATS Engineering Assistant")
 
@@ -32,6 +34,13 @@ app.add_middleware(
 # all-or-nothing and, because the variable was never set, never engaged at all.
 app.middleware("http")(auth_middleware)
 
+# --- Tracing ----------------------------------------------------------------
+# Registered AFTER the auth middleware so it runs OUTSIDE it: Starlette applies
+# middleware in reverse order of registration, so this wraps auth and therefore
+# times the whole request including the authorization decision — and a denied
+# request still gets a trace and an X-Request-ID.
+app.middleware("http")(trace_middleware)
+
 
 @app.on_event("startup")
 def _warm_llm():
@@ -39,6 +48,12 @@ def _warm_llm():
     import threading
     from .ollama_client import warmup
     threading.Thread(target=warmup, daemon=True).start()
+
+
+@app.on_event("startup")
+def _start_observability():
+    """Drain telemetry on a background thread so no request ever waits on it."""
+    obs_writer.start()
 
 
 # REGISTRATION ORDER IS PART OF THE CONTRACT. FastAPI matches routes in the

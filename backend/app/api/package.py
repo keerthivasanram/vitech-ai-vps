@@ -18,6 +18,8 @@ def _build_package(payload: dict):
     the quotation and the review all read the same analysis, so they cannot
     disagree with each other. Returns (package, error_response).
     """
+    from ..observability import context as _obs_ctx
+    from ..observability import jobs as _jobs, trace as _obs
     from ..package import builder
     from ..drawing.drawing_service import build_drawing
 
@@ -63,6 +65,12 @@ def _build_package(payload: dict):
 
     quote = build_quotation(a, dict(understand(q).parameters)) or None
 
+    _obs.note(tool="generate_engineering_package", equipment=a.get("category"))
+    job = _jobs.create("package", requirement=q,
+                       equipment=a.get("category") or "",
+                       project=str(payload.get("project") or payload.get("title") or ""),
+                       client=str(payload.get("client") or ""),
+                       revision=str(payload.get("revision") or "0"))
     pkg = builder.build(
         a, question=q, hits=hits, drawing=drawing, bom=_spec_bom(a),
         quotation=quote, geometry=geometry,
@@ -73,6 +81,20 @@ def _build_package(payload: dict):
         ref=str(payload.get("ref") or ""),
         drawn_by=str(payload.get("drawn_by") or ""),
     )
+    review = pkg.get("review") or {}
+    counts = review.get("counts") or {}
+    _jobs.finish(job, equipment=a.get("category") or "",
+                 confidence_pct=a.get("confidence_pct"),
+                 release_status=review.get("release_status", ""),
+                 warning_count=int(counts.get("WARNING", 0)) + int(counts.get("FAIL", 0)),
+                 tbd_count=int(counts.get("QUESTION", 0)),
+                 summary={"verdict": review.get("verdict"),
+                          "documents": [m["document"] for m in pkg.get("manifest") or []
+                                        if m.get("present")]})
+    # The job id is surfaced as the `X-Job-ID` RESPONSE HEADER, never added to
+    # the body: a new field would change the package fingerprint and break the
+    # proof that Phase C altered no engineering output.
+    _obs.note(job_id=job)
     return pkg, None
 
 
@@ -102,6 +124,8 @@ def package_export(payload: dict = Body(...)):
     `write: true` also organises it under PACKAGE_DIR, which is what "generated
     outputs are filed automatically" means in practice.
     """
+    from ..observability import context as _obs_ctx
+    from ..observability import jobs as _jobs
     from ..package import export as pkg_export
 
     pkg, err = _build_package(payload)
@@ -112,5 +136,16 @@ def package_export(payload: dict = Body(...)):
         return pkg_export.write_package(pkg, payload.get("root") or None)
 
     data, name = pkg_export.zip_package(pkg)
+    # The customer-facing deliverable is stored IMMUTABLY with a SHA-256. The
+    # platform is deterministic, so this could in principle be regenerated — but
+    # only while the corpus and rules are unchanged, and an engineering record
+    # that changes when reopened is not a record. The digest also makes
+    # "is the platform still deterministic?" a question we can actually answer.
+    job_id = _obs_ctx.facts().get("job_id")
+    if job_id:
+        files, _ = pkg_export.build_files(pkg)
+        for fname, payload_bytes in files.items():
+            _jobs.attach(str(job_id), fname, payload_bytes)
+        _jobs.attach(str(job_id), name, data, kind="zip")
     return Response(content=data, media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})

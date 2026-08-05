@@ -1,6 +1,7 @@
 """Bill of materials from the resolved engineering specification."""
 from fastapi import APIRouter
 from fastapi import Body
+from ..observability import jobs as _jobs, trace as _obs
 from .support import _named_requirement, _spec_for_drawing, _studio_spec, _tool_q
 
 router = APIRouter()
@@ -36,4 +37,10 @@ def bom_endpoint(payload: dict = Body(...)):
         return {"ok": False, "need_requirement": True,
                 "message": ("No equipment requirement was given. Ask the user WHICH equipment "
                             "and its size before listing any material.")}
-    return build_bom(_spec_for_drawing(q))
+    _obs.note(tool="generate_bom")
+    job = _jobs.create("bom", requirement=q)
+    bom = build_bom(_spec_for_drawing(q))
+    _jobs.finish(job, equipment=bom.get("category") or "",
+                 summary={"lines": len(bom.get("lines") or []),
+                          "uncosted": len(bom.get("uncosted") or [])})
+    return bom

@@ -12,6 +12,7 @@ confidence and presentation around this; the numbers are made HERE.
 Deliberately depends only on catalog + spec_schema (no import of analysis), so
 the dependency runs one way: analysis -> engineering_planner.
 """
+from ..observability import trace as _obs
 from ..catalog import label_for, origin_label
 from ..spec_schema import (ATS, CONSENSUS, INTERPOLATED, REUSE, REUSE_KEPT,
                            SCALED)
@@ -99,6 +100,19 @@ def _short_std(s):
 
 
 def generate_spec(profile, category, params, chosen, offers, policy=ATS):
+    with _obs.span("rules.apply", "rules") as _s:
+        out = _generate_spec_inner(profile, category, params, chosen, offers, policy)
+        try:
+            rules = sum(1 for i in (out[0] if isinstance(out, tuple) else out)
+                        if str(i.get("origin")) in ("rule", "standard", "advisory"))
+            _s.detail(rules=rules, category=category)
+            _obs.count("rule_count", rules)
+        except Exception:
+            pass
+        return out
+
+
+def _generate_spec_inner(profile, category, params, chosen, offers, policy=ATS):
     base = _tech(chosen)
     cid = chosen["id"] if chosen else None
     items, rules_list = [], []

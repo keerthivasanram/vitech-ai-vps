@@ -14,6 +14,7 @@ document looks complete and is not.
 from datetime import date
 from typing import Any, Optional
 
+from ..observability import trace as _obs
 from . import assumptions as assumptions_mod
 from . import dashboard as dashboard_mod
 from . import identifiers, review as review_mod, traceability
@@ -82,14 +83,24 @@ def build(analysis: dict, *, question: str = "", hits: Optional[list] = None,
     rows = analysis.get("technical_details") or []
     release = analysis.get("release") or {}
 
-    records = traceability.build(rows, hits)
-    register = identifiers.build_register(rows)
-    xref = identifiers.cross_reference(register, drawing, bom, quotation)
-    assumption_report = assumptions_mod.build(rows, records)
-    review_report = review_mod.build(analysis, release, geometry, records, xref)
+    with _obs.span("package.traceability", "package_stage") as _s:
+        records = traceability.build(rows, hits)
+        _s.detail(records=len(records))
+    with _obs.span("package.cross_reference", "package_stage") as _s:
+        register = identifiers.build_register(rows)
+        xref = identifiers.cross_reference(register, drawing, bom, quotation)
+        _s.detail(items=xref.get("item_count"), linked=xref.get("linked_count"))
+    with _obs.span("package.assumptions", "package_stage") as _s:
+        assumption_report = assumptions_mod.build(rows, records)
+        _s.detail(open_items=assumption_report.get("open_items"))
+    with _obs.span("package.review", "package_stage") as _s:
+        review_report = review_mod.build(analysis, release, geometry, records, xref)
+        _s.detail(**{k.lower(): v for k, v in (review_report.get("counts") or {}).items()})
+        _obs.count("warning_count", int((review_report.get("counts") or {}).get("WARNING", 0)))
     summary = requirement_summary(analysis, question)
-    meta = dashboard_mod.build(analysis, review_report, assumption_report, xref,
-                               records, revision, project, client)
+    with _obs.span("package.dashboard", "package_stage"):
+        meta = dashboard_mod.build(analysis, review_report, assumption_report, xref,
+                                   records, revision, project, client)
 
     confidence = analysis.get("confidence_pct")
     manifest = [

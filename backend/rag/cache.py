@@ -78,6 +78,16 @@ def _key(question: str, filters: dict, top_k: int) -> str:
 
 def get(question: str, filters: dict, top_k: int):
     """Return cached hits list for this query, or None on a miss."""
+    hit = _get_inner(question, filters, top_k)
+    try:
+        from app.observability import metrics as _m
+        (_m.cache_hit if hit is not None else _m.cache_miss)()
+    except Exception:
+        pass          # metrics must never break retrieval
+    return hit
+
+
+def _get_inner(question: str, filters: dict, top_k: int):
     if not config.RETRIEVE_CACHE_ENABLED:
         return None
     key = _key(question, filters, top_k)

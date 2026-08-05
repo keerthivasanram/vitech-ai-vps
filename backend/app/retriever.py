@@ -8,6 +8,7 @@ import re
 from typing import Any
 
 from . import config
+from .observability import trace as _obs
 from .store import get_collection, offer_records
 
 # generic words that don't identify a specific client/equipment
@@ -302,6 +303,16 @@ def retrieve(question: str, top_k: int | None = None,
     """Semantic search, optionally restricted to a metadata filter (e.g.
     {"category": "wet_scrubber"} so a scrubber query never returns booths).
     Falls back to an unfiltered search if the filter yields nothing."""
+    with _obs.span("retrieve.offers", "retrieval") as _s:
+        hits = _retrieve_inner(question, top_k, where)
+        _s.detail(count=len(hits), filtered=bool(where),
+                  top_score=(hits[0]["score"] if hits else None))
+        _obs.count("retrieval_count", len(hits))
+        return hits
+
+
+def _retrieve_inner(question: str, top_k: int | None = None,
+                    where: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     top_k = top_k or config.TOP_K
     collection = get_collection()
 

@@ -64,6 +64,13 @@ async def auth_middleware(request, call_next):
 
     principal = resolve_principal(request)
     request.state.principal = principal
+    # Hand the identity to the trace context. The trace middleware wraps this
+    # one, so it began the request before any principal existed.
+    try:
+        from ..observability import context as _obs_ctx
+        _obs_ctx.identify(principal.name, principal.kind, principal.role)
+    except Exception:
+        pass
 
     allowed, reason = policy.allows(principal, method, path)
     if not allowed:

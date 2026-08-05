@@ -33,3 +33,9 @@ backend/data/packages/
 # Auth database — password hashes, session and service-key hashes, audit trail.
 backend/data/auth.db
 backend/data/auth.db-*
+
+# Operations database, structured logs and stored artifacts.
+backend/data/ops.db
+backend/data/ops.db-*
+backend/data/jobs/
+backend/logs/

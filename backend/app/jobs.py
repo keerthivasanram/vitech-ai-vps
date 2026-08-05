@@ -1,70 +1,39 @@
-"""Tiny in-process background job manager.
+"""Compatibility shim — the job model now lives in `observability/jobs.py`.
 
-This is the prototype-grade job queue: it runs ingestion in a background
-thread so the API returns immediately and the client can poll progress. It
-proves the async/batched architecture.
+This module used to hold jobs in an in-process dict, so every job vanished on
+restart: an ingest that ran overnight left no evidence it had happened, and no
+specification, drawing or quotation was recorded at all. Jobs are now rows in
+`data/ops.db` and are permanent.
 
-For production, swap the `run` function for a Celery/RQ task (needs Redis) —
-the ingest_source() call inside stays identical. Nothing else changes.
+The old `create_job` / `update` / `get` / `run` names are kept so the existing
+call sites are unchanged, the same way `rules.py` shims `formula_service`.
 """
-import threading
-import time
-import traceback
-import uuid
-from typing import Any, Callable
-
-_jobs: dict[str, dict[str, Any]] = {}
-_lock = threading.Lock()
+from .observability import jobs as _jobs
+from .observability.store import upsert_job as _upsert
 
 
 def create_job() -> str:
-    job_id = uuid.uuid4().hex[:8]
-    with _lock:
-        _jobs[job_id] = {
-            "id": job_id,
-            "status": "queued",
-            "processed": 0,
-            "started_at": time.time(),
-            "finished_at": None,
-            "error": None,
-        }
-    return job_id
+    """Open an ingest job. Returns the job id."""
+    return _jobs.create("ingest", status=_jobs.QUEUED)
 
 
-def update(job_id: str, **fields: Any) -> None:
-    with _lock:
-        if job_id in _jobs:
-            _jobs[job_id].update(fields)
+def update(job_id: str, **fields) -> None:
+    """Patch a job. The old field names map onto the persistent schema."""
+    patch = {"job_id": job_id}
+    for key, value in fields.items():
+        if key == "status":
+            patch["status"] = {"done": _jobs.SUCCEEDED,
+                               "error": _jobs.FAILED}.get(value, value)
+        elif key in ("processed", "finished_at", "started_at", "error"):
+            patch[key] = value
+        # `traceback` is deliberately dropped: it belongs in the structured log,
+        # not in a column the job list renders.
+    _upsert(patch)
 
 
-def get(job_id: str) -> dict[str, Any] | None:
-    with _lock:
-        job = _jobs.get(job_id)
-        if not job:
-            return None
-        job = dict(job)
-    if job["finished_at"]:
-        job["elapsed_s"] = round(job["finished_at"] - job["started_at"], 2)
-    else:
-        job["elapsed_s"] = round(time.time() - job["started_at"], 2)
-    return job
+def get(job_id: str):
+    return _jobs.get(job_id)
 
 
-def run(job_id: str, work: Callable[[Callable[[int], None]], int]) -> None:
-    """Run `work(progress)` in a daemon thread. `work` reports count via
-    the progress callback and returns the final total."""
-
-    def task() -> None:
-        update(job_id, status="running")
-        try:
-            def progress(done: int) -> None:
-                update(job_id, processed=done)
-
-            total = work(progress)
-            update(job_id, status="done", processed=total,
-                   finished_at=time.time())
-        except Exception as exc:  # surface the real error to the client
-            update(job_id, status="error", error=str(exc),
-                   traceback=traceback.format_exc(), finished_at=time.time())
-
-    threading.Thread(target=task, daemon=True).start()
+def run(job_id: str, work) -> None:
+    _jobs.run(job_id, work)

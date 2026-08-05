@@ -3,6 +3,7 @@ centrally by `auth/policy.py` rather than per-function."""
 import time
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, Response
 
 from .. import config
 from ..auth import store as auth_store
@@ -108,3 +109,104 @@ def purge_sessions(request: Request):
     """Delete expired sessions."""
     removed = auth_store.purge_expired_sessions()
     return {"ok": True, "removed": removed}
+
+
+# --- Developer operations ---------------------------------------------------
+# Everything below is administrator-only, enforced centrally by `auth/policy.py`
+# through the `^/api/admin/` rule — no per-route decision to forget.
+
+@router.get("/api/admin/metrics")
+def metrics(window_hours: int = 24):
+    """Requests, latencies, failure rate, active principals, cache ratio."""
+    from ..observability import metrics as obs_metrics
+    return {"ok": True, **obs_metrics.summary(window_hours)}
+
+
+@router.get("/api/admin/requests")
+def requests_list(limit: int = 100, actor: str = "", tool: str = "",
+                  equipment: str = "", failed_only: bool = False):
+    """Recent engineering requests: the agent execution timeline."""
+    from ..observability import store as obs_store
+    return {"ok": True, "requests": obs_store.list_requests(
+        limit=limit, actor=actor, tool=tool, equipment=equipment,
+        failed_only=failed_only)}
+
+
+@router.get("/api/admin/trace/{request_id}")
+def trace_view(request_id: str):
+    """Reconstruct one request end to end: requirement -> retrieval -> rules ->
+    specification -> drawing -> BOM -> quotation -> package."""
+    from ..observability.middleware import reconstruct
+    return {"ok": True, **reconstruct(request_id)}
+
+
+@router.get("/api/admin/jobs")
+def jobs_list(limit: int = 100, kind: str = "", status: str = "",
+              actor: str = "", equipment: str = ""):
+    """Job history. Permanent — this is the engineering record."""
+    from ..observability import jobs as obs_jobs
+    return {"ok": True, "jobs": obs_jobs.listing(
+        limit=limit, kind=kind, status=status, actor=actor, equipment=equipment)}
+
+
+@router.get("/api/admin/jobs/{job_id}")
+def job_detail(job_id: str):
+    """One job, its requirement, its outcome and its stored artifacts."""
+    from ..observability import artifacts as obs_artifacts, jobs as obs_jobs
+    job = obs_jobs.get(job_id)
+    if not job:
+        return JSONResponse({"ok": False, "error": "no such job"}, status_code=404)
+    job["artifact_integrity"] = obs_artifacts.verify(job_id)
+    return {"ok": True, "job": job}
+
+
+@router.get("/api/admin/jobs/{job_id}/artifact/{name}")
+def job_artifact(job_id: str, name: str):
+    """Download a stored artifact. The checksum is verified before it is served —
+    a file that no longer matches its digest is not the document that was issued,
+    so it is reported missing rather than handed over as though it were."""
+    from ..observability import artifacts as obs_artifacts
+    found = obs_artifacts.read(job_id, name)
+    if not found:
+        return JSONResponse(
+            {"ok": False, "error": "artifact not found, or its checksum no longer matches"},
+            status_code=404)
+    data, row = found
+    media = {"pdf": "application/pdf", "svg": "image/svg+xml", "zip": "application/zip",
+             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+             "json": "application/json"}.get(row.get("kind"), "text/plain; charset=utf-8")
+    return Response(content=data, media_type=media, headers={
+        "Content-Disposition": f'attachment; filename="{row["name"]}"',
+        "X-Checksum-SHA256": row.get("sha256") or "",
+    })
+
+
+@router.get("/api/admin/logs")
+def logs_tail(limit: int = 200, level: str = "", request_id: str = "",
+              contains: str = ""):
+    """Structured logs, newest first. Customer requirements never appear here —
+    they live on the job record, behind a role."""
+    from ..observability import logs as obs_logs
+    return {"ok": True, "entries": obs_logs.tail(
+        limit, level=level, request_id=request_id, contains=contains),
+        "files": obs_logs.file_stats()}
+
+
+@router.get("/api/admin/cache")
+def cache_stats():
+    """Retrieval cache statistics."""
+    from ..observability import metrics as obs_metrics
+    return {"ok": True, **obs_metrics.cache_stats()}
+
+
+@router.post("/api/admin/retention/purge")
+def retention_purge(days: int = 0):
+    """Apply the retention policy to request traces.
+
+    Jobs, artifacts and the audit trail are PERMANENT by decision and are never
+    touched here.
+    """
+    from ..observability import store as obs_store
+    result = obs_store.purge(days or obs_store.REQUEST_RETENTION_DAYS)
+    return {"ok": True, **result,
+            "note": "Jobs, artifacts and audit are permanent and were not touched."}

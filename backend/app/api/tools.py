@@ -20,6 +20,7 @@ from rag.permissions import Principal
 from rag.response_formatter import format_context
 from rag.retrieve import available_filters
 from rag.retrieve import retrieve_documents
+from ..observability import jobs as _jobs, trace as _obs
 from .support import _named_requirement, _offers_overview, _spec_bom, _spec_for_drawing, _spec_geometry, _spec_markdown, _spec_text, _tool_q
 
 router = APIRouter()
@@ -41,6 +42,8 @@ def tool_spec(payload: dict = Body(...)):
                 "message": ("No equipment requirement was given. Ask the user WHICH equipment and its "
                             "size/capacity to specify. Do NOT generate a spec, and do NOT invent or pick "
                             "any equipment or number the user did not state.")}
+    _obs.note(tool="generate_specification", agent="Engineering")
+    job = _jobs.create("specification", requirement=q)
     _, a, _ = _prepare(q, top_k=8, history=[])
     resp = {
         "category": a.get("category"),
@@ -82,6 +85,15 @@ def tool_spec(payload: dict = Body(...)):
     # a ready-to-print spec the agent outputs VERBATIM (data mode); None in
     # knowledge mode, where the agent reasons from engineering knowledge instead.
     resp["spec_markdown"] = _spec_markdown(resp)
+    _jobs.finish(job, equipment=a.get("category") or "",
+                 confidence_pct=a.get("confidence_pct"),
+                 release_status=(a.get("release") or {}).get("status", ""),
+                 warning_count=len([c for c in (a.get("validation") or [])
+                                    if c.get("level") == "warn"]),
+                 tbd_count=len([t for t in (a.get("technical_details") or [])
+                                if t.get("origin") == "tbd"]),
+                 summary={"rows": len(resp["technical_details"]),
+                          "mode": resp.get("mode")})
     return resp
 
 @router.post("/api/tools/drawing", operation_id="generate_drawing")
@@ -104,8 +116,15 @@ def tool_drawing(payload: dict = Body(...)):
                 "message": ("No equipment requirement was given. Ask the user WHICH equipment and its "
                             "size to draw. Do NOT generate a drawing, and do NOT invent any equipment "
                             "or dimension the user did not state.")}
+    _obs.note(tool="generate_drawing", agent="Drawing")
+    job = _jobs.create("drawing", requirement=q)
     drawing = build_drawing(_spec_for_drawing(q),
                             sheet_size=str(payload.get("sheet_size") or "A3"))
+    _jobs.finish(job, equipment=drawing.get("category") or "",
+                 tbd_count=len(drawing.get("tbd") or []),
+                 summary={"views": len(drawing.get("views") or []),
+                          "scale": drawing.get("scale"),
+                          "ready": drawing.get("ready")})
     # The SVG is large and is for the canvas, not the chat: the agent gets the
     # markdown summary and never has to echo vector data.
     drawing["svg_bytes"] = len(drawing.get("svg") or "")
@@ -124,6 +143,8 @@ def tool_quote(payload: dict = Body(...)):
                             "its size/capacity to quote (the airflow for a scrubber or dust collector, "
                             "the dimensions for a booth, etc.). Do NOT quote, and do NOT invent or pick "
                             "any equipment or number the user did not state.")}
+    _obs.note(tool="generate_quotation", agent="Quotation")
+    job = _jobs.create("quotation", requirement=q)
     u = understand(q)
     u.intent = "quotation"
     where = {"category": u.category} if u.category else None
@@ -132,8 +153,13 @@ def tool_quote(payload: dict = Body(...)):
     a["spec_mode"] = "data"
     quote = build_quotation(a, dict(u.parameters))
     if not quote:
+        _jobs.finish(job, status=_jobs.FAILED, equipment=u.category or "",
+                     error="no priced history")
         return {"ok": False,
                 "message": f"No priced history to quote {u.category or 'this equipment'} from."}
+    _jobs.finish(job, equipment=u.category or "",
+                 confidence_pct=quote.get("confidence_pct"),
+                 summary={"ref": quote.get("ref"), "price": quote.get("price_display")})
     return {"ok": True, **quote}
 
 
@@ -147,6 +173,7 @@ def tool_lookup(payload: dict = Body(...)):
     that is not what was asked. The price is still one follow-up away.
     """
     q = _tool_q(payload)
+    _obs.note(tool="lookup_project", agent="Engineering")
     price_asked = wants_price(q)
     # force_tech: even when the agent shortened the input to a bare client name,
     # the narrative still leads with the engineering (given data + technical

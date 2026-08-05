@@ -42,6 +42,53 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-05 (Phase C) — DEVOPS BACKEND: tracing, jobs, artifacts, metrics, admin surface
+**Twelve suites green, and the 28 engineering fingerprints matched WITHOUT re-recording** — only
+`/openapi.json` moved, from 15 additive admin routes, with all agent `operation_id`s intact.
+Design reviewed first in `docs/observability-design.md`.
+- **THE CONSTRAINT THAT SHAPED IT.** The contract suite hashes response BODIES, so a request id
+  in a payload would have changed all 28 fingerprints and destroyed the proof. Request ids go in
+  the **`X-Request-ID` response header** and a `contextvar`; a job id goes in **`X-Job-ID`**.
+  **Never add either to a response body.**
+- **`app/observability/`**: `context` (contextvars), `store` (ops.db SQL), `writer` (background
+  queue), `trace` (spans), `logs` (JSON + redaction), `jobs`, `artifacts`, `metrics`,
+  `middleware` (+ the trace reconstructor). Stdlib only.
+- **SIX SEAMS, one added line each**: `retriever.retrieve`, `rag.retrieve_documents`,
+  `ollama_client._ollama_chat`, `agent_router` (resolve), `engineering_planner.generate_spec`,
+  `package.builder` (5 stage spans). Each wraps an `_inner` function so the original body is
+  untouched. **A span outside a request is a no-op that STILL RUNS ITS BODY** — that is what
+  keeps the golden tests a test of the engine rather than of the tracing.
+- **THE CONTEXTVAR TRAP, worth remembering.** Starlette's `BaseHTTPMiddleware` runs the
+  downstream app in a SEPARATE TASK, so a `ContextVar` **rebound** inside `call_next` is
+  invisible to the middleware that wrapped it — every trace had an empty `actor` while the job
+  row had it right. A **mutable dict shared by reference does cross** that boundary, which is
+  why `context.identify()` writes to the fact bag as well as the vars. Same reason the
+  per-request counters work at all.
+- **`app/jobs.py` IS NOW A SHIM.** Jobs are rows in `data/ops.db` and are PERMANENT; the old
+  in-process dict lost everything on restart. One job per specification / drawing / BOM /
+  quotation / package / ingest, carrying the customer requirement verbatim, the confidence,
+  the release status and the warning count.
+- **Artifacts are IMMUTABLE with a SHA-256** under `data/jobs/<job_id>/`. A package export
+  stores all 14 documents. **A file whose digest no longer matches is reported missing, never
+  served** — it is not the document that was issued. The digest also makes "is the platform
+  still deterministic?" a question that can actually be run.
+- **Customer requirements NEVER reach the logs** (`logs._SENSITIVE_KEYS` drops `question` /
+  `requirement` at WRITE time, along with credentials). They live on the job record behind the
+  Engineer/Admin roles. Pinned by a test that greps the live log output.
+- **Telemetry never blocks engineering**: a bounded queue drained by a daemon thread, and a full
+  queue DROPS the record and counts it (`telemetry_writer.dropped` in metrics).
+- **New admin surface** (all administrator-only via the existing `^/api/admin/` policy rule):
+  `metrics`, `requests`, `trace/{request_id}`, `jobs`, `jobs/{id}`,
+  `jobs/{id}/artifact/{name}`, `logs`, `cache`, `retention/purge`.
+- **Retention**: requests+spans 90 days; **jobs, artifacts and audit are PERMANENT** and
+  `purge()` never touches them (pinned by a test).
+- **FOUND BY THE NEW TRACING, NOT YET FIXED:** `/api/package` **resolves the requirement TWICE**
+  — `_build_package` calls `_prepare(q)` and then `_spec_for_drawing(q)` calls it again, so the
+  trace shows `retrieve.offers`/`rules.apply`/`resolve.spec` duplicated and roughly doubles the
+  package's retrieval cost. Deliberately NOT fixed in Phase C (additive only). The fix is to
+  pass the already-resolved analysis into `_spec_for_drawing`; do it as its own change with the
+  contract fingerprints as the check.
+
 ### ▶ 2026-08-05 (Phase B) — PRODUCTION AUTHENTICATION IS LIVE. Read this before touching the API.
 **Every route except `/api/health` now requires a credential.** Eleven suites green, and
 `tests_api_contract.py` proves **all 28 engineering endpoints are byte-identical** to the
