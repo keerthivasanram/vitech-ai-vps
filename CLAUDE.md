@@ -42,6 +42,52 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-05 (Phase A) — REFACTOR ONLY, byte-identical: routers, shared value readers, cache
+Production-readiness Phase A, agreed as pure refactoring ahead of authentication. **All nine
+suites green, goldens byte-identical, and 28 HTTP fingerprints unchanged** (see below).
+- **`tests_api_contract.py` (NEW) is the safety net** — a status code + SHA-256 of each
+  canonicalised response for 28 endpoints, **including `/openapi.json`**, because `operation_id`
+  IS the Flowise tool name and a silently regenerated id would rename a live agent tool.
+  Volatile values (refs, dates, index counts) are normalised; engineering values are NOT.
+  Verified stable across two runs BEFORE recording, so a later diff means the code changed.
+  This also closes the "no HTTP-level tests" gap — a guard could previously have been deleted
+  with every suite still green. Re-record with `--record` only when a change is intended.
+- **A1: `main.py` 1,415 -> 64 lines**, 34 endpoints into 12 routers under `app/api/`. Moved
+  VERBATIM by line range, not retyped. Two collisions the contract test caught: `app/api/bom.py`
+  doing `from .bom import ...` imports ITSELF rather than `app/bom.py` (same for drawing and
+  package — all function-level relative imports moved one package deeper), and
+  `_offers_overview` is shared by the data views AND the `list_projects` tool so it belongs in
+  `support.py`. **Registration order is part of the contract**: `/api/offers/by-source/{path}`
+  must stay ahead of `/api/offers/{offer_id}`.
+- **A2: `app/values.py` (NEW)** owns the readers that decide whether "12 nos 600 x 600" means
+  twelve filters or six hundred. **CORRECTING THE EARLIER REVIEW**: the four `_num` definitions
+  are NOT four copies — `drawing/envelope._num` is a row LOOKUP filtered on provenance,
+  `engineering_planner._num` is a type coercion that deliberately rejects strings, and
+  `specification_pdf._row` draws a PDF table row. Merging those would have been a behaviour
+  change. Where the two REAL copies disagreed (the BOM strips commas from "1,240 kg", the
+  drawing's spec parser does not) it is a parameter, so neither caller's reading moves.
+- **A3: parsed-offer cache** (`store.offer_records`) — `/api/records` **24.5ms -> 1.4ms**,
+  `/api/offers` 23.5 -> 0.8ms. **The first version was WRONG and measurement caught it**: it
+  called `col.count()` on every read to detect out-of-process writes, and that check cost ~20ms
+  against ~6ms for the whole scan it guarded — three times SLOWER than no cache. Invalidation is
+  now explicit (`invalidate_records()` from ingest and `reload_collection`), so the already-
+  required `POST /api/admin/reload-index` after an out-of-process ingest stays the single step.
+  **Two things deliberately NOT converted:** `knowledge_overview` reads flattened metadata, not
+  parsed `_raw`, and converting it would have dropped rag-ingested documents that carry no
+  `_raw`; and `/api/records` copies before sorting, because the cache is handed out by reference
+  and sorting it in place would corrupt every other reader (both pinned by tests).
+
+### ▶ ENDPOINT SECURITY MATRIX — `docs/endpoint-security-matrix.md` (agreed before Phase B)
+All 34 routes classified Public / Authenticated User / Engineer / Administrator / Internal Only
+(1 / 8 / 17 / 4 / 4). **Two things to know before switching auth on:**
+- **The three Flowise agents will BREAK** unless they get a service principal first. They call
+  `/api/tools/*` from localhost and cannot present a user session, so they need a long-lived
+  API key — which lives in Flowise's `credential` table, the same table the admin console must
+  never expose. The failure signature is the documented "agent says it cannot call tools",
+  identical to the backend being down.
+- **`/api/health` currently leaks** `llm_model`, `ollama_host` and `documents_indexed`. Public
+  health must return status only; the detailed form belongs behind the admin role.
+
 ### ▶ PRODUCTION READINESS — `docs/production-readiness-review.md` + the V1.0 CHECKLIST
 Full audit done 2026-08-05 (security, performance, tech debt, tests, observability) with the
 **Version 1.0 release checklist** at the end. Read it before production work. Headlines:
