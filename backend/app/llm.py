@@ -3,7 +3,8 @@
 One planner (`plan_answer`) decides the strategy (static/deterministic vs. LLM
 stream); both the non-streaming (`generate_answer`) and streaming
 (`stream_answer`) paths run that plan, so they stay perfectly consistent. All
-model I/O goes through `ollama_client` — this module holds no transport code.
+model I/O goes through `ollama_client`/`openai_client` — this module holds no
+transport code, only the choice of which one runs a given plan (`_route`).
 """
 import re
 from typing import Any, Iterator
@@ -11,6 +12,7 @@ from typing import Any, Iterator
 from . import config
 from .analytics import deterministic_analytics, record_detail
 from .ollama_client import _ollama_chat, _ollama_stream
+from .openai_client import _openai_chat, _openai_stream
 from .prompt import (build_messages, fallback_answer, knowledge_spec_messages,
                      small_talk, spec_messages, spec_summary, spec_writeup,
                      verify_messages)
@@ -43,6 +45,56 @@ def _verify(question: str, hits: list[dict[str, Any]], draft: str) -> str:
         return draft
 
 
+# --- model dispatch ---------------------------------------------------------
+# Exactly ONE plan may leave the local model: the specification narrative, which
+# `plan_answer` tags provider="spec". Everything else — chat, technical Q&A, the
+# verify pass, and every deterministic path — is untagged and stays on Ollama.
+# This is a prose-quality routing decision only: the numbers inside a spec are
+# already computed in Python before any model sees them (golden rule #2).
+
+def _route(plan: dict[str, Any]) -> str:
+    return config.spec_provider() if plan.get("provider") == "spec" else "ollama"
+
+
+def _chat(plan: dict[str, Any]) -> tuple[str, str]:
+    """Run the plan non-streamed. Returns (text, the model that wrote it).
+
+    An OpenAI failure is never fatal: no key, a rate limit or a network blip
+    falls back to the local model, which is what wrote specs before this
+    existed. The engineer still gets a specification either way.
+    """
+    if _route(plan) == "openai":
+        try:
+            return _openai_chat(plan["messages"], plan["options"]), config.OPENAI_MODEL
+        except Exception as exc:
+            plan["provider_fallback"] = str(exc)
+    return _ollama_chat(plan["messages"], plan["options"]), config.OLLAMA_MODEL
+
+
+def _stream(plan: dict[str, Any]) -> Iterator[str]:
+    """Stream the plan, recording the model that served it in plan["model_used"].
+
+    Fallback is only safe BEFORE the first token: once deltas have reached the
+    client we cannot rewind what it already rendered, so a mid-stream failure is
+    a real error and goes to the caller's handler (which keeps the partial text).
+    """
+    if _route(plan) == "openai":
+        started = False
+        try:
+            for delta in _openai_stream(plan["messages"], plan["options"]):
+                started = True
+                plan["model_used"] = config.OPENAI_MODEL
+                yield delta
+            return
+        except Exception as exc:
+            if started:
+                raise
+            plan["provider_fallback"] = str(exc)
+    plan["model_used"] = config.OLLAMA_MODEL
+    for delta in _ollama_stream(plan["messages"], plan["options"]):
+        yield delta
+
+
 _WORD = re.compile(r"\S+\s*")
 
 
@@ -69,6 +121,10 @@ def plan_answer(question, hits, analysis, history=None) -> dict[str, Any]:
                     "messages": knowledge_spec_messages(question, analysis),
                     # low temperature: a consulting framework, not creative invention
                     "options": {"num_predict": config.LLM_NUM_PREDICT, "temperature": 0.25},
+                    # the one path routed to a hosted model when configured — this
+                    # is the specification write-up, where prose quality shows most
+                    # and where the small local model reads weakest. See `_route`.
+                    "provider": "spec",
                     "verify": False, "extra": {"spec_mode": "knowledge"}}
         # Data-mode spec is rendered DETERMINISTICALLY (no LLM narrative), so the
         # prose can never drift from the analysed numbers, and it reads as a clean
@@ -131,11 +187,13 @@ def generate_answer(question, hits, analysis, history=None) -> dict[str, Any]:
         return res
 
     try:
-        answer = _ollama_chat(plan["messages"], plan["options"])
+        answer, model = _chat(plan)
         if plan.get("verify"):
-            answer = _verify(question, hits, answer)
+            answer = _verify(question, hits, answer)   # fact-check stays local
         res["answer"] = answer
-        res["llm"] = config.OLLAMA_MODEL
+        res["llm"] = model
+        if plan.get("provider_fallback"):
+            res["provider_fallback"] = plan["provider_fallback"]
         return res
     except Exception as exc:
         res["answer"] = _spec_fallback_text(question, hits, analysis, extra)
@@ -169,19 +227,21 @@ def stream_answer(question, hits, analysis, history=None) -> Iterator[dict[str, 
     try:
         if plan.get("verify"):
             # generate, fact-check, THEN reveal (can't stream a not-yet-checked draft)
-            draft = _ollama_chat(plan["messages"], plan["options"])
+            draft, model = _chat(plan)
             text = _verify(question, hits, draft)
             for ch in _word_chunks(text):
                 yield {"type": "token", "v": ch}
             final["answer"] = text
-            final["llm"] = config.OLLAMA_MODEL
+            final["llm"] = model
             final["verified"] = True
         else:
-            for delta in _ollama_stream(plan["messages"], plan["options"]):
+            for delta in _stream(plan):
                 parts.append(delta)
                 yield {"type": "token", "v": delta}
             final["answer"] = "".join(parts)
-            final["llm"] = config.OLLAMA_MODEL
+            final["llm"] = plan.get("model_used", config.OLLAMA_MODEL)
+        if plan.get("provider_fallback"):
+            final["provider_fallback"] = plan["provider_fallback"]
         yield final
     except Exception as exc:
         final["fallback"] = True

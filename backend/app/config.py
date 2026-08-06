@@ -52,6 +52,35 @@ LLM_REPEAT_PENALTY = float(os.getenv("LLM_REPEAT_PENALTY", "1.1"))
 # shorter budget keeps it tight and faithful to the computed values.
 SPEC_NUM_PREDICT = int(os.getenv("SPEC_NUM_PREDICT", "420"))
 SPEC_TEMPERATURE = float(os.getenv("SPEC_TEMPERATURE", "0.2"))
+
+# --- Specification narrative provider ---------------------------------------
+# The ONE path allowed to use a hosted model. llama3.1:8b writes weak spec prose
+# (that is the "flaw in generation"); a frontier model writes it far better. This
+# changes only WHO WRITES THE SENTENCES — every number in a specification is still
+# computed by app/engineering/* + resolver.py + pricing.py in Python (golden rule
+# #2). Chat, lookups, analytics, quotations and the verify pass all stay local.
+#   "auto"   -> OpenAI when OPENAI_API_KEY is set, else the local model
+#   "openai" -> force OpenAI (still falls back to local if the call fails)
+#   "ollama" -> force the local model (set this to switch the feature off)
+SPEC_LLM_PROVIDER = os.getenv("SPEC_LLM_PROVIDER", "auto").strip().lower()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o").strip()
+OPENAI_TIMEOUT = float(os.getenv("OPENAI_TIMEOUT", "120"))
+# Reasoning-era models renamed this field; `openai_client` retries across the two
+# spellings on a 400 and updates this, so the operator never has to know.
+OPENAI_MAX_TOKENS_FIELD = os.getenv("OPENAI_MAX_TOKENS_FIELD", "max_tokens").strip()
+
+
+def spec_provider() -> str:
+    """Resolve SPEC_LLM_PROVIDER to a concrete provider: 'openai' or 'ollama'.
+    A function, not a constant, so the key can be set after import (tests, and
+    the admin health endpoint reporting live state)."""
+    if SPEC_LLM_PROVIDER == "ollama":
+        return "ollama"
+    if SPEC_LLM_PROVIDER == "openai":
+        return "openai"
+    return "openai" if OPENAI_API_KEY else "ollama"      # "auto"
 # Soft bar for pulling company project data INTO a conversational answer as
 # grounding context (lower than RELEVANCE_THRESHOLD, which gates the "grounded"
 # badge). The model is told to use it only where it is actually relevant.
