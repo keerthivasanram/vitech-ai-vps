@@ -42,33 +42,24 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
-### ▶ 2026-08-06 (spec narrative provider + Requirement Consultant design)
-**BRANCH WARNING — READ FIRST.** This work is on **`fix/list-projects-category-filter`**, NOT
-main. `backend/app/openai_client.py` imports `app/observability`, which **does not exist on
-main** — cherry-picking it to main breaks the import. Either deploy this branch on the pod, or
-merge the branch into main first. Do not cherry-pick.
+### ▶ 2026-08-06 (Requirement Consultant design)
+**BRANCH NOTE.** This work is on **`fix/list-projects-category-filter`**, NOT main, and the pod
+runs main. Merge the branch into main (divergence is 3 doc commits) or deploy this branch —
+otherwise a `git pull` on the pod will not show `docs/requirement-consultant.md`.
 
-- [ ] **Spec-narrative provider (code, DONE locally, needs a key + pod verification).** The
-      knowledge-mode specification narrative can now be written by OpenAI instead of
-      llama3.1:8b. Everything else — chat, lookups, analytics, quotations, the verify pass —
-      stays local, unconditionally (`llm.py::_route`; only the plan tagged `provider="spec"`
-      can leave the box). **Numbers are untouched**: `app/engineering/*`, `resolver.py` and
-      `pricing.py` compute every value before a model sees it (golden rule #2).
-      - To enable on the pod: `OPENAI_API_KEY=sk-...` in `backend/.env` (gitignored), optional
-        `OPENAI_MODEL=` (default `gpt-4o`). To disable: `SPEC_LLM_PROVIDER=ollama`.
-      - Default is `auto` → **behaviour is unchanged until a key is set**, so pulling this is safe.
-      - Verify: `GET /api/admin/health` → new `spec_llm` block reports the live provider/model.
-      - Tested locally against a **stub server only** (no key here): request shaping, auth header,
-        SSE parsing, the `max_tokens`→`max_completion_tokens` retry, and fallback-to-local on
-        failure. **The real OpenAI endpoint is unexercised — first pod run is the real test.**
-      - Goldens ALL PASS before and after. No new dependency (httpx only).
-- [ ] **CAVEAT — this does NOT change what the UI chat shows.** The frontend posts to Flowise;
-      when the Engineering Agent builds a spec it calls `/api/tools/spec` (deterministic JSON,
-      zero LLM) and **llama3.1 narrates it**. In knowledge mode `_spec_markdown` returns None,
-      so llama3.1 writes the whole write-up freehand — that is the weak prose. The change above
-      is on the backend's own `/api/query` path. To reach the UI, either swap the Flowise
-      Engineering Agent's `ChatOllama` node → `ChatOpenAI`, or route spec generation through the
-      backend. **Product-owner decision, not yet made.**
+**NO OPENAI. There is no hosted-model code in this repo — do not add any without a decision.**
+A spec-narrative OpenAI provider (`app/openai_client.py` + a `_route` seam in `llm.py`) was
+built, tested and then **reverted on the same day** (revert of `2552c7d`). It worked; it was
+removed on purpose. Reasons, so nobody rebuilds it by accident:
+  - It only touched the backend's own `/api/query` path. **The UI chat goes through Flowise**,
+    where `/api/tools/spec` returns deterministic JSON with zero LLM and **llama3.1 narrates
+    it** (in knowledge mode `_spec_markdown` returns None, so llama3.1 writes the whole
+    write-up freehand — that is the weak prose). The swap changed nothing a user would see.
+  - It routed at the wrong granularity for the agreed architecture: `docs/requirement-consultant.md`
+    §5 specifies exactly two narrow LLM calls (`extract` → deltas, `phrase` → sentence), whereas
+    that seam dispatched whole answer *plans*.
+  - The design's core argument is **narrow the model's job first; model choice then becomes a
+    cheap dial**. Building the adapter before narrowing the job is backwards.
 - [ ] **`docs/requirement-consultant.md` — DESIGN ONLY, awaiting review. No code exists.**
       Architecture for a Requirement Consultant stage (Requirement Schema / RequirementSession /
       Question Policy / Assumption Engine). The dataclasses in it are **notation, not runnable**

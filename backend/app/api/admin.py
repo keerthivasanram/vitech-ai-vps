@@ -75,16 +75,6 @@ def health_detail():
     return {
         "status": "ok",
         "llm": {"model": config.OLLAMA_MODEL, "host": config.OLLAMA_HOST},
-        # Which model writes the specification narrative. Everything else (chat,
-        # lookups, the verify pass) is always the local model above; the numbers
-        # in a spec are computed in Python regardless of what this says.
-        "spec_llm": {
-            "provider": config.spec_provider(),
-            "configured": config.SPEC_LLM_PROVIDER,
-            "model": (config.OPENAI_MODEL if config.spec_provider() == "openai"
-                      else config.OLLAMA_MODEL),
-            "api_key_set": bool(config.OPENAI_API_KEY),
-        },
         "services": {
             "chromadb": _probe(_chroma),
             "ollama": _probe(_ollama),
