@@ -239,26 +239,13 @@ def cover(p: Doc):
     p.set_x(p.l_margin)
     p.multi_cell(avail(p), 5.4, _t(SUBTITLE))
 
-    p.set_y(58)
-    p.set_text_color(*MUTED)
-    p.set_font("Helvetica", "B", 8)
-    p.cell(avail(p) / 2, 4.4, _t("PREPARED FOR"))
-    p.cell(avail(p) / 2, 4.4, _t("PREPARED BY"), new_x="LMARGIN", new_y="NEXT")
-    p.set_font("Helvetica", "", 9.4)
-    p.set_text_color(*INK)
-    left = [RECIPIENT["company"], RECIPIENT["attn"]]
-    right = [SENDER["company"], SENDER["line1"], SENDER["line2"], SENDER["contact"]]
-    for i in range(max(len(left), len(right))):
-        p.cell(avail(p) / 2, 4.6, _t(left[i] if i < len(left) else ""))
-        p.cell(avail(p) / 2, 4.6, _t(right[i] if i < len(right) else ""),
-               new_x="LMARGIN", new_y="NEXT")
-    p.ln(2)
+    p.set_y(56)
     p.set_font("Helvetica", "", 9)
     p.set_text_color(*MUTED)
-    p.cell(0, 4.6, _t(f"Date: {date.today().strftime('%d %B %Y')}"),
+    p.cell(0, 4.6, _t(date.today().strftime("%d %B %Y")),
            new_x="LMARGIN", new_y="NEXT")
 
-    p.ln(7)
+    p.ln(5)
     p.set_draw_color(*RULE)
     p.line(p.l_margin, p.get_y(), p.w - p.r_margin, p.get_y())
     p.ln(6)
