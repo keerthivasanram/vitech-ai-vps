@@ -42,6 +42,47 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-08-06 (spec narrative provider + Requirement Consultant design)
+**BRANCH WARNING — READ FIRST.** This work is on **`fix/list-projects-category-filter`**, NOT
+main. `backend/app/openai_client.py` imports `app/observability`, which **does not exist on
+main** — cherry-picking it to main breaks the import. Either deploy this branch on the pod, or
+merge the branch into main first. Do not cherry-pick.
+
+- [ ] **Spec-narrative provider (code, DONE locally, needs a key + pod verification).** The
+      knowledge-mode specification narrative can now be written by OpenAI instead of
+      llama3.1:8b. Everything else — chat, lookups, analytics, quotations, the verify pass —
+      stays local, unconditionally (`llm.py::_route`; only the plan tagged `provider="spec"`
+      can leave the box). **Numbers are untouched**: `app/engineering/*`, `resolver.py` and
+      `pricing.py` compute every value before a model sees it (golden rule #2).
+      - To enable on the pod: `OPENAI_API_KEY=sk-...` in `backend/.env` (gitignored), optional
+        `OPENAI_MODEL=` (default `gpt-4o`). To disable: `SPEC_LLM_PROVIDER=ollama`.
+      - Default is `auto` → **behaviour is unchanged until a key is set**, so pulling this is safe.
+      - Verify: `GET /api/admin/health` → new `spec_llm` block reports the live provider/model.
+      - Tested locally against a **stub server only** (no key here): request shaping, auth header,
+        SSE parsing, the `max_tokens`→`max_completion_tokens` retry, and fallback-to-local on
+        failure. **The real OpenAI endpoint is unexercised — first pod run is the real test.**
+      - Goldens ALL PASS before and after. No new dependency (httpx only).
+- [ ] **CAVEAT — this does NOT change what the UI chat shows.** The frontend posts to Flowise;
+      when the Engineering Agent builds a spec it calls `/api/tools/spec` (deterministic JSON,
+      zero LLM) and **llama3.1 narrates it**. In knowledge mode `_spec_markdown` returns None,
+      so llama3.1 writes the whole write-up freehand — that is the weak prose. The change above
+      is on the backend's own `/api/query` path. To reach the UI, either swap the Flowise
+      Engineering Agent's `ChatOllama` node → `ChatOpenAI`, or route spec generation through the
+      backend. **Product-owner decision, not yet made.**
+- [ ] **`docs/requirement-consultant.md` — DESIGN ONLY, awaiting review. No code exists.**
+      Architecture for a Requirement Consultant stage (Requirement Schema / RequirementSession /
+      Question Policy / Assumption Engine). The dataclasses in it are **notation, not runnable**
+      — they reference types that don't exist yet. Do not try to implement it verbatim.
+      - Core finding: the bottleneck is the schema, not the model. `wet_scrubber.required_inputs`
+        is 3 slots; contaminant, chemistry, material, height, efficiency, utilities, location and
+        expansion have nowhere to be stored, so no model can usefully ask about them.
+      - Two divergence risks to close when implementing: `release_gate.assess()` already emits
+        `questions`, and `analysis.py::_assumptions_and_missing` already produces assumptions.
+        Both must be folded into the new subsystems, not paralleled.
+      - Phase 0 (schema for `wet_scrubber` only, goldens must stay byte-identical) is LOCAL work.
+      - **Blocked on two product decisions** (design §9): are five tiers right, and who owns
+        `target_tier` (inferred from the ask vs. set explicitly by the engineer)?
+
 ### ▶ 2026-08-05 (drawing correctness) — THE WET SCRUBBER DREW A BLANK SHEET. Root cause was the PLANNER.
 Priority order set by the product owner: **correctness before presentation**. All twelve suites
 green; goldens and the 28 contract fingerprints re-recorded (both intended, both proven additive
