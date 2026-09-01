@@ -23,7 +23,9 @@ from .engineering.engineering_planner import _fmt, _given, _num, _tech, generate
 from .ledger import build_ledger
 from .schema import QueryUnderstanding
 from .spec_schema import ATS
-from .validate import cross_validate, validate
+from .spec_template import apply_template
+from .release_gate import assess as assess_release
+from .validate import cross_validate, demote_unscalable, validate
 
 _STRUCTURED = {"specification", "quotation"}
 
@@ -104,9 +106,19 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
     technical, rules_list = ([], [])
     if structured:
         technical, rules_list = generate_spec(profile, category, params, chosen, offers, policy)
+        # Reconcile against the category spec TEMPLATE: guarantee every expected
+        # field is present, filling any gap with an explicit TBD (needs engineering
+        # input) rather than leaving a hole for the model to hallucinate into.
+        # Opt-in per category; no-op where no template is defined.
+        # A size-dependent value copied across a large size gap is a different
+        # machine's answer. Demote it to an honest gap BEFORE the template runs,
+        # so it is scheduled as TBD rather than asserted as engineered fact.
+        technical = demote_unscalable(technical, params, chosen, profile)
+        technical = apply_template(profile, technical, offers, params)
 
     assumptions, missing = _assumptions_and_missing(profile, params, offers) if structured else ([], [])
-    validation = ((validate(category, params) + cross_validate(category, params, chosen, technical))
+    validation = ((validate(category, params)
+                   + cross_validate(category, params, chosen, technical, profile))
                   if structured else [])
     confidence, conf_label, criteria, conf_factors, conf_notes = _confidence(
         match, technical, profile, params, missing, len(offers), validation)
@@ -132,6 +144,9 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         "knowledge_contribution": knowledge_contribution,  # % per source
         "decision_origin": decision_origin,   # canonical [{type,count}] table
         "validation": validation,             # engineering sanity checks {level,message}
+        # Whether this may LEAVE the building, which confidence does not say:
+        # a well-founded spec that contradicts itself is still an internal draft.
+        "release": assess_release({"technical_details": technical, "validation": validation}),
         "completeness": round(comp_score * 100),
         "completeness_missing": comp_missing,
         "assumptions": assumptions,           # missing inputs filled by historical consensus
@@ -365,9 +380,14 @@ def _confidence(match, technical, profile, params, missing, n_offers, validation
 
     historical = min(1.0, n_offers / 3.0)
 
+    # A "tbd" row is an ADMITTED GAP, never a backed decision. It stays in the
+    # denominator so unknowns dilute coverage: a spec with more open fields must
+    # score LOWER, not higher (before this, tbd fell through the `not in`
+    # test and counted as rule-backed, so adding gaps raised confidence).
     total_dec = len(technical) or 1
-    backed = sum(1 for it in technical if it["origin"] not in ("reused", "kept"))
+    backed = sum(1 for it in technical if it["origin"] not in ("reused", "kept", "tbd"))
     rule_coverage = backed / total_dec
+    n_tbd = sum(1 for it in technical if it.get("origin") == "tbd")
 
     n_val = len(validation or [])
     warns = sum(1 for c in (validation or []) if c.get("level") == "warn")
@@ -386,6 +406,10 @@ def _confidence(match, technical, profile, params, missing, n_offers, validation
         notes.append("Missing inputs: " + ", ".join(missing) + ".")
     if warns:
         notes.append(f"{warns} engineering check(s) flagged - see Engineering checks.")
+    if n_tbd:
+        plural = "s" if n_tbd != 1 else ""
+        notes.append(f"{n_tbd} specification field{plural} still to be determined - "
+                     f"needs engineering input.")
 
     factors = [
         {"label": "Requirement completeness", "value": f"{round(completeness * 100)}% ({provided}/{total_exp} inputs)"},

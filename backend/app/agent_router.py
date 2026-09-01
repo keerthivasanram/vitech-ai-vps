@@ -12,6 +12,7 @@ routes and scopes, it never invents a value (golden rule #2).
 from __future__ import annotations
 
 from . import config
+from .observability import trace as _obs
 from .analysis import essential_present, requirement_completeness
 from .catalog import get_profile
 from .quotation import build_quotation
@@ -55,11 +56,18 @@ def prepare(question: str, top_k: int | None, history=None):
         adaptable = bool(profile and (
             profile.get("rules") or profile.get("field_rules")
             or (profile.get("scale_driver") and profile.get("scalable"))))
+        # CASE-BASED = no closed-form rules, but we DO reuse the nearest matching
+        # historical design deterministically (e.g. ovens). Distinct from adaptable
+        # (which SCALES) — case-based REUSES. Build from data whenever the category
+        # has offers and the user gave something to match on, so the model never has
+        # to invent an oven's dimensions/heating/insulation from an empty spec.
+        case_based = bool(profile and profile.get("case_based"))
         buildable = adaptable or has_offers(u.category)
         wants_quote = u.intent == "quotation"
         use_data = buildable and (
             refer_db
             or (adaptable and essential and completeness >= config.HYBRID_THRESHOLD)
+            or (case_based and has_offers(u.category) and bool(u.parameters))
             or (wants_quote and essential))
 
     # Multi-turn memory: resolve a short/pronoun follow-up ("compare it with the
@@ -106,12 +114,17 @@ def prepare(question: str, top_k: int | None, history=None):
     # One resolver, two policies (the ONLY place the product split lives):
     #   Consulting Engineer  -> knowledge policy (ask for missing inputs, no guess)
     #   ATS Engineering Expert -> data policy (history + rules + validation)
+    _obs.note(equipment=u.category)
     if structured and not use_data:
-        analysis = resolve(question, hits, u, CONSULTING)
+        with _obs.span("resolve.spec", "resolve") as _s:
+            _s.detail(policy="consulting", category=u.category)
+            analysis = resolve(question, hits, u, CONSULTING)
         analysis["completeness"] = round(completeness * 100)
         analysis["completeness_missing"] = missing_inputs
     else:
-        analysis = resolve(question, hits, u, ATS)
+        with _obs.span("resolve.spec", "resolve") as _s:
+            _s.detail(policy="ats", category=u.category)
+            analysis = resolve(question, hits, u, ATS)
         if structured:
             analysis["spec_mode"] = "data"
             # Quotation Agent: layer a budgetary quote on top of the data-mode spec

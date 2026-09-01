@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator
 
 from . import config
-from .store import get_collection
+from .store import get_collection, invalidate_records
 
 # Fields that are bookkeeping rather than engineering content.
 _SKIP_KEYS = {"id", "title", "source_file"}
@@ -126,6 +126,11 @@ def ingest_source(
         processed += len(batch)
         if progress:
             progress(processed, processed)  # total unknown while streaming
+    # The parsed-record cache is now stale. An UPSERT can leave the count
+    # unchanged while changing a record's contents, so the cheap count check in
+    # `offer_records` would not notice — invalidating here is what makes the
+    # cache correct rather than merely fast.
+    invalidate_records()
     return processed
 
 

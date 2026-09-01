@@ -13,7 +13,7 @@ from .catalog import get_profile, label_for
 from .classify import CONFIDENT, classify_equipment
 from .pricing import inr_display
 from .retriever import _names_stored_client, project_hits
-from .store import get_collection
+from .store import get_collection, offer_records
 
 _CAT_LABEL = {
     "wet_scrubber": "Wet Scrubber", "paint_booth": "Paint Booth",
@@ -32,15 +32,7 @@ def _label(cat: str) -> str:
 
 
 def _records() -> list[dict]:
-    col = get_collection()
-    if col.count() == 0:
-        return []
-    out = []
-    for m in col.get(include=["metadatas"])["metadatas"]:
-        raw = m.get("_raw")
-        if raw:
-            out.append(json.loads(raw))
-    return out
+    return offer_records()
 
 
 def _driver(rec: dict):
@@ -169,6 +161,83 @@ def _fmt_val(v) -> str:
 
 def _render_fields(category, d: dict) -> list[str]:
     return [f"- **{label_for(category, k)}:** {_fmt_val(v)}" for k, v in d.items()]
+
+
+def _md_rows(category, d: dict) -> list[str]:
+    out = ["| Parameter | Value |", "| --- | --- |"]
+    for k, v in d.items():
+        lbl = str(label_for(category, k)).replace("|", "/")
+        val = _fmt_val(v).replace("|", "/")
+        out.append(f"| {lbl} | {val} |")
+    return out
+
+
+def render_lookup_markdown(recs: list[dict], *, price_asked: bool) -> str:
+    """Ready-to-print block for a historical-offer lookup, rendered in code.
+
+    Deliberately headed "Historical Project Found" and never with the company
+    name: the agent prints this verbatim, so an archive record can no longer be
+    dressed up to look like a freshly generated quotation.
+    """
+    L: list[str] = []
+    if len(recs) > 1:
+        clients = {r.get("client") for r in recs if r.get("client")}
+        who = next(iter(clients)) if len(clients) == 1 else "this query"
+        L.append(f"### Historical Projects Found ({len(recs)}) — {who}")
+        L.append("")
+        L.append("_Each is its own past project, not a comparison. "
+                 "Name a Ref or id to see just one._")
+        L.append("")
+
+    for i, r in enumerate(recs):
+        cat = r.get("category")
+        client = r.get("client") or "n/a"
+        if len(recs) > 1:
+            L.append(f"#### {i + 1}. {client}")
+        else:
+            L.append(f"### Historical Project Found — {client}")
+        L.append("")
+
+        L.append(f"**Project:** {r.get('id', '-')}")
+        if cat:
+            L.append(f"**Equipment:** {_label(cat)}")
+        meta = [f"**{lbl}:** {r[k]}"
+                for k, lbl in (("ref", "Ref"), ("date", "Date")) if r.get(k)]
+        if meta:
+            L.append("  |  ".join(meta))
+        L.append("")
+
+        gd = r.get("given_data") or {}
+        if gd:
+            L.append("**Requirement (as received)**")
+            L += _md_rows(cat, gd)
+            L.append("")
+        td = r.get("technical_details") or {}
+        if td:
+            L.append("**Engineered Solution**")
+            L += _md_rows(cat, td)
+            L.append("")
+
+        if price_asked:
+            disp = r.get("price_schedule_display") or {}
+            if disp:
+                L.append("**Commercial**")
+                L.append("| Item | Amount |")
+                L.append("| --- | --- |")
+                for k, v in disp.items():
+                    L.append(f"| {str(k).replace('|', '/')} | {v} |")
+                L.append("")
+
+        if r.get("source_file"):
+            L.append(f"**Source:** {r['source_file']}")
+            L.append("")
+        if i < len(recs) - 1:
+            L.append("---")
+            L.append("")
+
+    L.append("_Historical record from Vitech's offer archive - not a new quotation. "
+             "To price a new requirement, state the equipment with its size or capacity._")
+    return "\n".join(L)
 
 
 def record_detail(question: str, *, force_tech: bool = False) -> str | None:

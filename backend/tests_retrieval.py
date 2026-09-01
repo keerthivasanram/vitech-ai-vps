@@ -95,6 +95,28 @@ check("cache returns what was stored", cache.get(q, filt, k) == payload)
 cache.bump_version()
 check("cache miss after version bump (invalidation)", cache.get(q, filt, k) is None)
 
+# --- parsed-offer cache (app/store.py) --------------------------------------
+# Eight call sites re-scanned and re-parsed every stored record on every
+# request. The cache must be transparent: same content, and a write must make
+# the next read see it.
+from app.store import invalidate_records, offer_records          # noqa: E402
+
+_first = offer_records()
+check("the parsed-record cache returns the corpus", len(_first) > 0)
+check("a second read reuses the SAME object (no re-parse)", offer_records() is _first)
+invalidate_records()
+_rebuilt = offer_records()
+check("invalidation forces a rebuild", _rebuilt is not _first)
+check("the rebuild is byte-identical — caching changed no content",
+      _rebuilt == _first)
+
+# The cache is shared and handed out by reference, so a caller that sorts it in
+# place would silently corrupt every other reader. `/api/records` copies first;
+# this pins the invariant that made that necessary.
+_snapshot = list(offer_records())
+sorted(offer_records(), key=lambda r: str(r.get("id")))     # must not mutate
+check("reading does not reorder the shared cache", offer_records() == _snapshot)
+
 print()
 if _fail:
     print(f"{_fail} RETRIEVAL TEST(S) FAILED")

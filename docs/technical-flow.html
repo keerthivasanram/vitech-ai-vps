@@ -78,6 +78,10 @@
   </div>
 
   <h2>1. Request lifecycle</h2>
+  <p style="margin:0 0 14px">The chat surfaces call the <b>Flowise agents</b>, which call the
+  tool API below; the same pipeline also serves the Drawing Studio form and the PDF endpoints
+  directly. See <code>docs/architecture.html</code> for the full topology and the workflow
+  diagram.</p>
   <div class="flow">
 
     <div class="stage"><div class="n">1</div><div>
@@ -94,7 +98,7 @@
 
     <div class="stage"><div class="n">3</div><div>
       <h3>Retrieve <span class="chip det">DET</span> <code>retriever.py · ChromaDB</code></h3>
-      <p>Semantic vector search (MiniLM embeddings) over the knowledge base, category-filtered. Analytics/comparison pull the whole corpus or the named records.</p>
+      <p>A multi-stage pipeline: cache → vector over-fetch → permission filter → hybrid rerank (dense + lexical + metadata) → chunk select. Category-filtered; analytics and comparison pull the whole corpus or the named records.</p>
     </div></div>
     <div class="arrow">↓</div>
 
@@ -106,7 +110,19 @@
 
     <div class="stage"><div class="n">5</div><div>
       <h3>Validate &amp; score <span class="chip det">DET</span> <code>validate.py · ledger.py</code></h3>
-      <p>Every value is sanity-checked against engineering limits and cross-checked; a <b>decision ledger</b> records each value's origin; a multi-factor <b>confidence</b> is computed.</p>
+      <p>Every value is sanity-checked against engineering limits and cross-checked against the design it was drawn from. A value REUSED across a size gap wider than the client's ±20% band is <b>demoted to an honest gap</b> rather than asserted. A <b>decision ledger</b> records each value's origin; a multi-factor <b>confidence</b> is computed.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">5b</div><div>
+      <h3>Release gate <span class="chip det">DET</span> <code>release_gate.py</code></h3>
+      <p>Confidence says how well-founded the numbers are; this says whether the document may <b>leave the building</b>: Engineering Draft → Customer Review Draft → Customer Ready. A customer's decision counts as a question, not a gap. <b>Released Design is never automatic</b> — it is an engineer's signature.</p>
+    </div></div>
+    <div class="arrow">↓</div>
+
+    <div class="stage"><div class="n">5c</div><div>
+      <h3>Draw &amp; cost <span class="chip det">DET</span> <code>drawing/ · bom.py</code></h3>
+      <p>The same resolved model becomes a dimensioned <b>GA drawing</b> (three views, category glyph, item list, revision block; SVG / DXF R12 / true-size PDF) and a <b>bill of materials</b> (quantities and weights complete; priced only where the client's rate card reaches, with every unpriced line named).</p>
     </div></div>
     <div class="arrow">↓</div>
 
@@ -157,17 +173,26 @@
   <p class="muted">This is a <b>grounded / compound AI system</b> — generative AI for language, symbolic engine for the engineering. It is more than plain retrieval-augmented generation (RAG): retrieval feeds a reasoning engine, not just the prompt.</p>
 
   <h2>4. Status — what is built</h2>
-  <div class="status done"><h3>✔ Done (working prototype)</h3>
+  <div class="status done"><h3>✔ Live (2 August 2026)</h3>
     <ul>
-      <li><b>Specification engine</b> — rules + case-based reasoning over 33 real offers (10 categories), with provenance, validation, decision ledger and confidence.</li>
-      <li><b>One resolver, two policies</b> — Consulting Engineer / ATS Engineering Expert, golden-locked byte-identical.</li>
-      <li><b>Quotation agent</b> — deterministic budgetary pricing (per-unit, driver-scaled, trend cross-checked) + scope + terms; on-screen card and a Vitech-format PDF draft.</li>
-      <li><b>Deterministic analytics</b> — exact counts / lists / clients computed in code.</li>
-      <li><b>Grounded Q&amp;A</b> — conversational answers cited to your data, or flagged as general knowledge; direct lookups fact-verified.</li>
+      <li><b>Three agents</b> — Engineering, Quotation and Drawing, each a Flowise Tool Agent over the same deterministic tool API.</li>
+      <li><b>Specification engine</b> — rules, client standards and case-based reasoning over 33 real offers across <b>14 categories</b>, with provenance, a decision ledger and confidence.</li>
+      <li><b>Component selection</b> — filters by media velocity, lighting by lux, duct by transport velocity, electrical by connected load, and a blower chosen from a real 203-model vendor chart.</li>
+      <li><b>Engineering review</b> — cross-validation against the source design, the client's ±20% size-gap rule, and a release-status gate that says whether a document may go to a customer.</li>
+      <li><b>GA drawing engine</b> — all 14 categories, three views, dimensions, category glyphs, item list and revision block; exports to SVG, DXF R12 and true-size PDF. A generated specification can itself be drawn.</li>
+      <li><b>Bill of materials</b> — quantities and weights from the same resolved model; priced only where the client's own rate card reaches, with every unpriced line named.</li>
+      <li><b>Quotation</b> — deterministic budgetary pricing (per-unit, driver-scaled, trend cross-checked) plus scope and terms, as an on-screen card and a house-style PDF.</li>
+      <li><b>Deterministic analytics and grounded Q&amp;A</b> — exact counts and lists computed in code; answers cited to your data or flagged as general knowledge.</li>
     </ul>
   </div>
+  <p class="muted">Held by <b>eight test suites</b> — golden, engineering, drawing, lookup,
+  pricing, retrieval, review and bom — with ten specification cases locked byte-for-byte.</p>
 
   <h2>5. Next — the data foundation</h2>
+  <p class="muted" style="margin:0 0 10px">Six client inputs currently gate specific
+  capabilities — the complete costed BOM, powder-coating and pollution-control calculations,
+  component setting-out rules, a real issued quotation, and documents for the knowledge base.
+  <code>docs/architecture.html</code> §5 lists what each one unblocks.</p>
   <div class="status next"><h3>→ Next phase: automatic extraction + a structured database</h3>
     <p style="margin:0 0 8px;font-size:14px;">Today's 33 offers were hand-entered. Next we ingest <b>all</b> your files automatically:</p>
     <ul>

@@ -15,14 +15,20 @@ from typing import Optional
 
 from ..schema import ComputedSpec, RuleResult, SpecValue
 from . import standards_service as std
+from . import design_standards as ds
+from .blower_service import select_booth_blower_set
 from .calculation_engine import count_ceil, count_round, round_to_step
 from .material_service import select_paint_process
-from .unit_converter import air_cmh
+from .paint_shop_service import (INLET_LESS_10, enclosure_surface_area,
+                                 normalise_draft, sheet_weight_kg)
+from .unit_converter import CFM_TO_CMH, air_cmh
 
-# --- Paint booth design constants (NFPA 33 / ATS) --------------------------
-FACE_VELOCITY = 0.45          # m/s across the open face (NFPA 33 range 0.4-0.5)
-FAN_CAPACITY = 13000          # m3/h handled by one axial exhaust fan
-FILTERS_PER_M2 = 0.6          # dry filter panels per m2 of floor area
+# --- Paint booth design constants ------------------------------------------
+# Face velocity and filter count are NO LONGER constants: the client's standards
+# package gives a design velocity per canonical booth type and a filter count
+# derived from media velocity (see `design_standards`). FACE_VELOCITY remains
+# only as the fallback when no booth type can be resolved.
+FACE_VELOCITY = 0.50          # m/s, fallback only (Dry Filter Cross Draft)
 DEFAULT_HEIGHT = 4.0          # assumed booth height when not specified
 
 # --- Wet scrubber design constants (ATS, calibrated to OFF-C2C-WS-172) -----
@@ -38,9 +44,20 @@ _G = 9.81                     # m/s^2
 
 def compute_spec(length_m: Optional[float], width_m: Optional[float],
                  height_m: Optional[float] = None,
-                 paint_type: Optional[str] = None) -> ComputedSpec:
+                 paint_type: Optional[str] = None,
+                 booth_type: Optional[str] = None,
+                 face_velocity: Optional[float] = None) -> ComputedSpec:
     """Apply engineering rules to a paint-booth requirement. Returns computed
-    values, each tagged with provenance, plus the rule trail (formula + standard)."""
+    values, each tagged with provenance, plus the rule trail (formula + standard).
+    booth_type is honoured so a liquid booth's filtration/material stays coherent
+    with the actual booth design (dry-filter unless a water-wash booth).
+
+    `face_velocity` overrides the booth type's design velocity for THIS design.
+    A stated override is engineering the customer or our engineer has specified
+    (a duty a local regulator requires, a booth built to a customer standard),
+    so it must beat the table rather than be silently ignored — and the rule
+    trail says which value was used and where it came from, so a reader can
+    never be left wondering which velocity produced the airflow."""
     spec = ComputedSpec(length_m=length_m, width_m=width_m, height_m=height_m)
     if length_m is None or width_m is None:
         return spec  # not enough to compute a booth; caller handles concept Qs
@@ -48,37 +65,132 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     height = height_m or DEFAULT_HEIGHT
     spec.height_m = height
     paint = (paint_type or "powder").lower()
-    proc = select_paint_process(paint_type)
+    proc = select_paint_process(paint_type, booth_type)
 
     face_area = width_m * height          # open working face
     floor_area = length_m * width_m
-    airflow = face_area * FACE_VELOCITY * 3600
-    fans = count_ceil(airflow / FAN_CAPACITY)
-    filters = count_ceil(floor_area * FILTERS_PER_M2)
+
+    # Booth type drives the design face velocity (client standards package), so
+    # the velocity the spec states and the velocity that computed the airflow are
+    # by construction the same number — the contradiction the review found.
+    booth, booth_warning = ds.resolve_booth_type(booth_type, paint_type)
+    velocity = float(face_velocity) if face_velocity else booth.velocity
+    velocity_source = ("stated for this design" if face_velocity
+                       else f"design face velocity for {booth.label}")
+    airflow = face_area * velocity * 3600
+
+    # Exhaust blower comes from the VENDOR CATALOGUE, not a capacity heuristic:
+    # a real Continental Thermal model, its rated CFM and its motor HP. This is
+    # what supersedes the old invented "13000 m3/h per fan" constant, and is the
+    # same selection that reproduces the client's own costed booth BOM.
+    airflow_cfm = airflow / CFM_TO_CMH
+    blower, blower_qty = select_booth_blower_set(airflow_cfm)
+
+    # Make-up air and enclosure sheet weight, per the client's calculation doc.
+    # Booths run under negative pressure: inlet is 10% BELOW exhaust so paint
+    # fume cannot escape the enclosure.
+    inlet = airflow * INLET_LESS_10
+    surface_area = enclosure_surface_area(length_m, width_m, height)
+    sheet_kg = sheet_weight_kg(surface_area)
+
+    # Component selection from the client's standards package. These fields were
+    # previously either a seeded ratio (filters), copied verbatim from a
+    # different-sized booth (illumination), or left "To be determined" (duct,
+    # electrical, fire) even though the airflow and load needed to size them were
+    # already in hand.
+    filters_sel = ds.select_filters(airflow)
+    light_sel = ds.select_lighting(
+        floor_area, "powder" if "powder" in paint else "manual_painting")
+    duct_sel = ds.select_duct(
+        airflow, "powder" if "powder" in paint else "paint_fume")
+    fire_sel = ds.select_fire_protection(paint_type)
+    material_sel = ds.recommend_material(paint_type)
 
     spec.rules = [
+        RuleResult(name="Type of paint booth", value=booth.label,
+                   formula=f"canonical booth type; face velocity {velocity:g} m/s "
+                           f"({velocity_source})",
+                   standard=std.CLIENT_BOOTH_STANDARD),
         RuleResult(name="Exhaust airflow", value=f"{round_to_step(airflow, 10)} m3/h",
-                   formula=f"face area {width_m}x{height} x velocity {FACE_VELOCITY} m/s x 3600",
-                   standard=std.NFPA_33_FACE_VELOCITY),
-        RuleResult(name="Exhaust fans", value=str(fans),
-                   formula=f"ceil(airflow / {FAN_CAPACITY} m3/h per fan)",
-                   standard=std.ATS_FAN_SIZING),
-        RuleResult(name="Dry filters", value=str(filters),
-                   formula=f"ceil(floor area {floor_area:g} m2 x {FILTERS_PER_M2}/m2)",
-                   standard=std.ATS_OVERSPRAY_CAPTURE),
-        RuleResult(name="Construction", value=proc["material"],
-                   formula=f"{paint} process -> {proc['material']} / {proc['filter_type']} filtration",
-                   standard=std.ATS_MATERIAL_SELECTION),
+                   formula=(f"face area {width_m}x{height} = {face_area:g} m2 x velocity "
+                            f"{velocity:g} m/s ({velocity_source}) x 3600"),
+                   standard=std.CLIENT_BOOTH_STANDARD),
+        RuleResult(name="Inlet air volume", value=f"{round_to_step(inlet, 10)} m3/h",
+                   formula=f"exhaust {round_to_step(airflow, 10)} m3/h 10% less (booth held under suction)",
+                   standard=std.CLIENT_PAINT_SHOP_CALC),
+        RuleResult(name="Paint arresting filter", value=filters_sel.value,
+                   formula=filters_sel.formula, standard=std.CLIENT_FILTER_STANDARD),
+        RuleResult(name="Construction material", value=material_sel.value,
+                   formula=material_sel.formula, standard=std.CLIENT_MATERIAL_MATRIX),
+        RuleResult(name="Exhaust ducts", value=duct_sel.value,
+                   formula=duct_sel.formula, standard=std.CLIENT_DUCT_STANDARD),
+        RuleResult(name="Illumination", value=light_sel.value,
+                   formula=light_sel.formula, standard=std.CLIENT_LIGHTING_STANDARD),
+        RuleResult(name="Fire extinguishing system", value=fire_sel.value,
+                   formula=fire_sel.formula, standard=std.CLIENT_FIRE_STANDARD),
+        RuleResult(name="Enclosure sheet weight", value=f"{round(sheet_kg)} kg",
+                   formula=(f"5-side surface area {surface_area:.1f} m2 (floor excluded) "
+                            f"x 2 mm MS sheet"),
+                   standard=std.MS_SHEET_BASIS),
     ]
 
     spec.values = [
         SpecValue(label="Dimensions", value=f"{length_m:g} x {width_m:g} x {height:g} m", origin="rule"),
+        SpecValue(label="Type of paint booth", value=booth.label, origin="rule"),
         SpecValue(label="Exhaust airflow", value=f"{round_to_step(airflow, 10)} m3/h", origin="rule"),
-        SpecValue(label="Exhaust fans", value=str(fans), origin="rule"),
-        SpecValue(label="Filters", value=f"{filters} ({proc['filter_type']})", origin="rule"),
-        SpecValue(label="Construction material", value=proc["material"], origin="rule"),
+        SpecValue(label="Inlet air volume", value=f"{round_to_step(inlet, 10)} m3/h", origin="rule"),
+        SpecValue(label="Paint arresting filter", value=filters_sel.value, origin="rule"),
+        SpecValue(label="Construction material", value=material_sel.value, origin="advisory"),
+        SpecValue(label="Exhaust ducts", value=duct_sel.value, origin="rule"),
+        SpecValue(label="Illumination", value=light_sel.value, origin="rule"),
+        SpecValue(label="Fire extinguishing system", value=fire_sel.value, origin="standard"),
         SpecValue(label="Paint process", value=paint, origin="rule"),
+        SpecValue(label="Enclosure sheet weight", value=f"{round(sheet_kg)} kg", origin="rule"),
     ]
+
+    if blower is not None:
+        # Panel scope follows from the connected load, which is only known once
+        # the blower is selected.
+        elec = ds.select_electrical(blower.motor_hp * blower_qty,
+                                    light_sel.detail.get("watts_total", 0) / 1000.0)
+        spec.rules.append(RuleResult(name="Electrical fittings & motors", value=elec.value,
+                                     formula=elec.formula, standard=std.CLIENT_ELECTRICAL_STANDARD))
+        spec.values.append(SpecValue(label="Electrical fittings & motors",
+                                     value=f"{elec.value}; {', '.join(ds.PANEL_SCOPE[:4])}",
+                                     origin="rule"))
+        spec.values.append(SpecValue(label="Control panel",
+                                     value=f"{elec.detail['starter']} MCC, {elec.detail['connected_kw']} kW",
+                                     origin="rule"))
+        spec.rules.append(RuleResult(name="Control panel",
+                                     value=f"{elec.detail['starter']} MCC",
+                                     formula=elec.formula, standard=std.CLIENT_ELECTRICAL_STANDARD))
+
+        # Each catalogue-derived row carries its OWN formula + standard. Without
+        # that the planner's rule-matching falls back to origin "given", which
+        # would wrongly attribute vendor catalogue data to the customer.
+        pick = (f"duty {round(airflow_cfm)} CFM -> smallest {blower.model} "
+                f"covering it in the booth series")
+        spec.rules += [
+            RuleResult(name="Exhaust blower", value=blower.model, formula=pick,
+                       standard=std.BLOWER_CHART_SELECTION),
+            RuleResult(name="Blower airflow (CFM)", value=str(blower.cfm),
+                       formula=f"{blower.model} rated air volume", standard=std.BLOWER_CHART_SELECTION),
+            RuleResult(name="Exhaust blower (nos)", value=str(blower_qty),
+                       formula=f"{blower_qty} x {blower.model} to cover {round(airflow_cfm)} CFM",
+                       standard=std.BLOWER_CHART_SELECTION),
+            RuleResult(name="Exhaust blower motor (HP)", value=f"{blower.motor_hp:g}",
+                       formula=f"{blower.model} rated motor ({blower.poles}-pole, {blower.motor_rpm} rpm)",
+                       standard=std.BLOWER_CHART_SELECTION),
+            RuleResult(name="Blower drive", value=blower.drive,
+                       formula=f"{blower.model} is a direct-drive machine", standard=std.BLOWER_CHART_SELECTION),
+        ]
+        spec.values += [
+            SpecValue(label="Exhaust blower", value=blower.model, origin="rule"),
+            SpecValue(label="Blower airflow (CFM)", value=str(blower.cfm), origin="rule"),
+            SpecValue(label="Exhaust blower (nos)", value=str(blower_qty), origin="rule"),
+            SpecValue(label="Exhaust blower motor (HP)", value=f"{blower.motor_hp:g}", origin="rule"),
+            SpecValue(label="Blower drive", value=blower.drive, origin="rule"),
+        ]
     return spec
 
 

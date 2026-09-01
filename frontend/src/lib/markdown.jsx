@@ -71,6 +71,19 @@ export function Answer({ text, streaming }) {
       );
       continue;
     }
+    // "+" is how models commonly mark a nested sub-bullet when they don't
+    // indent (no leading whitespace to key off) — render it a level down
+    // from a "•/-/*" bullet, not as a flat paragraph.
+    const sub = t.match(/^\+\s+(.*)$/);
+    if (sub) {
+      out.push(
+        <div key={key++} className="li sub">
+          <span className="marker">–</span>
+          <span className="li-body">{inline(sub[1])}</span>
+        </div>
+      );
+      continue;
+    }
     const ul = t.match(/^[•\-*]\s+(.*)$/);
     if (ul) {
       out.push(

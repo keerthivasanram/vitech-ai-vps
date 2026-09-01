@@ -13,12 +13,105 @@ Each profile declares:
 from typing import Any, Callable, Optional
 
 from .rules import compute_spec, compute_wet_scrubber
-from .schema import ComputedSpec
+from .schema import ComputedSpec, RuleResult, SpecValue
 
 
 def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
+    # `face_velocity_ms` is the per-design override (DQ-2): absent, the booth
+    # type's own design velocity governs. It is deliberately NOT in
+    # `required_inputs` / `optional_inputs` yet — adding it there changes the
+    # studio form and the drawing catalog response, which is a UI decision, not
+    # an engineering one.
     return compute_spec(params.get("length_m"), params.get("width_m"),
-                        params.get("height_m"), params.get("paint_type"))
+                        params.get("height_m"), params.get("paint_type"),
+                        params.get("booth_type"), params.get("face_velocity_ms"))
+
+
+def _paint_shop_rules(unit: str) -> Callable[[dict[str, Any]], ComputedSpec]:
+    """Rule engine for one paint-shop line unit, from the client's calculation
+    document (see `engineering/paint_shop_service`).
+
+    The service returns a trail of (name, value, formula, standard) rows — every
+    one of them a computed engineering value — which maps straight onto the
+    ComputedSpec the resolver expects. Only rows the client's formulas actually
+    produced appear; a value needing an input nobody supplied (e.g. the oven's
+    ACH) simply is not in the trail, and the spec template turns it into a TBD.
+    """
+    def run(params: dict[str, Any]) -> ComputedSpec:
+        from .engineering.paint_shop_service import (compute_paint_shop_unit,
+                                                     normalise_draft)
+        L = params.get("length_m")
+        W = params.get("width_m")
+        H = params.get("height_m")
+        calc = compute_paint_shop_unit(
+            unit, L, W, H,
+            draft=normalise_draft(params.get("draft_type") or params.get("booth_type")),
+            ach=params.get("ach"),
+        )
+        spec = ComputedSpec(length_m=L, width_m=W, height_m=H)
+        if L is not None and W is not None and H is not None:
+            spec.values.append(SpecValue(
+                label="Dimensions", value=f"{L:g} x {W:g} x {H:g} m", origin="rule"))
+        for name, value, formula, standard in calc.trail:
+            spec.rules.append(RuleResult(name=name, value=value,
+                                         formula=formula, standard=standard))
+            spec.values.append(SpecValue(label=name, value=value, origin="rule"))
+        return spec
+    return run
+
+
+# The output fields a paint-shop enclosure spec must cover. Shared by the four
+# line units — they differ in their inlet-air rule, not in what they report.
+_PAINT_SHOP_TEMPLATE = [
+    {"label": "Dimensions", "kind": "geometry"},
+    {"label": "Exhaust air volume", "kind": "computed"},
+    {"label": "Inlet air volume", "kind": "computed"},
+    {"label": "Enclosure surface area", "kind": "computed"},
+    {"label": "Enclosure sheet weight", "kind": "computed"},
+    {"label": "Construction", "kind": "standard"},
+    {"label": "Illumination", "kind": "standard"},
+    {"label": "Control panel", "kind": "standard"},
+    {"label": "Finish", "kind": "standard"},
+]
+
+_PAINT_SHOP_LABELS = {
+    "exhaust_air_m3h": "Exhaust air volume",
+    "inlet_air_m3h": "Inlet air volume",
+    "surface_area_m2": "Enclosure surface area",
+    "sheet_weight_kg": "Enclosure sheet weight",
+    "construction": "Construction",
+    "illumination": "Illumination",
+    "control_panel": "Control panel",
+    "finish": "Finish",
+}
+
+
+def _paint_shop_profile(key: str, label: str, extra_template=()) -> dict[str, Any]:
+    """One paint-shop line unit's catalog profile. They share their inputs and
+    their output shape; `_paint_shop_rules` carries the per-unit differences."""
+    return {
+        "label": label,
+        "scale_driver": None,
+        "driver_label": "Dimensions",
+        "diff_unit": "floor area",
+        "dimension_keys": ["length_m", "width_m", "height_m"],
+        "process_keys": [],
+        "required_inputs": [("length_m", "Length"), ("width_m", "Width"),
+                            ("height_m", "Height")],
+        "optional_inputs": [("draft_type", "Draft type"), ("qty", "Quantity")]
+                           + ([("ach", "Air changes per hour")]
+                              if key == "paint_drying_oven" else []),
+        "expected_inputs": [("length_m", "Length"), ("width_m", "Width"),
+                            ("height_m", "Height")],
+        "scalable": [],
+        "from_given": {},
+        "rules": _paint_shop_rules(key),
+        "rule_covers": ["exhaust_air_m3h", "inlet_air_m3h", "surface_area_m2",
+                        "sheet_weight_kg"],
+        "rule_value_map": {},
+        "field_labels": dict(_PAINT_SHOP_LABELS),
+        "spec_template": _PAINT_SHOP_TEMPLATE + list(extra_template),
+    }
 
 
 # Engineering-oriented labels for value provenance (shown to users).
@@ -29,6 +122,11 @@ ORIGIN_LABELS = {
     "scaled": "Scaled from nearest design",
     "consistent": "Historical consensus",
     "reused": "Reused from nearest design",
+    "tbd": "To be determined (needs engineering input)",
+    # Provenance tags from the client's standards package.
+    "standard": "Engineering Standard",
+    "advisory": "Advisory Recommendation",
+    "customer_decision": "Customer Decision Required",
     # legacy
     "kept": "Reused from nearest design",
     "adapted": "Scaled from nearest design",
@@ -46,6 +144,8 @@ DECISION_TYPES = {
     "kept": "Reused",
     "adapted": "Recommended",
     "given": "From Requirement",
+    "standard": "Engineering Standard",
+    "advisory": "Advisory Recommendation",
 }
 
 # Canonical order for the Decision Origin table (rows shown even when count is 0,
@@ -136,19 +236,84 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         "scalable": [],
         "from_given": {},
         "rules": _booth_rules,
-        "rule_covers": ["airflow_m3h", "fans", "filters", "filter_type", "material"],
-        "rule_value_map": {"Exhaust airflow": "airflow_m3h", "Exhaust fans": "fans",
-                           "Filters": "filters", "Construction material": "material"},
+        # The exhaust blower now comes from the vendor catalogue, so the rule
+        # engine supersedes the historical blower fields as well as the airflow
+        # ones — a reused blower spec must not contradict the selected model.
+        "rule_covers": ["airflow_m3h", "filters", "filter_type", "material",
+                        "blower_cfm", "blower_qty", "blower_motor_hp", "blower_drive",
+                        # now selected from the client's standards package, so the
+                        # historical value must NOT also be emitted (it produced a
+                        # duplicate row, once computed and once copied)
+                        "booth_type", "illumination", "paper_filter", "exhaust_duct",
+                        "control_panel", "sprinkler_fire_protection"],
+        "rule_value_map": {"Exhaust airflow": "airflow_m3h",
+                           "Filters": "filters", "Construction material": "material",
+                           "Blower airflow (CFM)": "blower_cfm",
+                           "Exhaust blower (nos)": "blower_qty",
+                           "Exhaust blower motor (HP)": "blower_motor_hp",
+                           "Blower drive": "blower_drive"},
         "field_labels": {
             "airflow_m3h": "Exhaust airflow (m3/h)",
-            "fans": "Exhaust fans",
+            "inlet_air_m3h": "Inlet air volume",
+            "enclosure_sheet_kg": "Enclosure sheet weight",
             "filters": "Filters",
             "filter_type": "Filter type",
             "material": "Construction material",
             "access": "Access",
             "standard": "Standard",
             "job_size": "Job / workpiece envelope",
+            # labels for the fields reused from historical booths, worded as on
+            # the client's "DATA SHEET FOR PAINTING PLANT"
+            "booth_type": "Type of paint booth",
+            "construction": "Construction",
+            "illumination": "Illumination",
+            "blower_motor_hp": "Exhaust blower motor (HP)",
+            "blower_type": "Blower type",
+            "blower_drive": "Blower drive",
+            "blower_qty": "Exhaust blower (nos)",
+            "blower_cfm": "Blower airflow (CFM)",
+            "blower_moc": "Blower MOC",
+            "paper_filter": "Paint arresting filter",
+            "air_inlet_filter": "Air intake filter",
+            "dry_scrubber": "Dry scrubber",
+            "activated_carbon_chamber": "Activated carbon chamber",
+            "exhaust_duct": "Exhaust ducts",
+            "control_panel": "Control panel",
+            "conveyor": "Material handling for painting",
+            "sprinkler_fire_protection": "Fire extinguishing system",
+            "finish": "Finish",
         },
+        # SPEC TEMPLATE — output fields a complete paint-booth spec must cover,
+        # ordered as section 3.0 PAINTING BOOTH of the client's data sheet.
+        # Uncovered fields surface as explicit TBD rows (never a guess).
+        # NB labels must match what the engine actually emits (the rule labels
+        # and `field_labels` above), or a resolved row and its template entry
+        # both appear - once with the value, once as a phantom TBD.
+        "spec_template": [
+            {"label": "Type of paint booth", "kind": "standard"},
+            {"label": "Dimensions", "kind": "geometry"},
+            {"label": "Construction", "kind": "standard"},
+            {"label": "Construction material", "kind": "standard"},
+            {"label": "Exhaust airflow", "kind": "computed"},
+            {"label": "Inlet air volume", "kind": "computed"},
+            {"label": "Exhaust blower", "kind": "computed"},
+            {"label": "Blower airflow (CFM)", "kind": "computed"},
+            {"label": "Exhaust blower (nos)", "kind": "computed"},
+            {"label": "Exhaust blower motor (HP)", "kind": "computed"},
+            {"label": "Blower drive", "kind": "computed"},
+            {"label": "Enclosure sheet weight", "kind": "computed"},
+            {"label": "Blower MOC", "kind": "standard"},
+            {"label": "Paint arresting filter", "kind": "standard"},
+            {"label": "Air intake filter", "kind": "standard"},
+            {"label": "Dry scrubber", "kind": "standard"},
+            {"label": "Exhaust ducts", "kind": "standard"},
+            {"label": "Illumination", "kind": "standard"},
+            {"label": "Electrical fittings & motors", "kind": "standard"},
+            {"label": "Fire extinguishing system", "kind": "standard"},
+            {"label": "Material handling for painting", "kind": "customer_decision"},
+            {"label": "Control panel", "kind": "standard"},
+            {"label": "Finish", "kind": "standard"},
+        ],
     },
     # Consulting-ready categories (engineering rules come in a later sprint).
     "hot_air_oven": {
@@ -172,8 +337,43 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         ],
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [],
+        # CASE-BASED: ovens have no closed-form sizing rules, but Vitech has real
+        # oven offers to reuse. Rather than consulting from scratch (which left the
+        # LLM to invent dimensions), build the spec by REUSING the nearest matching
+        # historical oven design — deterministic, with honest "reused from offer X"
+        # provenance. The nearest offer is chosen by semantic + given-attribute rank.
+        "case_based": True,
         "field_labels": {"chamber": "Chamber", "insulation": "Insulation",
-                         "heating": "Heating source", "operating_temp": "Operating temperature"},
+                         "heating": "Heating source", "operating_temp": "Operating temperature",
+                         "oven_type": "Oven type", "baking_time_min": "Baking time (min)",
+                         "circulation_blower_hp": "Circulation blower (HP)",
+                         "circulation_blower_qty": "Circulation blower (nos)",
+                         "circulation_blower_drive": "Circulation blower drive",
+                         "circulation_fan_hp": "Circulation fan (HP)",
+                         "no_of_zones": "No. of heating zones", "conveyor": "Conveyor",
+                         "door": "Door", "motorized_trolley": "Motorized trolley",
+                         "heating_mode": "Heating mode", "finish": "Finish"},
+        # SPEC TEMPLATE — the sections a complete oven spec must cover (the ones
+        # the client asks for). Each field resolves to given/calc/reuse or an
+        # explicit TBD. Labels for reused fields match field_labels so history
+        # fills them; the rest (dimensions, control panel, utilities, safety)
+        # stay TBD until an engineering calc / the client's data supplies them.
+        "spec_template": [
+            {"label": "Oven type", "kind": "standard"},
+            {"label": "Overall dimensions (mm)", "kind": "geometry"},
+            {"label": "Chamber", "kind": "standard"},
+            {"label": "Airflow (m3/h)", "kind": "computed"},
+            {"label": "Circulation blower (HP)", "kind": "computed"},
+            {"label": "Baking time (min)", "kind": "computed"},
+            {"label": "Insulation", "kind": "computed"},
+            {"label": "Heating source", "kind": "computed"},
+            {"label": "Heating capacity (kcal/hr)", "kind": "computed"},
+            {"label": "Conveyor", "kind": "standard"},
+            {"label": "Control panel", "kind": "standard"},
+            {"label": "Utilities", "kind": "standard"},
+            {"label": "Safety features", "kind": "standard"},
+            {"label": "Finish", "kind": "standard"},
+        ],
     },
     "dust_collector": {
         "label": "Dust Collector",
@@ -193,8 +393,60 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         ],
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [],
+        # CASE-BASED, for the same reason ovens are (see hot_air_oven above).
+        # A dust collector has no closed-form sizing rule here yet (the client's
+        # pollution-control calculation document is still outstanding), but Vitech
+        # has 5 real collector offers. Without this the router consulted from
+        # scratch and returned a spec with ZERO technical details — which in turn
+        # gave the GA drawing an empty row list, so the sheet drew a bare casing
+        # with no filter elements, no airlock and a legend reading "ID fan HP"
+        # with no value. Reuse is deterministic and attributed ("reused from
+        # offer X"), and `validate.demote_unscalable` still refuses a
+        # size-dependent value copied across a >20% size gap.
+        "case_based": True,
         "field_labels": {"filter_area": "Filter area", "fan": "Fan",
-                         "cleaning": "Cleaning system"},
+                         "cleaning": "Cleaning system",
+                         # reused-field labels, worded as on the client's
+                         # "DATA SHEET FOR DUST COLLECTION EQUIPMENT"
+                         "air_volume_cmh": "Air volume (m3/h)",
+                         "collector_size_m": "Collector size (m)",
+                         "collector_size_mm": "Collector size (mm)",
+                         "casing_hopper_moc": "Casing & hopper MOC",
+                         "casing_moc": "Casing MOC",
+                         "filter_bags": "Filter bags",
+                         "solenoid_valve": "Solenoid valve",
+                         "blower_type": "Blower type",
+                         "blower_motor_hp": "Blower motor (HP)",
+                         "blower_drive": "Blower drive",
+                         "blower_motor": "Blower motor",
+                         "rotary_airlock": "Rotary airlock",
+                         "suction_duct": "Suction ducts",
+                         "exhaust_duct": "Exhaust duct",
+                         "explosion_vent": "Explosion vent",
+                         "control_panel": "Control panel",
+                         "finish": "Finish"},
+        # SPEC TEMPLATE — output fields a complete dust-collector spec must
+        # cover. Input concerns from the client's data sheet (dust nature,
+        # collector location, suction points) drive the fields below.
+        "spec_template": [
+            {"label": "Collector type", "kind": "standard"},
+            {"label": "Air volume (m3/h)", "kind": "computed"},
+            {"label": "Collector size (m)", "kind": "geometry"},
+            {"label": "Casing & hopper MOC", "kind": "standard"},
+            {"label": "Filter bags", "kind": "standard"},
+            {"label": "Filter area", "kind": "computed"},
+            {"label": "Cleaning system", "kind": "standard"},
+            {"label": "Solenoid valve", "kind": "standard"},
+            {"label": "Blower type", "kind": "standard"},
+            {"label": "Blower motor (HP)", "kind": "computed"},
+            {"label": "Blower drive", "kind": "standard"},
+            {"label": "Rotary airlock", "kind": "standard"},
+            {"label": "Suction ducts", "kind": "standard"},
+            {"label": "Exhaust duct", "kind": "standard"},
+            {"label": "Dust collector location", "kind": "text"},
+            {"label": "Control panel", "kind": "standard"},
+            {"label": "Finish", "kind": "standard"},
+        ],
     },
     # --- Consulting-ready categories (no engineering rules yet, so they REASON
     #     from knowledge and defer sizing to engineering; historical offers are
@@ -221,8 +473,39 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         ],
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [],
+        # CASE-BASED (see hot_air_oven / dust_collector above). HONEST LIMIT:
+        # there is exactly ONE powder-coating-plant offer on file, so reuse here
+        # is a copy of that single plant, not a choice between designs. That is
+        # still strictly better than the previous behaviour (an empty spec, and a
+        # GA sheet showing three empty boxes), because every reused value is
+        # attributed to its source offer and a size-dependent one is demoted to
+        # TBD beyond the tolerance. It improves the moment more plants are filed.
+        "case_based": True,
         "field_labels": {"booth": "Spray booth", "pulse_jet": "Powder recovery / pulse-jet",
-                         "oven": "Curing oven", "conveyor": "Conveyor"},
+                         "oven": "Curing oven", "conveyor": "Conveyor",
+                         # keys as they actually appear on the historical plant
+                         # offers, labelled per "DATA SHEET FOR POWDER COATING PLANT"
+                         "powder_spray_booth": "Powder coating booth",
+                         "pulse_jet_system": "Powder recovery",
+                         "hot_air_oven": "Curing oven",
+                         "overhead_conveyor": "Material handling"},
+        # SPEC TEMPLATE — the plant sections of the client's powder-coating data
+        # sheet (2.0 process / 3.0 pretreatment / 4.0 booth / 5.0 curing oven).
+        "spec_template": [
+            {"label": "Pretreatment", "kind": "standard"},
+            {"label": "Component envelope (mm)", "kind": "geometry"},
+            {"label": "Powder coating booth", "kind": "standard"},
+            {"label": "Type of coating", "kind": "text"},
+            {"label": "No. of operators", "kind": "text"},
+            {"label": "Powder recovery", "kind": "standard"},
+            {"label": "Curing oven", "kind": "standard"},
+            {"label": "Curing temperature (deg C)", "kind": "computed"},
+            {"label": "Oven heating media", "kind": "standard"},
+            {"label": "Material handling", "kind": "standard"},
+            {"label": "Control panel", "kind": "standard"},
+            {"label": "Utilities", "kind": "standard"},
+            {"label": "Finish", "kind": "standard"},
+        ],
     },
     "fume_extraction": {
         "label": "Fume Extraction System",
@@ -302,6 +585,18 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
         "rule_covers": [], "field_labels": {},
     },
+    # --- paint-shop line units (client calculation doc, 2026-08-01) --------
+    # Their formulas live in engineering/paint_shop_service; the profiles differ
+    # only in the inlet-air rule that service applies per unit.
+    "cleaning_room": _paint_shop_profile("cleaning_room", "Cleaning Room"),
+    "buffing_booth": _paint_shop_profile("buffing_booth", "Buffing Booth"),
+    "flash_off_zone": _paint_shop_profile("flash_off_zone", "Flash Off Zone"),
+    "paint_drying_oven": _paint_shop_profile(
+        "paint_drying_oven", "Paint Drying Oven",
+        extra_template=[{"label": "Heat load", "kind": "computed"},
+                        {"label": "Heat load (kCal)", "kind": "computed"},
+                        {"label": "Heating mode", "kind": "standard"},
+                        {"label": "Insulation", "kind": "standard"}]),
     "ducting": {
         "label": "Ducting",
         "scale_driver": None, "driver_label": "Airflow", "diff_unit": "airflow",

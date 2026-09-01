@@ -14,9 +14,10 @@ export const ShellMain = memo(function ShellMain({ children }) {
   return <div className="shell-main">{children}</div>;
 });
 
-/** The padded row holding the main column and the right rail. */
-export const Workspace = memo(function Workspace({ children }) {
-  return <div className="workspace">{children}</div>;
+/** The padded row holding the main column and the right rail. `chat` tightens
+    the bottom padding so the composer sits close to the bottom (ChatGPT-style). */
+export const Workspace = memo(function Workspace({ chat = false, children }) {
+  return <div className={`workspace${chat ? " is-chat" : ""}`}>{children}</div>;
 });
 
 /** Main column. `scroll` lets non-chat pages own their scrolling. */

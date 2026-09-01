@@ -9,16 +9,21 @@ import { KnowledgeBase } from "./pages/KnowledgeBase";
 import { CollectionPage } from "./pages/CollectionPage";
 import { UploadPage } from "./pages/UploadPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { DrawingStudio } from "./pages/DrawingStudio";
+import { LoginPage } from "./pages/LoginPage";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage";
+import { PackageCenter } from "./pages/PackageCenter";
+import { DevOpsConsole } from "./pages/DevOpsConsole";
 import { LiveHelpPage } from "./pages/LiveHelpPage";
 import { RoadmapPage } from "./pages/RoadmapPage";
 import { useAgentChat } from "./hooks/useAgentChat";
 import { useHealth } from "./hooks/useHealth";
 import { useTheme } from "./hooks/useTheme";
 import { useIsCompact, useIsMobile } from "./hooks/useMediaQuery";
+import { useAuth } from "./auth/AuthProvider";
+import { SESSION_EXPIRED } from "./lib/api";
 import { AGENT_UI, COLLECTION_KEYS, VIEW_TITLES, isChatView } from "./lib/constants";
-
-/* Signed-in user. Wire to real auth when the multi-user phase lands. */
-const USER = { name: "Loganathan R", role: "Admin" };
 
 const PANEL_KEY = "vitech_panel";
 
@@ -36,6 +41,21 @@ export default function App() {
   const [navOpen, setNavOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(initialPanel);
 
+  const { user, ready, login, logout, changePassword } = useAuth();
+  // Set when a session ends mid-use, so the login screen can explain itself
+  // instead of appearing without reason.
+  const [sessionNotice, setSessionNotice] = useState("");
+
+  /* The fetch interceptor fires this when a request comes back 401 — the
+     session expired, was revoked, or the server was rebuilt. Explaining that is
+     the whole improvement: without it the user is dropped on a login screen
+     with no reason and assumes the application broke. */
+  useEffect(() => {
+    const onExpired = () =>
+      setSessionNotice("Your session ended. Please sign in again.");
+    window.addEventListener(SESSION_EXPIRED, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED, onExpired);
+  }, []);
   const health = useHealth();
   const { isDark, toggle: toggleTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -110,7 +130,7 @@ export default function App() {
         <ChatWindow
           key={view}
           ui={ui}
-          userName={USER.name.split(" ")[0]}
+          userName={(user?.name || "there").split(" ")[0]}
           messages={chat.messages}
           input={chat.input}
           setInput={chat.setInput}
@@ -119,19 +139,38 @@ export default function App() {
         />
       );
     }
+    if (view === "drawing") return <DrawingStudio key={view} isDark={isDark} />;
     if (view === "dashboard") return <Dashboard key={view} setView={go} />;
+    if (view === "packages") return <PackageCenter key={view} />;
+    // Service-provider console. The nav hides it from engineers and the
+    // server refuses them anyway, so this is a straight route.
+    if (view === "devops") return <DevOpsConsole key={view} />;
     if (view === "knowledge") return <KnowledgeBase key={view} setView={go} />;
     if (view === "upload") return <UploadPage key={view} />;
     if (view === "profile") {
       return (
         <ProfilePage
           key={view}
-          user={USER}
+          user={user}
           health={health}
           sessionId={chat.sessionId}
           conversationCount={chat.conversations.length}
           isDark={isDark}
           onToggleTheme={toggleTheme}
+          onLogout={logout}
+        />
+      );
+    }
+    if (view === "settings") {
+      return (
+        <SettingsPage
+          key={view}
+          user={user}
+          health={health}
+          sessionId={chat.sessionId}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          onLogout={logout}
         />
       );
     }
@@ -144,13 +183,49 @@ export default function App() {
 
   const drawerOpen = (isMobile && navOpen) || (isCompact && panelOpen);
 
+  /* Auth gate. All hooks above run unconditionally (Rules of Hooks); only the
+     render branches. `ready` prevents a login flash before the stored session
+     is read on first paint. */
+  if (!ready) return null;
+  if (!user) {
+    return (
+      <LoginPage
+        onLogin={async (creds) => {
+          const res = await login(creds);
+          if (res.ok) setSessionNotice("");
+          return res;
+        }}
+        notice={sessionNotice}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  }
+
+  /* MANDATORY password change. Rendered INSTEAD of the application, not beside
+     it: an account still on its issued password is a credential someone else
+     may have seen, so it must not reach the engineering data. A dismissible
+     banner would make the protection optional. The server sets the flag; this
+     only honours it, and the routes stay protected either way. */
+  if (user.mustChangePassword) {
+    return (
+      <ChangePasswordPage
+        username={user.username}
+        onSubmit={changePassword}
+        onLogout={logout}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  }
+
   return (
     <Shell>
       <Sidebar
         view={view}
         onSelect={go}
         onNewChat={startNewChat}
-        user={USER}
+        user={user}
         open={navOpen}
         isDark={isDark}
       />
@@ -166,14 +241,15 @@ export default function App() {
           onTogglePanel={togglePanel}
           showPanelToggle={chatView}
           panelOpen={panelOpen}
+          flat={chatView}
         />
 
-        <Workspace>
+        <Workspace chat={chatView}>
           <WorkspaceMain scroll={!chatView}>{page()}</WorkspaceMain>
 
           {chatView && (
             <RightSidebar
-              conversations={chat.conversations}
+              conversations={chat.conversations.filter((c) => c.view === view)}
               activeId={chat.sessionId}
               onOpenConversation={openConvo}
               onDeleteConversation={chat.deleteConversation}

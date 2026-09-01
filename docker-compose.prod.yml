@@ -1,0 +1,136 @@
+# Vitech AI Engineering Platform — LOCAL PRODUCTION SERVER.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Differences from the dev compose that matter, each learned the hard way:
+#
+#  * Flowise is PINNED to 3.0.13. Never `:latest` — every 3.1.x pins
+#    @langchain/core@1.1.20, whose missing ./utils/uuid subpath makes node throw
+#    at startup. See CLAUDE.md "Flowise (ACTUAL install)".
+#  * NO chroma service. The backend uses EMBEDDED ChromaDB via CHROMA_DIR; a
+#    separate chroma container is not used by any code path and only confuses
+#    the port map.
+#  * Ollama gets the GPU. Requires nvidia-container-toolkit on the host.
+#  * Flowise needs its SSRF deny-list relaxed for the compose network, or the
+#    Custom Tools cannot reach the backend ("Access to this host is denied by
+#    policy"). Cloud-metadata addresses stay blocked.
+#  * ONLY the frontend publishes a port. nginx proxies /api -> backend and
+#    /flowise -> flowise, so the browser talks to one origin and the internal
+#    services are unreachable from the LAN.
+#  * Postgres and Redis bind to 127.0.0.1 only — reachable on the host for
+#    backups and psql, never from the network.
+#
+# The agents live in Postgres. A fresh volume starts with NO agents: restore
+# postgres-backups/vitech.sql, or rebuild them with ops/flowise/*.py.
+# See docs/production-deployment.md.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes: [ollama:/root/.ollama]
+    expose: ["11434"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis:/data]
+    ports: ["127.0.0.1:6379:6379"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Drop vitech.sql here and it is available inside the container for restore.
+      - ./ops/restore:/restore:ro
+    ports: ["127.0.0.1:5432:5432"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  flowise:
+    # PINNED. Do not move to :latest — see the header note.
+    image: flowiseai/flowise:3.0.13
+    depends_on:
+      postgres: {condition: service_healthy}
+      ollama: {condition: service_started}
+    environment:
+      - PORT=3000
+      - DATABASE_TYPE=postgres
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=${POSTGRES_DB}
+      - DATABASE_USER=${POSTGRES_USER}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME:?set FLOWISE_USERNAME in .env}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD:?set FLOWISE_PASSWORD in .env}
+      # Custom Tools must reach the backend across the compose network. The
+      # default deny-list blocks it; cloud-metadata SSRF stays blocked.
+      - HTTP_SECURITY_CHECK=false
+      - HTTP_DENY_LIST=169.254.0.0/16,fd00:ec2::254
+    volumes: [flowise:/root/.flowise]
+    expose: ["3000"]
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    depends_on:
+      ollama: {condition: service_started}
+      redis: {condition: service_healthy}
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_DIR=/app/chroma_store
+      # Set API_KEY in .env to require a key on every /api call. Leave empty on a
+      # trusted LAN; SET IT before the VPN rollout.
+      - API_KEY=${API_KEY:-}
+    volumes:
+      - chroma_store:/app/chroma_store
+      - ./backend/data:/app/data          # offers + bulk documents, editable
+    expose: ["8000"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    build: ./frontend
+    depends_on: [backend, flowise]
+    # The ONLY published port. nginx serves the built React app and proxies
+    # /api -> backend and /flowise -> flowise by service name.
+    ports: ["${HTTP_PORT:-80}:80"]
+    restart: unless-stopped
+
+volumes:
+  ollama:
+  chroma_store:
+  redis:
+  pgdata:
+  flowise:

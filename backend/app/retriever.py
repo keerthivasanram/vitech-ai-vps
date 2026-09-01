@@ -8,7 +8,8 @@ import re
 from typing import Any
 
 from . import config
-from .store import get_collection
+from .observability import trace as _obs
+from .store import get_collection, offer_records
 
 # generic words that don't identify a specific client/equipment
 _STOP = {"pvt", "ltd", "private", "limited", "systems", "system", "india", "the",
@@ -54,14 +55,7 @@ def _names_stored_client(question: str) -> bool:
     q = question.lower()
     if re.search(r"\boff-[a-z0-9][a-z0-9-]+", q):     # explicit offer id
         return True
-    col = get_collection()
-    if col.count() == 0:
-        return False
-    for meta in col.get(include=["metadatas"])["metadatas"]:
-        raw = meta.get("_raw")
-        if not raw:
-            continue
-        rec = json.loads(raw)
+    for rec in offer_records():
         # client identity only — skip vendor (always us) and title (equipment words)
         names = str(rec.get("client", "")).lower()
         tokens = {t for t in re.split(r"[\s,./_-]+", names)
@@ -204,29 +198,47 @@ def _exact_dimension_hit(question: str) -> list[dict[str, Any]]:
     from .understand import _fallback                 # deterministic parse (no LLM)
 
     cat, score = classify_equipment(question)
-    if not cat or score < CONFIDENT:
-        return []
+    confident_cat = cat if (cat and score >= CONFIDENT) else None
+
     params = {k: v for k, v in _fallback(question).parameters.items()
               if isinstance(v, (int, float))}
     if not params:
         return []
+
+    # The equipment type SCOPES this search, it does not gate it. A full set of
+    # dimensions matching one offer on every axis is a stronger identifier than
+    # a category keyword — "Length: 0.9 / Width: 0.92 / Height: 2" names exactly
+    # one booth even though it mentions no equipment at all. Requiring a
+    # confident category here made those queries answer "no match" and then fall
+    # through to relevance search, which returned a cluster of unrelated offers.
+    # Without a confident category we demand at least two matching attributes, so
+    # a lone figure like "800" can never pick a project on its own.
+    if not confident_cat and len(params) < 2:
+        return []
+
     col = get_collection()
     if col.count() == 0:
         return []
     res = col.get(include=["documents", "metadatas"])
+    matches = []
     for doc, meta in zip(res["documents"], res["metadatas"]):
         raw = meta.get("_raw")
         if not raw:
             continue
         rec = json.loads(raw)
-        if rec.get("type", "offer") != "offer" or rec.get("category") != cat:
+        if rec.get("type", "offer") != "offer":
+            continue
+        if confident_cat and rec.get("category") != confident_cat:
             continue
         gd = rec.get("given_data", {}) or {}
         keys = [k for k in params if isinstance(gd.get(k), (int, float))]
         if keys and len(keys) == len(params) and all(
                 abs(params[k] - gd[k]) / max(abs(gd[k]), 1e-9) < 0.02 for k in keys):
-            return [_make_hit(rec, doc, score=0.99)]
-    return []
+            matches.append(_make_hit(rec, doc, score=0.99))
+    # Return every exact match. More than one means the dimensions genuinely fit
+    # several projects, which the caller should show rather than silently pick
+    # the first record the store happened to return.
+    return matches
 
 
 def _relevant_offer_hits(question: str, top_k: int = _REL_TOP_K) -> list[dict[str, Any]]:
@@ -291,6 +303,16 @@ def retrieve(question: str, top_k: int | None = None,
     """Semantic search, optionally restricted to a metadata filter (e.g.
     {"category": "wet_scrubber"} so a scrubber query never returns booths).
     Falls back to an unfiltered search if the filter yields nothing."""
+    with _obs.span("retrieve.offers", "retrieval") as _s:
+        hits = _retrieve_inner(question, top_k, where)
+        _s.detail(count=len(hits), filtered=bool(where),
+                  top_score=(hits[0]["score"] if hits else None))
+        _obs.count("retrieval_count", len(hits))
+        return hits
+
+
+def _retrieve_inner(question: str, top_k: int | None = None,
+                    where: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     top_k = top_k or config.TOP_K
     collection = get_collection()
 

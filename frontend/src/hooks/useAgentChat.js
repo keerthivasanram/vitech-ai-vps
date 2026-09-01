@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { sanitizeAgentReply } from "../lib/agentReply";
 import { agentUrl, isChatView, DETERMINISTIC_TOOLS } from "../lib/constants";
 import { fmtTime, newId, titleFrom } from "../lib/format";
 
-const SESSION_KEY = "ats_session";
+const SESSION_MAP_KEY = "vitech_sessions"; // JSON: { [view]: sessionId } - one chatId per agent
 const CONVO_KEY = "vitech_convos";
-const CONVO_LIMIT = 20;
+const CONVO_LIMIT = 20; // per agent, not shared across agents
 
 /* Flowise reports each tool call as {tool, toolInput, toolOutput}; toolOutput is
    a JSON string of our backend's response. Parse it defensively. */
@@ -47,6 +48,18 @@ function collectSources(calls) {
   return out;
 }
 
+/* True once generate_quotation actually produced a quotation (not a guard
+   "need_requirement" bounce), plus the payload the QuotationCard + PDF route
+   consume. This is what surfaces the "Download PDF" button under a quote. */
+function findQuote(calls) {
+  for (const c of calls) {
+    if (c.tool !== "generate_quotation") continue;
+    const o = parseOutput(c.toolOutput);
+    if (o && o.ok !== false && o.price && (o.ref || o.headline)) return o;
+  }
+  return null;
+}
+
 /* True once generate_specification actually produced a structured spec (not a
    guard "need_requirement" bounce), plus the payload we hand to the PDF route. */
 function findSpec(calls) {
@@ -70,6 +83,7 @@ function agentData(answer, calls, llm) {
   const tools = calls.map((c) => c.tool).filter(Boolean);
   const deterministic = tools.some((t) => DETERMINISTIC_TOOLS.includes(t));
   const spec = findSpec(calls);
+  const quotation = findQuote(calls);
   const sources = collectSources(calls);
   return {
     answer,
@@ -79,6 +93,7 @@ function agentData(answer, calls, llm) {
     spec_mode: deterministic ? "data" : tools.length === 0 ? "knowledge" : undefined,
     intent: tools.length ? tools.join(" · ") : undefined,
     spec,                                  // structured spec payload → PDF (null if none)
+    quotation,                             // structured quote payload → QuotationCard + PDF
     sources: sources.length ? sources : undefined,
   };
 }
@@ -88,40 +103,70 @@ const readConvos = () => {
   catch { return []; }
 };
 
+const readSessionIds = () => {
+  try { return JSON.parse(localStorage.getItem(SESSION_MAP_KEY)) || {}; }
+  catch { return {}; }
+};
+
 /**
- * Owns the agent conversation: transcript, streaming, session rotation and the
- * locally-persisted conversation list that feeds the Recent Conversations panel.
+ * Owns the agent conversation: transcript, streaming, per-agent session
+ * slots and the locally-persisted conversation list that feeds the Recent
+ * Conversations panel.
  *
  * Conversation memory itself lives in Flowise, keyed by chatId (= sessionId).
  * We persist the transcript locally so reopening a conversation restores both
  * the visible history AND the agent's memory (same chatId).
+ *
+ * Each chat-capable view (Engineering, Quotation, ...) keeps its OWN live
+ * session slot in `sessionsByView`, like separate tabs: navigating away and
+ * back restores exactly what was there instead of wiping it, and two agents
+ * never share a chatId (which would blend their Flowise memory together).
  */
 export function useAgentChat(view, health) {
-  const [sessionId, setSessionId] = useState(
-    () => localStorage.getItem(SESSION_KEY) || newId()
-  );
-  const [messages, setMessages] = useState([]);
+  const [sessionsByView, setSessionsByView] = useState(() => {
+    const ids = readSessionIds();
+    return { [view]: { sessionId: ids[view] || newId(), messages: [] } };
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversations, setConversations] = useState(readConvos);
 
-  const prevChatView = useRef(view);
-
-  useEffect(() => { localStorage.setItem(SESSION_KEY, sessionId); }, [sessionId]);
-
-  // Switching directly between the two chat agents starts a fresh transcript +
-  // memory so Engineering and Quotation conversations never blend.
+  // First visit to a chat view this session: give it its own slot (restoring
+  // its last known chatId if one was persisted) instead of reusing whatever
+  // view was previously active.
   useEffect(() => {
     if (!isChatView(view)) return;
-    if (isChatView(prevChatView.current) && view !== prevChatView.current) {
-      setSessionId(newId());
-      setMessages([]);
-    }
-    prevChatView.current = view;
+    setSessionsByView((prev) => {
+      if (prev[view]) return prev;
+      const ids = readSessionIds();
+      return { ...prev, [view]: { sessionId: ids[view] || newId(), messages: [] } };
+    });
   }, [view]);
 
-  /* Persist the transcript against its sessionId. Called once a turn settles,
-     never per token. */
+  // Persist only the {view: chatId} map — small and cheap to write on every
+  // change, so a browser refresh still resumes the right agent's chatId
+  // instead of reusing whichever agent was used last.
+  useEffect(() => {
+    const ids = {};
+    for (const [v, s] of Object.entries(sessionsByView)) ids[v] = s.sessionId;
+    try { localStorage.setItem(SESSION_MAP_KEY, JSON.stringify(ids)); } catch { /* quota — skip */ }
+  }, [sessionsByView]);
+
+  const active = sessionsByView[view] || { sessionId: null, messages: [] };
+  const { sessionId, messages } = active;
+
+  /* Update the transcript for a given view (defaults to the current one).
+     Accepts a value or an updater fn, mirroring setState's own contract. */
+  const setMessagesFor = useCallback((forView, updater) => {
+    setSessionsByView((prev) => {
+      const cur = prev[forView] || { sessionId: newId(), messages: [] };
+      const nextMessages = typeof updater === "function" ? updater(cur.messages) : updater;
+      return { ...prev, [forView]: { ...cur, messages: nextMessages } };
+    });
+  }, []);
+
+  /* Persist the transcript against its sessionId, capped PER AGENT so a busy
+     Quotation session can never evict Engineering's history (or vice versa). */
   const persist = useCallback((id, list, forView) => {
     const firstUser = list.find((m) => m.role === "user");
     if (!firstUser) return;
@@ -133,7 +178,10 @@ export function useAgentChat(view, health) {
         updatedAt: new Date().toISOString(),
         messages: list,
       };
-      const next = [entry, ...prev.filter((c) => c.id !== id)].slice(0, CONVO_LIMIT);
+      const rest = prev.filter((c) => c.id !== id);
+      const sameAgent = [entry, ...rest.filter((c) => c.view === forView)].slice(0, CONVO_LIMIT);
+      const otherAgents = rest.filter((c) => c.view !== forView);
+      const next = [...sameAgent, ...otherAgents];
       try { localStorage.setItem(CONVO_KEY, JSON.stringify(next)); } catch { /* quota — skip */ }
       return next;
     });
@@ -144,6 +192,9 @@ export function useAgentChat(view, health) {
       const text = (q ?? input).trim();
       if (!text || loading) return;
 
+      const forView = view;
+      const forSession = sessionId;
+
       setInput("");
       setLoading(true);
 
@@ -152,29 +203,34 @@ export function useAgentChat(view, health) {
       // Track the running transcript outside state so we can persist it at the
       // end without waiting for a re-render.
       let running = [];
-      setMessages((m) => {
+      setMessagesFor(forView, (m) => {
         running = [...m, userMsg, { id: astId, role: "assistant", text: "", streaming: true }];
         return running;
       });
 
       const patch = (p) =>
-        setMessages((m) => {
+        setMessagesFor(forView, (m) => {
           running = m.map((x) => (x.id === astId ? { ...x, ...p } : x));
           return running;
         });
 
-      // Flowise keys conversation memory by chatId — reuse the session so the
-      // agent remembers context across turns.
-      const body = JSON.stringify({ question: text, streaming: true, chatId: sessionId });
+      // Flowise keys conversation memory by chatId — reuse this view's session
+      // so the agent remembers context across turns.
+      const body = JSON.stringify({ question: text, streaming: true, chatId: forSession });
 
       try {
-        const resp = await fetch(agentUrl(view), {
+        const resp = await fetch(agentUrl(forView), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body,
         });
         if (!resp.ok || !resp.body) throw new Error("no stream");
 
+        // STREAMING is the primary path. The guard has to run where the stream
+        // FINALISES, not only in the non-streaming fallback — guarding just the
+        // fallback is why the leaked greeting still reached the user.
+        const clean = (t) => sanitizeAgentReply(t,
+          (rawLeak) => console.warn("[agent] tool-call mechanics suppressed:", rawLeak));
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buf = "", acc = "", calls = [];
@@ -206,9 +262,10 @@ export function useAgentChat(view, health) {
               calls = evt.data.filter((t) => t && t.tool);
             } else if (evt.event === "end") {
               if (raf) { cancelAnimationFrame(raf); raf = 0; }
+              const finalText = clean(acc);
               patch({
-                text: acc,
-                data: agentData(acc, calls, health?.llm_model),
+                text: finalText,
+                data: agentData(finalText, calls, health?.llm_model),
                 streaming: false,
                 time: fmtTime(),
               });
@@ -217,23 +274,29 @@ export function useAgentChat(view, health) {
         }
         if (raf) cancelAnimationFrame(raf);
         if (!acc) throw new Error("empty stream");
+        const drained = clean(acc);
         patch({
-          text: acc,
-          data: agentData(acc, calls, health?.llm_model),
+          text: drained,
+          data: agentData(drained, calls, health?.llm_model),
           streaming: false,
           time: fmtTime(),
         });
       } catch {
         // fall back to a non-streaming prediction call
         try {
-          const resp = await fetch(agentUrl(view), {
+          const resp = await fetch(agentUrl(forView), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: text, chatId: sessionId }),
+            body: JSON.stringify({ question: text, chatId: forSession }),
           });
           if (!resp.ok) throw new Error("bad status");
           const data = await resp.json();
-          const answer = data.text ?? data.answer ?? "(no response)";
+          // Guard against the agent showing its own plumbing on a greeting —
+          // a documented, pre-existing leak. See lib/agentReply.js for why this
+          // is a boundary guard rather than a prompt change.
+          const answer = sanitizeAgentReply(
+            data.text ?? data.answer ?? "(no response)",
+            (raw) => console.warn("[agent] tool-call mechanics suppressed:", raw));
           const used = (data.usedTools || []).filter((t) => t && t.tool);
           patch({
             text: answer,
@@ -250,26 +313,26 @@ export function useAgentChat(view, health) {
         }
       } finally {
         setLoading(false);
-        persist(sessionId, running, view);
+        persist(forSession, running, forView);
       }
     },
-    [input, loading, sessionId, view, health, persist]
+    [input, loading, sessionId, view, health, persist, setMessagesFor]
   );
 
-  /** A fresh sessionId gives the Flowise agent a clean memory context. */
+  /** A fresh sessionId gives the Flowise agent a clean memory context, scoped
+      to the currently active agent only. */
   const newChat = useCallback(() => {
-    setSessionId(newId());
-    setMessages([]);
+    setSessionsByView((prev) => ({ ...prev, [view]: { sessionId: newId(), messages: [] } }));
     setInput("");
-  }, []);
+  }, [view]);
 
   /** Reopen a stored conversation — restores the transcript and the agent's
-      memory together, because both are keyed by the same chatId. */
+      memory together (both keyed by the same chatId), into that conversation's
+      OWN agent slot so it doesn't disturb whatever the other agent has live. */
   const openConversation = useCallback((id) => {
     const c = readConvos().find((x) => x.id === id);
     if (!c) return null;
-    setSessionId(c.id);
-    setMessages(c.messages || []);
+    setSessionsByView((prev) => ({ ...prev, [c.view]: { sessionId: c.id, messages: c.messages || [] } }));
     return c.view;
   }, []);
 

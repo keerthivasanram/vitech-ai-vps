@@ -11,6 +11,7 @@ from typing import Iterator
 import httpx
 
 from . import config
+from .observability import trace as _obs
 
 
 def _opts(options: dict | None) -> dict:
@@ -26,6 +27,13 @@ def _opts(options: dict | None) -> dict:
 
 
 def _ollama_chat(messages: list[dict[str, str]], options: dict | None = None) -> str:
+    with _obs.span("llm.chat", "llm") as _s:
+        _s.detail(model=config.OLLAMA_MODEL, streamed=False,
+                  messages=len(messages or []))
+        return _ollama_chat_inner(messages, options)
+
+
+def _ollama_chat_inner(messages: list[dict[str, str]], options: dict | None = None) -> str:
     resp = httpx.post(
         f"{config.OLLAMA_HOST}/api/chat",
         json={"model": config.OLLAMA_MODEL, "messages": messages, "stream": False,

@@ -12,6 +12,7 @@ confidence and presentation around this; the numbers are made HERE.
 Deliberately depends only on catalog + spec_schema (no import of analysis), so
 the dependency runs one way: analysis -> engineering_planner.
 """
+from ..observability import trace as _obs
 from ..catalog import label_for, origin_label
 from ..spec_schema import (ATS, CONSENSUS, INTERPOLATED, REUSE, REUSE_KEPT,
                            SCALED)
@@ -23,11 +24,45 @@ def _num(v):
     return float(v) if isinstance(v, (int, float)) else None
 
 
+# Sub-keys of a composite field are raw record keys ("blower_motor_hp"), so a
+# plain .capitalize() printed "Moc" and "Inner size m". These are read by an
+# engineer on a specification table, so the unit is bracketed and the trade
+# acronyms keep their casing.
+_ACRONYMS = {"moc", "hp", "cfm", "cmh", "kw", "rpm", "lpg", "plc", "hmi", "vfd",
+             "ms", "ss", "gi", "id", "od", "ip", "ach", "lux", "nflp", "flp"}
+_UNIT_SUFFIX = {"m": "m", "mm": "mm", "cm": "cm", "kg": "kg", "hp": "HP",
+                "c": "deg C", "cmh": "m3/h", "cfm": "CFM", "kw": "kW",
+                "min": "min", "hr": "hr", "l": "litre", "pct": "%"}
+
+
+def _sub_label(key: str) -> str:
+    parts = str(key).split("_")
+    unit = ""
+    # A trailing unit token becomes a bracketed unit, not a dangling word.
+    if len(parts) > 1 and parts[-1].lower() in _UNIT_SUFFIX:
+        unit = _UNIT_SUFFIX[parts.pop().lower()]
+    words = [p.upper() if p.lower() in _ACRONYMS else p for p in parts]
+    text = " ".join(words)
+    text = text[:1].upper() + text[1:] if text else text
+    return f"{text} ({unit})" if unit else text
+
+
 def _fmt(v):
     if isinstance(v, float):
         if v.is_integer():
             return str(int(v))
         return f"{round(v, 2):g}"        # 1.0346... -> 1.03, never raw float noise
+    # A composite field (a powder-coating plant records its booth / oven /
+    # recovery module as a nested object) must NOT fall through to str(): that
+    # printed a raw Python dict repr — braces, quotes and all — straight into
+    # the customer-facing specification table and the drawing legend. Flatten it
+    # into readable engineering text instead. No value is dropped or reworded;
+    # only the punctuation between them changes.
+    if isinstance(v, dict):
+        return "; ".join(f"{_sub_label(k)}: {_fmt(sv)}"
+                         for k, sv in v.items() if sv not in (None, "", []))
+    if isinstance(v, (list, tuple)):
+        return ", ".join(_fmt(x) for x in v if x not in (None, "", []))
     return str(v)
 
 
@@ -48,8 +83,16 @@ def _same(a, b):
 # --- spec generation with source + reason ----------------------------------
 
 def _item(label, value, origin, source, reason):
-    return {"label": label, "value": _fmt(value), "origin": origin,
+    item = {"label": label, "value": _fmt(value), "origin": origin,
             "origin_label": origin_label(origin), "source": source, "reason": reason}
+    # Keep the ORIGINAL sub-values of a composite field alongside the flattened
+    # display string. The GA drawing needs the plant's real module sizes
+    # (booth `inner_size_m`, oven `inner_size_m`, conveyor `track_length_m`) and
+    # re-parsing them back out of prose would be a second, drifting parser.
+    # Display and geometry therefore read the SAME resolved values.
+    if isinstance(value, dict):
+        item["parts"] = {str(k): value[k] for k in value}
+    return item
 
 
 def _short_std(s):
@@ -57,6 +100,19 @@ def _short_std(s):
 
 
 def generate_spec(profile, category, params, chosen, offers, policy=ATS):
+    with _obs.span("rules.apply", "rules") as _s:
+        out = _generate_spec_inner(profile, category, params, chosen, offers, policy)
+        try:
+            rules = sum(1 for i in (out[0] if isinstance(out, tuple) else out)
+                        if str(i.get("origin")) in ("rule", "standard", "advisory"))
+            _s.detail(rules=rules, category=category)
+            _obs.count("rule_count", rules)
+        except Exception:
+            pass
+        return out
+
+
+def _generate_spec_inner(profile, category, params, chosen, offers, policy=ATS):
     base = _tech(chosen)
     cid = chosen["id"] if chosen else None
     items, rules_list = [], []
@@ -69,8 +125,14 @@ def generate_spec(profile, category, params, chosen, offers, policy=ATS):
         for v in computed.values:
             rule = _match_rule(v.label, rules_by_name)
             if rule:
-                items.append(_item(v.label, v.value, "rule", _short_std(rule.standard),
-                                   f"Calculated: {rule.formula} ({rule.standard})."))
+                # Keep the value's own provenance when it carries one (advisory /
+                # standard / customer_decision from the client's standards
+                # package); only default to "rule" for a plain calculation.
+                origin = v.origin if v.origin in ("advisory", "standard",
+                                                  "customer_decision") else "rule"
+                verb = {"advisory": "Recommended", "standard": "Per standard"}.get(origin, "Calculated")
+                items.append(_item(v.label, v.value, origin, _short_std(rule.standard),
+                                   f"{verb}: {rule.formula} ({rule.standard})."))
             else:
                 items.append(_item(v.label, v.value, "given", "requirement",
                                    "Derived from the client requirement."))
@@ -170,7 +232,60 @@ def generate_spec(profile, category, params, chosen, offers, policy=ATS):
             reason = (f"Reused from nearest design {cid} (exact {driver_label} match)."
                       if exact_driver else f"Reused from nearest design {cid}.")
             items.append(_item(label_for(category, k), val, "reused", cid, reason))
+
+    items += _declared_but_unmatched(profile, category, params, rule_map,
+                                     target_to_given, base)
     return items, rules_list
+
+
+def _declared_but_unmatched(profile, category, params, rule_map, target_to_given,
+                            base) -> list:
+    """Client-given and rule-computed fields the NEAREST OFFER happens not to carry.
+
+    The loop above walks the nearest offer's field set, so a field that offer
+    lacks is never even considered — and a value the CLIENT STATED or a RULE
+    COMPUTED then vanishes from the specification entirely. Not as a TBD: gone.
+
+    That is a reuse policy deciding what engineering exists. It bit the wet
+    scrubber hardest, because Vitech's archive holds four vertical spray towers
+    (`tower_diameter_mm` + `tower_height_m`) and ONE horizontal baffle unit that
+    records neither. A 750 mm tower requirement whose nearest offer was the
+    baffle unit lost both the client's diameter and the rule's computed height,
+    which left the GA with no envelope and a blank sheet.
+
+    The PROFILE declares which fields a category has — `from_given` and
+    `rule_covers` are exactly that declaration — so the profile decides the
+    field set and history only fills it. Nothing is invented here: a field is
+    emitted only when the client supplied it or a rule computed it.
+    """
+    if not profile:
+        return []
+    out = []
+    seen = set(base or {})
+
+    # Client-stated values first: the requirement is authoritative everywhere
+    # else in this function, and it must be here too.
+    for target, given_key in (profile.get("from_given") or {}).items():
+        if target in seen or given_key not in params:
+            continue
+        value = params[given_key]
+        if isinstance(value, dict):
+            continue
+        out.append(_item(label_for(category, target), value, "given", "requirement",
+                         "Client requirement (authoritative)."))
+        seen.add(target)
+
+    # Then rule outputs, in the profile's declared order so the spec is stable.
+    for target in (profile.get("rule_covers") or []):
+        if target in seen or target not in rule_map:
+            continue
+        rc = rule_map[target]
+        snapped, note = _snap(profile, target, rc["value"])
+        out.append(_item(label_for(category, target), snapped, "rule",
+                         _short_std(rc["standard"]),
+                         f"{rc['formula']} ({rc['standard']}){note}."))
+        seen.add(target)
+    return out
 
 
 def _support_count(field, value, offers):

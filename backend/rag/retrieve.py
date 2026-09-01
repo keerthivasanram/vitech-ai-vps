@@ -82,7 +82,7 @@ def _candidate_search(collection, question, filters, count, broaden):
     return _run({"type": DOC_TYPE})        # broaden 2: documents only
 
 
-def retrieve_documents(question: str, top_k: int = 6, *,
+def _retrieve_documents_inner(question: str, top_k: int = 6, *,
                        filters: dict[str, Any] | None = None,
                        broaden: bool = True,
                        principal=None) -> list[dict[str, Any]]:
@@ -129,3 +129,16 @@ def available_filters() -> dict[str, list[Any]]:
             if meta.get(key) is not None:
                 facets[key].add(meta[key])
     return {k: sorted(v) for k, v in facets.items() if v}
+
+
+def retrieve_documents(*args, **kwargs):
+    """Traced wrapper. The implementation above is unchanged — this only times
+    it and records how many documents came back."""
+    from app.observability import trace as _obs
+    with _obs.span("retrieve.documents", "retrieval") as _s:
+        out = _retrieve_documents_inner(*args, **kwargs)
+        try:
+            _s.detail(count=len(out.get("hits") or []) if isinstance(out, dict) else len(out))
+        except Exception:
+            pass
+        return out

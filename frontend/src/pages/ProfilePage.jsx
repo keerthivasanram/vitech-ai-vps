@@ -1,4 +1,4 @@
-import { Moon, Shield, Sun } from "lucide-react";
+import { LogOut, Moon, Shield, Sun } from "lucide-react";
 import { Avatar } from "../common/Avatar";
 import { Card } from "../common/Card";
 import { Button } from "../common/Button";
@@ -11,7 +11,7 @@ import { Button } from "../common/Button";
  * the local theme choice — rather than inventing account fields. It grows into
  * a real account page when the multi-user phase lands.
  */
-export function ProfilePage({ user, health, sessionId, conversationCount, isDark, onToggleTheme }) {
+export function ProfilePage({ user, health, sessionId, conversationCount, isDark, onToggleTheme, onLogout }) {
   const rows = [
     { k: "Name", v: user.name },
     { k: "Role", v: user.role },
@@ -20,9 +20,9 @@ export function ProfilePage({ user, health, sessionId, conversationCount, isDark
   ];
 
   const session = [
+    // Model and memory backend removed with the public-health reduction: they
+    // are infrastructure, and they are on the operations console instead.
     { k: "Session id", v: sessionId, mono: true },
-    { k: "Language model", v: health?.llm_model || "unknown" },
-    { k: "Conversation memory", v: health?.memory || "unknown" },
     { k: "Saved conversations", v: String(conversationCount) },
   ];
 
@@ -83,6 +83,11 @@ export function ProfilePage({ user, health, sessionId, conversationCount, isDark
             >
               {isDark ? "Switch to light mode" : "Switch to dark mode"}
             </Button>
+            {onLogout && (
+              <Button variant="ghost" size="sm" icon={LogOut} onClick={onLogout} className="set-danger">
+                Sign out
+              </Button>
+            )}
           </div>
         </Card>
       </div>

@@ -22,3 +22,20 @@ Thumbs.db
 
 # local tooling
 .claude/
+
+# Backup bundle: contains the Flowise encryption key and the deploy SSH key.
+# Download it, then delete it. It must NEVER be committed.
+vitech-critical-backup-*.tar.gz
+
+# Generated engineering packages (regenerable from the requirement)
+backend/data/packages/
+
+# Auth database — password hashes, session and service-key hashes, audit trail.
+backend/data/auth.db
+backend/data/auth.db-*
+
+# Operations database, structured logs and stored artifacts.
+backend/data/ops.db
+backend/data/ops.db-*
+backend/data/jobs/
+backend/logs/

@@ -3,7 +3,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import { SidebarGroup, SidebarItem } from "./SidebarItem";
 import { Logo, CircuitDeco } from "./Logo";
 import { Avatar } from "../common/Avatar";
-import { AGENT_VIEWS, NAV } from "../lib/constants";
+import { AGENT_VIEWS, navForRole } from "../lib/constants";
 import { useRipple } from "../hooks/useRipple";
 
 /**
@@ -13,6 +13,10 @@ import { useRipple } from "../hooks/useRipple";
 export const Sidebar = memo(function Sidebar({
   view, onSelect, onNewChat, user, open, isDark,
 }) {
+  // The rail is built from the ROLE the server returned at sign-in, so an
+  // engineer is never shown an administrator link. This is presentation only —
+  // `auth/policy.py` is what actually refuses the request.
+  const role = user?.role || "engineer";
   // The agent dropdown starts open when one of its agents is the current view.
   const [agentsOpen, setAgentsOpen] = useState(() => AGENT_VIEWS.includes(view));
 
@@ -39,12 +43,12 @@ export const Sidebar = memo(function Sidebar({
   const groups = useMemo(() => {
     const order = [];
     const byGroup = new Map();
-    for (const item of NAV) {
+    for (const item of navForRole(role)) {
       if (!byGroup.has(item.group)) { byGroup.set(item.group, []); order.push(item.group); }
       byGroup.get(item.group).push(item);
     }
     return order.map((name) => ({ name, items: byGroup.get(name) }));
-  }, []);
+  }, [role]);
 
   return (
     <aside className={`sidebar${open ? " is-open" : ""}`} aria-label="Main navigation">

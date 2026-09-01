@@ -118,15 +118,15 @@
     ]
   },
   "wet scrubber for 800 cfm 750mm tower 4 nos": {
-    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 800\n- ✓ Air volume cmh: 1359\n- ✓ Tower diameter (mm): 750\n- ✓ Qty: 4\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n> **Quantity:** 4 complete wet scrubber units are required. The specification below is **per unit** — each unit has its own tower, pump, spray nozzles and tank as listed.\n\n**Recommended specification (per unit)**\n- **Air volume cfm:** 800 — Client requirement (authoritative).\n- **Air volume cmh:** 1359 — Client requirement (authoritative).\n- **Scrubber type:** horizontal baffle plate - blower mounted over scrubber — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Scrubber dimension:** 700mm W x 1700mm L — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Scrubber chamber:** SS-304 2mm — Observed in 3 of 5 comparable projects (historical consensus).\n- **Scrubber tank:** SS-304 2mm (MS painted base/supports) — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Spray nozzles (nos):** 19 — recirculation L/G 5.0 L/m3 x 1359 m3/h = 113 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Spray nozzle material:** SS-304 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Pump capacity (HP):** 1 — P = rho.g.Q.H / eff with Q 113 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 1.03, selected nearest standard 1.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Eliminator / demister:** PP 250mm W x 650mm L x 150mm thick — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Tank capacity (litre):** 300 — 113 L/min x 2.5 min retention (ATS recirculation-tank standard); calculated 283.12, selected nearest standard 300.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower static pressure mmwc:** 250 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Blower motor hp:** 3 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Finish:** SS 2B scrubber; MS - epoxy primer + epoxy black top coat — Reused from nearest design OFF-C2C-WS-20240921R1.\n\n**Engineering checks**\n- ✓ Gas velocity 0.85 m/s is within the design range (0.7-1.5 m/s) for the 750 mm tower.\n- • Operating temperature not given - ambient assumed. A hot gas stream would need pre-cooling and a material/finish review.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n- • 8 component(s) were reused from OFF-C2C-WS-20240921R1 (a 1530 m3/h design) for a 1359 m3/h duty - confirm they still suit the new airflow.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-C2C-WS-20240921R1** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 50% (8/16 decisions)\n- Validation: 100%\n\n**Overall confidence: 88% (High).** Missing inputs: Operating temperature, Operating pressure.\n\n_Provenance: 16 decisions — 2 client requirement, 8 reused from historical offer, 3 historical consensus, 3 engineering rule. Every value is traceable to its source (see decision ledger)._\n\n_Source: C2C R1 131124.pdf_",
-    "spec_writeup_sha": "f1ef3b0ee7bc4a775f0e73a3357f38d666cb0aefb90e73a6bc9c2620770e90c7",
+    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 800\n- ✓ Air volume cmh: 1359\n- ✓ Tower diameter (mm): 750\n- ✓ Qty: 4\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n> **Quantity:** 4 complete wet scrubber units are required. The specification below is **per unit** — each unit has its own tower, pump, spray nozzles and tank as listed.\n\n**Recommended specification (per unit)**\n- **Air volume cfm:** 800 — Client requirement (authoritative).\n- **Air volume cmh:** 1359 — Client requirement (authoritative).\n- **Scrubber type:** horizontal baffle plate - blower mounted over scrubber — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Scrubber dimension:** 700mm W x 1700mm L — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Scrubber chamber:** SS-304 2mm — Observed in 3 of 5 comparable projects (historical consensus).\n- **Scrubber tank:** SS-304 2mm (MS painted base/supports) — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Spray nozzles (nos):** 19 — recirculation L/G 5.0 L/m3 x 1359 m3/h = 113 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Spray nozzle material:** SS-304 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Pump capacity (HP):** 1 — P = rho.g.Q.H / eff with Q 113 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 1.03, selected nearest standard 1.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Eliminator / demister:** PP 250mm W x 650mm L x 150mm thick — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Tank capacity (litre):** 300 — 113 L/min x 2.5 min retention (ATS recirculation-tank standard); calculated 283.12, selected nearest standard 300.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower static pressure mmwc:** 250 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Blower motor hp:** 3 — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Finish:** SS 2B scrubber; MS - epoxy primer + epoxy black top coat — Reused from nearest design OFF-C2C-WS-20240921R1.\n- **Tower diameter (mm):** 750 — Client requirement (authoritative).\n- **Tower height (m):** 4 — 5 x tower diameter 750 mm (gas-liquid contact height) (ATS spray-tower height standard).\n\n**Engineering checks**\n- ✓ Gas velocity 0.85 m/s is within the design range (0.7-1.5 m/s) for the 750 mm tower.\n- • Operating temperature not given - ambient assumed. A hot gas stream would need pre-cooling and a material/finish review.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n- • 8 component(s) were reused from OFF-C2C-WS-20240921R1 (a 900 CFM design) for a 800 CFM duty - confirm they still suit the new duty.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-C2C-WS-20240921R1** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 56% (10/18 decisions)\n- Validation: 100%\n\n**Overall confidence: 89% (High).** Missing inputs: Operating temperature, Operating pressure.\n\n_Provenance: 18 decisions — 3 client requirement, 8 reused from historical offer, 3 historical consensus, 4 engineering rule. Every value is traceable to its source (see decision ledger)._\n\n_Source: C2C R1 131124.pdf_",
+    "spec_writeup_sha": "a4de649898b4de3e62fe4a40918cfe27cb8b0bbf2f93c905fd1ed5aedced15b2",
     "nearest_match": "OFF-C2C-WS-20240921R1",
-    "confidence_pct": 88,
+    "confidence_pct": 89,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 3
+        "count": 4
       },
       {
         "type": "Inferred",
@@ -142,10 +142,10 @@
       },
       {
         "type": "From Requirement",
-        "count": 2
+        "count": 3
       }
     ],
-    "n_ledger": 16,
+    "n_ledger": 18,
     "n_validation": 4,
     "technical": [
       [
@@ -227,19 +227,29 @@
         "Finish",
         "SS 2B scrubber; MS - epoxy primer + epoxy black top coat",
         "reused"
+      ],
+      [
+        "Tower diameter (mm)",
+        "750",
+        "given"
+      ],
+      [
+        "Tower height (m)",
+        "4",
+        "rule"
       ]
     ]
   },
   "wet scrubber for 3000 cfm 1000mm tower 2 nos": {
-    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 3000\n- ✓ Air volume cmh: 5097\n- ✓ Tower diameter (mm): 1000\n- ✓ Qty: 2\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 1\n- Missing inputs: None\n\n> **Quantity:** 2 complete wet scrubber units are required. The specification below is **per unit** — each unit has its own tower, pump, spray nozzles and tank as listed.\n\n**Recommended specification (per unit)**\n- **Air volume cmh:** 5097 — Client requirement (authoritative).\n- **Tower diameter (mm):** 1000 — Client requirement (authoritative).\n- **Tower height (m):** 5 — 5 x tower diameter 1000 mm (gas-liquid contact height) (ATS spray-tower height standard).\n- **Scrubber chamber:** 10mm (5mm PP + 5mm FRP lining) — Reused from nearest design OFF-MECCA-WS-164.\n- **No. of towers:** 2 — Reused from nearest design OFF-MECCA-WS-164.\n- **Spray nozzles (nos):** 71 — recirculation L/G 5.0 L/m3 x 5097 m3/h = 425 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Spray nozzle material:** PP — Reused from nearest design OFF-MECCA-WS-164.\n- **Pump capacity (HP):** 3 — P = rho.g.Q.H / eff with Q 425 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 3.88, selected nearest standard 3.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Packing:** PP pall rings — Reused from nearest design OFF-MECCA-WS-164.\n- **Eliminator / demister:** PP mist eliminator / pall rings — Reused from nearest design OFF-MECCA-WS-164.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower motor hp:** 12.5 — Reused from nearest design OFF-MECCA-WS-164.\n- **Blower moc:** PP + FRP — Reused from nearest design OFF-MECCA-WS-164.\n- **Ph controller:** Mepcco PhM 600-1 — Reused from nearest design OFF-MECCA-WS-164.\n\n**Engineering checks**\n- ⚠ Gas velocity is 1.80 m/s - above ~1.5 m/s, so droplet carry-over is likely. Consider a larger tower (about 1343 mm) or a higher-efficiency demister.\n- • Operating temperature not given - ambient assumed. A hot gas stream would need pre-cooling and a material/finish review.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n- • 8 component(s) were reused from OFF-MECCA-WS-164 (a 6100 m3/h design) for a 5097 m3/h duty - confirm they still suit the new airflow.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-MECCA-WS-164** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 47% (7/15 decisions)\n- Validation: 75%\n\n**Overall confidence: 83% (High).** Missing inputs: Operating temperature, Operating pressure. 1 engineering check(s) flagged - see Engineering checks.\n\n_Provenance: 15 decisions — 2 client requirement, 3 engineering rule, 8 reused from historical offer, 2 historical consensus. Every value is traceable to its source (see decision ledger)._\n\n_Source: MECCANOTECNICA_WET SCRUBBERS_R4_240623.pdf_",
-    "spec_writeup_sha": "13a8c3f7cd2e6a9c100e2554da3ff3484b7ade836057d1a572e3a842b7790d36",
+    "spec_writeup": "## Wet Scrubber — Recommended Specification\n\n**Customer Requirements**\n- ✓ Air volume cfm: 3000\n- ✓ Air volume cmh: 5097\n- ✓ Tower diameter (mm): 1000\n- ✓ Qty: 2\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 5 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 1\n- Missing inputs: None\n\n> **Quantity:** 2 complete wet scrubber units are required. The specification below is **per unit** — each unit has its own tower, pump, spray nozzles and tank as listed.\n\n**Recommended specification (per unit)**\n- **Air volume cmh:** 5097 — Client requirement (authoritative).\n- **Tower diameter (mm):** 1000 — Client requirement (authoritative).\n- **Tower height (m):** 5 — 5 x tower diameter 1000 mm (gas-liquid contact height) (ATS spray-tower height standard).\n- **Scrubber chamber:** 10mm (5mm PP + 5mm FRP lining) — Reused from nearest design OFF-MECCA-WS-164.\n- **No. of towers:** 2 — Reused from nearest design OFF-MECCA-WS-164.\n- **Spray nozzles (nos):** 71 — recirculation L/G 5.0 L/m3 x 5097 m3/h = 425 L/min, / 6 L/min per nozzle (ATS wet-scrubber spray-coverage standard).\n- **Spray nozzle material:** PP — Reused from nearest design OFF-MECCA-WS-164.\n- **Pump capacity (HP):** 3 — P = rho.g.Q.H / eff with Q 425 L/min, H 25 m, eff 0.6 (Hydraulic pump-power formula); calculated 3.88, selected nearest standard 3.\n- **Pump make:** ANALA — Observed in 5 of 5 comparable projects (historical consensus).\n- **Packing:** PP pall rings — Reused from nearest design OFF-MECCA-WS-164.\n- **Eliminator / demister:** PP mist eliminator / pall rings — Reused from nearest design OFF-MECCA-WS-164.\n- **Blower type:** centrifugal — Observed in 5 of 5 comparable projects (historical consensus).\n- **Blower motor hp:** 12.5 — Reused from nearest design OFF-MECCA-WS-164.\n- **Blower moc:** PP + FRP — Reused from nearest design OFF-MECCA-WS-164.\n- **Ph controller:** Mepcco PhM 600-1 — Reused from nearest design OFF-MECCA-WS-164.\n- **Tank capacity (litre):** 1000 — 425 L/min x 2.5 min retention (ATS recirculation-tank standard); calculated 1061.88, selected nearest standard 1000.\n\n**Engineering checks**\n- ⚠ Gas velocity is 1.80 m/s - above ~1.5 m/s, so droplet carry-over is likely. Consider a larger tower (about 1343 mm) or a higher-efficiency demister.\n- • Operating temperature not given - ambient assumed. A hot gas stream would need pre-cooling and a material/finish review.\n- • Operating pressure / available draft not given - confirm the blower static pressure against the scrubber pressure drop.\n- • 8 component(s) were reused from OFF-MECCA-WS-164 (a 6100 m3/h design) for a 5097 m3/h duty - confirm they still suit the new duty.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-MECCA-WS-164** — the closest comparable wet scrubber on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (5 project(s))\n- Rule coverage: 50% (8/16 decisions)\n- Validation: 75%\n\n**Overall confidence: 84% (High).** Missing inputs: Operating temperature, Operating pressure. 1 engineering check(s) flagged - see Engineering checks.\n\n_Provenance: 16 decisions — 2 client requirement, 4 engineering rule, 8 reused from historical offer, 2 historical consensus. Every value is traceable to its source (see decision ledger)._\n\n_Source: MECCANOTECNICA_WET SCRUBBERS_R4_240623.pdf_",
+    "spec_writeup_sha": "8cbdd0e995cb4666f75065bdc49d417da30016fe9e2c68d121ac7f6da7987742",
     "nearest_match": "OFF-MECCA-WS-164",
-    "confidence_pct": 83,
+    "confidence_pct": 84,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 3
+        "count": 4
       },
       {
         "type": "Inferred",
@@ -258,7 +268,7 @@
         "count": 2
       }
     ],
-    "n_ledger": 15,
+    "n_ledger": 16,
     "n_validation": 4,
     "technical": [
       [
@@ -335,6 +345,11 @@
         "Ph controller",
         "Mepcco PhM 600-1",
         "reused"
+      ],
+      [
+        "Tank capacity (litre)",
+        "1000",
+        "rule"
       ]
     ]
   },
@@ -457,15 +472,15 @@
     ]
   },
   "paint booth 10 x 6 powder": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 10\n- ✓ Width m: 6\n- ✓ Height m: 4\n- ✓ Paint type: powder\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 10 x 6 x 4 m — Derived from the client requirement.\n- **Exhaust airflow:** 38880 m3/h — Calculated: face area 6x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 3 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 36 (dry) — Calculated: ceil(floor area 60 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** GI — Calculated: powder process -> GI / dry filtration (ATS material-selection standard).\n- **Paint process:** powder — Derived from the client requirement.\n- **Booth type:** dry type side down draft, non-pressurized, 0.6 m/s cross velocity — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Construction:** base frame ISMC / panels MS 1.2mm — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Illumination:** 20w x 10 LED weatherproof — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paper filter:** paper with synthetic, 1.4H x 7.0W both sides — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Air intake filter:** 10 micron velcro type — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower cfm:** 20000 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower motor hp:** 15 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower qty:** 2 — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Blower moc:** MS — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Finish:** primer + final coats — Reused from historical offer OFF-SYNERGY-PB-209R3.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-SYNERGY-PB-209R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 38% (6/16 decisions)\n- Validation: 100%\n\n**Overall confidence: 84% (High).**\n\n_Provenance: 16 decisions — 2 client requirement, 4 engineering rule, 10 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: SynergyFZE _R3_230823.pdf_",
-    "spec_writeup_sha": "bca7d1778eca4fac3bb93c68871aa556e61b9451036e47445dbfd6739342e648",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 10\n- ✓ Width m: 6\n- ✓ Height m: 4\n- ✓ Paint type: powder\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 16\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** Powder Coating Booth — Calculated: canonical booth type; face velocity 0.55 m/s (design face velocity for Powder Coating Booth) (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Dimensions:** 10 x 6 x 4 m — Derived from the client requirement.\n- **Construction:** base frame ISMC / panels MS 1.2mm — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Construction material:** Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval. — Recommended: material matrix: standard -> structure MS, panels MS (Vitech material selection matrix (advisory)).\n- **Exhaust airflow:** 47520 m3/h — Calculated: face area 6x4 = 24 m2 x velocity 0.55 m/s (design face velocity for Powder Coating Booth) x 3600 (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Inlet air volume:** 42770 m3/h — Calculated: exhaust 47520 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-30-30500 — Calculated: duty 27969 CFM -> smallest CLP-4-30-30500 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 30500 — Calculated: CLP-4-30-30500 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-30-30500 to cover 27969 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 30 — Calculated: CLP-4-30-30500 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-30-30500 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 2952 kg — Calculated: 5-side surface area 188.0 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** MS — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paint arresting filter:** 37 nos 600 x 600 x 50 mm — Calculated: required area 13.2 m2 = 47520 m3/h / (3600 x 1 m/s media velocity), / 0.36 m2 per filter (Vitech filter standard (media velocity 0.8-1.2 m/s)).\n- **Air intake filter:** 10 micron velcro type — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** 1000 mm dia, GI, 16.8 m/s transport velocity — Calculated: area 0.66 m2 = 47520 m3/h / (20 m/s x 3600), dia = sqrt(4A/pi) = 917 mm -> standard 1000 mm (Vitech duct standard (transport velocity)).\n- **Illumination:** 11 nos 40 W weatherproof LED (750 lux) — Calculated: 60 m2 x 750 lux = 45000 lm, / 4400 lm per fixture (Vitech lighting standard (lux-based selection)).\n- **Electrical fittings & motors:** 26.2 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay — Calculated: 30 HP x 0.746 = 22.4 kW + 0.4 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Fire extinguishing system:** Explosion venting, Spark detection, ABC extinguishers — Per standard: powder process -> Powder booth practice (recommended) (Fire protection by paint process (NFPA 33 for solvent)).\n- **Material handling for painting:** To be confirmed with the customer — Customer to confirm the required option.\n- **Control panel:** Star Delta MCC, 26.2 kW — Calculated: 30 HP x 0.746 = 22.4 kW + 0.4 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Finish:** primer + final coats — Reused from historical offer OFF-SYNERGY-PB-209R3.\n- **Paint process:** powder — Derived from the client requirement.\n\n**Engineering checks**\n- • 4 component(s) were reused from OFF-SYNERGY-PB-209R3 (a 30 m2 floor area design) for a 60 m2 floor area duty - confirm they still suit the new duty.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-SYNERGY-PB-209R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 79% (19/24 decisions)\n- Validation: 100%\n\n**Overall confidence: 95% (High).** 1 specification field still to be determined - needs engineering input.\n\n_Provenance: 24 decisions — 14 engineering rule, 2 client requirement, 4 reused from historical offer, 4 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: SynergyFZE _R3_230823.pdf_",
+    "spec_writeup_sha": "3a3c2ffba8d58167e8a8bfeaa6781edf3f8420c059079e97c091fdd542a49a0a",
     "nearest_match": "OFF-SYNERGY-PB-209R3",
-    "confidence_pct": 84,
+    "confidence_pct": 95,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 4
+        "count": 14
       },
       {
         "type": "Inferred",
@@ -477,50 +492,33 @@
       },
       {
         "type": "Reused",
-        "count": 10
+        "count": 6
       },
       {
         "type": "From Requirement",
         "count": 2
+      },
+      {
+        "type": "Advisory Recommendation",
+        "count": 1
+      },
+      {
+        "type": "Engineering Standard",
+        "count": 1
       }
     ],
-    "n_ledger": 16,
-    "n_validation": 0,
+    "n_ledger": 24,
+    "n_validation": 1,
     "technical": [
+      [
+        "Type of paint booth",
+        "Powder Coating Booth",
+        "rule"
+      ],
       [
         "Dimensions",
         "10 x 6 x 4 m",
         "given"
-      ],
-      [
-        "Exhaust airflow",
-        "38880 m3/h",
-        "rule"
-      ],
-      [
-        "Exhaust fans",
-        "3",
-        "rule"
-      ],
-      [
-        "Filters",
-        "36 (dry)",
-        "rule"
-      ],
-      [
-        "Construction material",
-        "GI",
-        "rule"
-      ],
-      [
-        "Paint process",
-        "powder",
-        "given"
-      ],
-      [
-        "Booth type",
-        "dry type side down draft, non-pressurized, 0.6 m/s cross velocity",
-        "kept"
       ],
       [
         "Construction",
@@ -528,14 +526,59 @@
         "kept"
       ],
       [
-        "Illumination",
-        "20w x 10 LED weatherproof",
+        "Construction material",
+        "Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval.",
+        "advisory"
+      ],
+      [
+        "Exhaust airflow",
+        "47520 m3/h",
+        "rule"
+      ],
+      [
+        "Inlet air volume",
+        "42770 m3/h",
+        "rule"
+      ],
+      [
+        "Exhaust blower",
+        "CLP-4-30-30500",
+        "rule"
+      ],
+      [
+        "Blower airflow (CFM)",
+        "30500",
+        "rule"
+      ],
+      [
+        "Exhaust blower (nos)",
+        "1",
+        "rule"
+      ],
+      [
+        "Exhaust blower motor (HP)",
+        "30",
+        "rule"
+      ],
+      [
+        "Blower drive",
+        "direct drive",
+        "rule"
+      ],
+      [
+        "Enclosure sheet weight",
+        "2952 kg",
+        "rule"
+      ],
+      [
+        "Blower MOC",
+        "MS",
         "kept"
       ],
       [
-        "Paper filter",
-        "paper with synthetic, 1.4H x 7.0W both sides",
-        "kept"
+        "Paint arresting filter",
+        "37 nos 600 x 600 x 50 mm",
+        "rule"
       ],
       [
         "Air intake filter",
@@ -543,42 +586,62 @@
         "kept"
       ],
       [
-        "Blower cfm",
-        "20000",
-        "kept"
+        "Dry scrubber",
+        "To be determined",
+        "tbd"
       ],
       [
-        "Blower motor hp",
-        "15",
-        "kept"
+        "Exhaust ducts",
+        "1000 mm dia, GI, 16.8 m/s transport velocity",
+        "rule"
       ],
       [
-        "Blower qty",
-        "2",
-        "kept"
+        "Illumination",
+        "11 nos 40 W weatherproof LED (750 lux)",
+        "rule"
       ],
       [
-        "Blower moc",
-        "MS",
-        "kept"
+        "Electrical fittings & motors",
+        "26.2 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay",
+        "rule"
+      ],
+      [
+        "Fire extinguishing system",
+        "Explosion venting, Spark detection, ABC extinguishers",
+        "standard"
+      ],
+      [
+        "Material handling for painting",
+        "To be confirmed with the customer",
+        "customer_decision"
+      ],
+      [
+        "Control panel",
+        "Star Delta MCC, 26.2 kW",
+        "rule"
       ],
       [
         "Finish",
         "primer + final coats",
         "kept"
+      ],
+      [
+        "Paint process",
+        "powder",
+        "given"
       ]
     ]
   },
   "paint booth 3 x 3 liquid": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 3\n- ✓ Width m: 3\n- ✓ Height m: 2.35\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 3 x 3 x 2.35 m — Derived from the client requirement.\n- **Exhaust airflow:** 11420 m3/h — Calculated: face area 3x2.35 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 1 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 6 (water-wash) — Calculated: ceil(floor area 9 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** SS304 — Calculated: liquid process -> SS304 / water-wash filtration (ATS material-selection standard).\n- **Paint process:** liquid — Derived from the client requirement.\n- **Booth type:** dry type cross draft — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Construction:** MS 1.2mm, MS structure — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Illumination:** 18w x 2 tube light - 4 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Paper filter:** 700 x 1500mm - 4 nos (two layers folded perforated) — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Blower motor hp:** 10 — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Blower drive:** direct — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Exhaust duct:** GI 22g 550x550 - 10m — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Dry scrubber:** 1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Finish:** casing powder coated — Reused from historical offer OFF-DMN-PB-180624R3.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-DMN-PB-180624R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 40% (6/15 decisions)\n- Validation: 100%\n\n**Overall confidence: 85% (High).**\n\n_Provenance: 15 decisions — 2 client requirement, 4 engineering rule, 9 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: DMN Paint booth Dry -R3 280924.pdf_",
-    "spec_writeup_sha": "8af5f3e2ba5bda5949591d7b2982e76ef550555fec5c175de96beba98ace90fd",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 3\n- ✓ Width m: 3\n- ✓ Height m: 2.35\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 16\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** Dry Filter Cross Draft — Calculated: canonical booth type; face velocity 0.5 m/s (design face velocity for Dry Filter Cross Draft) (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Dimensions:** 3 x 3 x 2.35 m — Derived from the client requirement.\n- **Construction:** MS 1.2mm, MS structure — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Construction material:** Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval. — Recommended: material matrix: standard -> structure MS, panels MS (Vitech material selection matrix (advisory)).\n- **Exhaust airflow:** 12690 m3/h — Calculated: face area 3x2.35 = 7.05 m2 x velocity 0.5 m/s (design face velocity for Dry Filter Cross Draft) x 3600 (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Inlet air volume:** 11420 m3/h — Calculated: exhaust 12690 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-10-9000 — Calculated: duty 7469 CFM -> smallest CLP-4-10-9000 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 9000 — Calculated: CLP-4-10-9000 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-10-9000 to cover 7469 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 10 — Calculated: CLP-4-10-9000 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-10-9000 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 584 kg — Calculated: 5-side surface area 37.2 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** MS — Field-level match: the nearest design left this blank, so blower moc was taken from comparable project OFF-BAKERHUGHES-PB-275R3A.\n- **Paint arresting filter:** 10 nos 600 x 600 x 50 mm — Calculated: required area 3.5 m2 = 12690 m3/h / (3600 x 1 m/s media velocity), / 0.36 m2 per filter (Vitech filter standard (media velocity 0.8-1.2 m/s)).\n- **Air intake filter:** 10 micron velcro type — Field-level match: the nearest design left this blank, so air intake filter was taken from comparable project OFF-SYNERGY-PB-209R3.\n- **Dry scrubber:** 1.18L x 1.1W x 3.1H, MS, activated carbon filter 3 nos — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Exhaust ducts:** 500 mm dia, GI, 18.0 m/s transport velocity — Calculated: area 0.20 m2 = 12690 m3/h / (18 m/s x 3600), dia = sqrt(4A/pi) = 499 mm -> standard 500 mm (Vitech duct standard (transport velocity)).\n- **Illumination:** 2 nos 40 W weatherproof LED (750 lux) — Calculated: 9 m2 x 750 lux = 6750 lm, / 4400 lm per fixture (Vitech lighting standard (lux-based selection)).\n- **Electrical fittings & motors:** 8.7 kW MCC panel, DOL starter; MCC panel, Main isolator, Emergency stop, Overload relay — Calculated: 10 HP x 0.746 = 7.5 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Fire extinguishing system:** Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown — Per standard: solvent process -> NFPA 33 (mandatory) (Fire protection by paint process (NFPA 33 for solvent)).\n- **Material handling for painting:** To be confirmed with the customer — Customer to confirm the required option.\n- **Control panel:** DOL MCC, 8.7 kW — Calculated: 10 HP x 0.746 = 7.5 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Finish:** casing powder coated — Reused from historical offer OFF-DMN-PB-180624R3.\n- **Paint process:** liquid — Derived from the client requirement.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-DMN-PB-180624R3** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 79% (19/24 decisions)\n- Validation: 100%\n\n**Overall confidence: 95% (High).**\n\n_Provenance: 24 decisions — 14 engineering rule, 2 client requirement, 5 reused from historical offer, 3 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: DMN Paint booth Dry -R3 280924.pdf_",
+    "spec_writeup_sha": "f882e6458d9f0605adc6476639d7695cd45df5752ffba97730aad13fe5838df8",
     "nearest_match": "OFF-DMN-PB-180624R3",
-    "confidence_pct": 85,
+    "confidence_pct": 95,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 4
+        "count": 14
       },
       {
         "type": "Inferred",
@@ -590,50 +653,33 @@
       },
       {
         "type": "Reused",
-        "count": 9
+        "count": 6
       },
       {
         "type": "From Requirement",
         "count": 2
+      },
+      {
+        "type": "Advisory Recommendation",
+        "count": 1
+      },
+      {
+        "type": "Engineering Standard",
+        "count": 1
       }
     ],
-    "n_ledger": 15,
+    "n_ledger": 24,
     "n_validation": 0,
     "technical": [
+      [
+        "Type of paint booth",
+        "Dry Filter Cross Draft",
+        "rule"
+      ],
       [
         "Dimensions",
         "3 x 3 x 2.35 m",
         "given"
-      ],
-      [
-        "Exhaust airflow",
-        "11420 m3/h",
-        "rule"
-      ],
-      [
-        "Exhaust fans",
-        "1",
-        "rule"
-      ],
-      [
-        "Filters",
-        "6 (water-wash)",
-        "rule"
-      ],
-      [
-        "Construction material",
-        "SS304",
-        "rule"
-      ],
-      [
-        "Paint process",
-        "liquid",
-        "given"
-      ],
-      [
-        "Booth type",
-        "dry type cross draft",
-        "kept"
       ],
       [
         "Construction",
@@ -641,29 +687,64 @@
         "kept"
       ],
       [
-        "Illumination",
-        "18w x 2 tube light - 4 nos",
-        "kept"
+        "Construction material",
+        "Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval.",
+        "advisory"
       ],
       [
-        "Paper filter",
-        "700 x 1500mm - 4 nos (two layers folded perforated)",
-        "kept"
+        "Exhaust airflow",
+        "12690 m3/h",
+        "rule"
       ],
       [
-        "Blower motor hp",
+        "Inlet air volume",
+        "11420 m3/h",
+        "rule"
+      ],
+      [
+        "Exhaust blower",
+        "CLP-4-10-9000",
+        "rule"
+      ],
+      [
+        "Blower airflow (CFM)",
+        "9000",
+        "rule"
+      ],
+      [
+        "Exhaust blower (nos)",
+        "1",
+        "rule"
+      ],
+      [
+        "Exhaust blower motor (HP)",
         "10",
-        "kept"
+        "rule"
       ],
       [
         "Blower drive",
-        "direct",
-        "kept"
+        "direct drive",
+        "rule"
       ],
       [
-        "Exhaust duct",
-        "GI 22g 550x550 - 10m",
-        "kept"
+        "Enclosure sheet weight",
+        "584 kg",
+        "rule"
+      ],
+      [
+        "Blower MOC",
+        "MS",
+        "reused"
+      ],
+      [
+        "Paint arresting filter",
+        "10 nos 600 x 600 x 50 mm",
+        "rule"
+      ],
+      [
+        "Air intake filter",
+        "10 micron velcro type",
+        "reused"
       ],
       [
         "Dry scrubber",
@@ -671,22 +752,57 @@
         "kept"
       ],
       [
+        "Exhaust ducts",
+        "500 mm dia, GI, 18.0 m/s transport velocity",
+        "rule"
+      ],
+      [
+        "Illumination",
+        "2 nos 40 W weatherproof LED (750 lux)",
+        "rule"
+      ],
+      [
+        "Electrical fittings & motors",
+        "8.7 kW MCC panel, DOL starter; MCC panel, Main isolator, Emergency stop, Overload relay",
+        "rule"
+      ],
+      [
+        "Fire extinguishing system",
+        "Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown",
+        "standard"
+      ],
+      [
+        "Material handling for painting",
+        "To be confirmed with the customer",
+        "customer_decision"
+      ],
+      [
+        "Control panel",
+        "DOL MCC, 8.7 kW",
+        "rule"
+      ],
+      [
         "Finish",
         "casing powder coated",
         "kept"
+      ],
+      [
+        "Paint process",
+        "liquid",
+        "given"
       ]
     ]
   },
   "paint booth 5 x 3 x 4 liquid": {
-    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 5\n- ✓ Width m: 3\n- ✓ Height m: 4\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 4\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Dimensions:** 5 x 3 x 4 m — Derived from the client requirement.\n- **Exhaust airflow:** 19440 m3/h — Calculated: face area 3x4 x velocity 0.45 m/s x 3600 (NFPA 33 (face velocity 0.4-0.5 m/s)).\n- **Exhaust fans:** 2 — Calculated: ceil(airflow / 13000 m3/h per fan) (ATS fan-sizing standard).\n- **Filters:** 9 (water-wash) — Calculated: ceil(floor area 15 m2 x 0.6/m2) (ATS overspray-capture standard).\n- **Construction material:** SS304 — Calculated: liquid process -> SS304 / water-wash filtration (ATS material-selection standard).\n- **Paint process:** liquid — Derived from the client requirement.\n- **Booth type:** dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Construction:** panels MS 1.6mm / supports MS tubes — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Illumination:** flame proof LED 700-800 LUX — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Paint arresting:** paper filter system — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Blower motor hp:** 7.5 / 10 / 12.5 (2 nos each, IE3 FLP) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Exhaust duct:** GI 22swg 10m — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Activated carbon chamber:** 2 sets/booth (cartridge, frame type) — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Finish:** MS finish paint — Reused from historical offer OFF-CRI-PB-082406R4.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-CRI-PB-082406R4** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 43% (6/14 decisions)\n- Validation: 100%\n\n**Overall confidence: 86% (High).**\n\n_Provenance: 14 decisions — 2 client requirement, 4 engineering rule, 8 reused from historical offer. Every value is traceable to its source (see decision ledger)._\n\n_Source: CRI PUMP PB 10.10.24-R4.pdf_",
-    "spec_writeup_sha": "08fa50a8ca2d2a655b2e00c70f55e02a094b110f6197e1f628d56fce69f2a958",
+    "spec_writeup": "## Paint Booth — Recommended Specification\n\n**Customer Requirements**\n- ✓ Length m: 5\n- ✓ Width m: 3\n- ✓ Height m: 4\n- ✓ Paint type: liquid\n\n**Engineering Assessment**\n- Requirement completeness: 100%\n- Historical support: 10 ATS project(s)\n- Applicable engineering rules: 16\n- Validation checks flagged: 0\n- Missing inputs: None\n\n**Recommended specification (per unit)**\n- **Type of paint booth:** Dry Filter Cross Draft — Calculated: canonical booth type; face velocity 0.5 m/s (design face velocity for Dry Filter Cross Draft) (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Dimensions:** 5 x 3 x 4 m — Derived from the client requirement.\n- **Construction:** panels MS 1.6mm / supports MS tubes — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Construction material:** Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval. — Recommended: material matrix: standard -> structure MS, panels MS (Vitech material selection matrix (advisory)).\n- **Exhaust airflow:** 21600 m3/h — Calculated: face area 3x4 = 12 m2 x velocity 0.5 m/s (design face velocity for Dry Filter Cross Draft) x 3600 (Vitech booth-type standard (canonical type -> design face velocity)).\n- **Inlet air volume:** 19440 m3/h — Calculated: exhaust 21600 m3/h 10% less (booth held under suction) (Vitech paint-shop design calculation).\n- **Exhaust blower:** CLP-4-15-14500 — Calculated: duty 12713 CFM -> smallest CLP-4-15-14500 covering it in the booth series (Continental Thermal blower specification chart (direct drive)).\n- **Blower airflow (CFM):** 14500 — Calculated: CLP-4-15-14500 rated air volume (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower (nos):** 1 — Calculated: 1 x CLP-4-15-14500 to cover 12713 CFM (Continental Thermal blower specification chart (direct drive)).\n- **Exhaust blower motor (HP):** 15 — Calculated: CLP-4-15-14500 rated motor (4-pole, 1450 rpm) (Continental Thermal blower specification chart (direct drive)).\n- **Blower drive:** direct drive — Calculated: CLP-4-15-14500 is a direct-drive machine (Continental Thermal blower specification chart (direct drive)).\n- **Enclosure sheet weight:** 1240 kg — Calculated: 5-side surface area 79.0 m2 (floor excluded) x 2 mm MS sheet (MS sheet basis (2 mm / 14 SWG, 7850 kg/m3)).\n- **Blower MOC:** MS — Field-level match: the nearest design left this blank, so blower moc was taken from comparable project OFF-SYNERGY-PB-209R3.\n- **Paint arresting filter:** 17 nos 600 x 600 x 50 mm — Calculated: required area 6.0 m2 = 21600 m3/h / (3600 x 1 m/s media velocity), / 0.36 m2 per filter (Vitech filter standard (media velocity 0.8-1.2 m/s)).\n- **Air intake filter:** 10 micron velcro type — Field-level match: the nearest design left this blank, so air intake filter was taken from comparable project OFF-SYNERGY-PB-209R3.\n- **Dry scrubber:** To be determined — Needs a standard selection or a historical match.\n- **Exhaust ducts:** 700 mm dia, GI, 15.6 m/s transport velocity — Calculated: area 0.33 m2 = 21600 m3/h / (18 m/s x 3600), dia = sqrt(4A/pi) = 651 mm -> standard 700 mm (Vitech duct standard (transport velocity)).\n- **Illumination:** 3 nos 40 W weatherproof LED (750 lux) — Calculated: 15 m2 x 750 lux = 11250 lm, / 4400 lm per fixture (Vitech lighting standard (lux-based selection)).\n- **Electrical fittings & motors:** 13.0 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay — Calculated: 15 HP x 0.746 = 11.2 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Fire extinguishing system:** Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown — Per standard: solvent process -> NFPA 33 (mandatory) (Fire protection by paint process (NFPA 33 for solvent)).\n- **Material handling for painting:** To be confirmed with the customer — Customer to confirm the required option.\n- **Control panel:** Star Delta MCC, 13.0 kW — Calculated: 15 HP x 0.746 = 11.2 kW + 0.1 kW lighting, +15% spare; starter by load band (Vitech electrical panel standard (load-banded starter)).\n- **Finish:** MS finish paint — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Paint process:** liquid — Derived from the client requirement.\n- **Paint arresting:** paper filter system — Reused from historical offer OFF-CRI-PB-082406R4.\n- **Activated carbon chamber:** 2 sets/booth (cartridge, frame type) — Reused from historical offer OFF-CRI-PB-082406R4.\n\n**Basis & confidence**\nBased primarily on historical project **OFF-CRI-PB-082406R4** — the closest comparable paint booth on file. Client-requirement values come straight from your input; others are computed by engineering rules or reused from that project. With limited comparable projects on file, treat this as a starting point for engineering review.\n\n- Requirement completeness: 100% (3/3 inputs)\n- Historical evidence: 100% (10 project(s))\n- Rule coverage: 73% (19/26 decisions)\n- Validation: 100%\n\n**Overall confidence: 93% (High).** 1 specification field still to be determined - needs engineering input.\n\n_Provenance: 26 decisions — 14 engineering rule, 2 client requirement, 6 reused from historical offer, 4 other. Every value is traceable to its source (see decision ledger)._\n\n_Source: CRI PUMP PB 10.10.24-R4.pdf_",
+    "spec_writeup_sha": "dbd69f464c9180217ce3c589748ecdea070e9f3d2d348587cfbd1a151e629f38",
     "nearest_match": "OFF-CRI-PB-082406R4",
-    "confidence_pct": 86,
+    "confidence_pct": 93,
     "confidence_label": "High",
     "decision_origin": [
       {
         "type": "Engineering Rule",
-        "count": 4
+        "count": 14
       },
       {
         "type": "Inferred",
@@ -703,45 +819,28 @@
       {
         "type": "From Requirement",
         "count": 2
+      },
+      {
+        "type": "Advisory Recommendation",
+        "count": 1
+      },
+      {
+        "type": "Engineering Standard",
+        "count": 1
       }
     ],
-    "n_ledger": 14,
+    "n_ledger": 26,
     "n_validation": 0,
     "technical": [
+      [
+        "Type of paint booth",
+        "Dry Filter Cross Draft",
+        "rule"
+      ],
       [
         "Dimensions",
         "5 x 3 x 4 m",
         "given"
-      ],
-      [
-        "Exhaust airflow",
-        "19440 m3/h",
-        "rule"
-      ],
-      [
-        "Exhaust fans",
-        "2",
-        "rule"
-      ],
-      [
-        "Filters",
-        "9 (water-wash)",
-        "rule"
-      ],
-      [
-        "Construction material",
-        "SS304",
-        "rule"
-      ],
-      [
-        "Paint process",
-        "liquid",
-        "given"
-      ],
-      [
-        "Booth type",
-        "dry type side draft (3 booths: 5x2.5x2.5, 5x3x3, 5x3x4)",
-        "kept"
       ],
       [
         "Construction",
@@ -749,9 +848,109 @@
         "kept"
       ],
       [
+        "Construction material",
+        "Recommended MS panels on MS structure (Zinc fasteners) due to standard industrial environment. Final material subject to customer approval.",
+        "advisory"
+      ],
+      [
+        "Exhaust airflow",
+        "21600 m3/h",
+        "rule"
+      ],
+      [
+        "Inlet air volume",
+        "19440 m3/h",
+        "rule"
+      ],
+      [
+        "Exhaust blower",
+        "CLP-4-15-14500",
+        "rule"
+      ],
+      [
+        "Blower airflow (CFM)",
+        "14500",
+        "rule"
+      ],
+      [
+        "Exhaust blower (nos)",
+        "1",
+        "rule"
+      ],
+      [
+        "Exhaust blower motor (HP)",
+        "15",
+        "rule"
+      ],
+      [
+        "Blower drive",
+        "direct drive",
+        "rule"
+      ],
+      [
+        "Enclosure sheet weight",
+        "1240 kg",
+        "rule"
+      ],
+      [
+        "Blower MOC",
+        "MS",
+        "reused"
+      ],
+      [
+        "Paint arresting filter",
+        "17 nos 600 x 600 x 50 mm",
+        "rule"
+      ],
+      [
+        "Air intake filter",
+        "10 micron velcro type",
+        "reused"
+      ],
+      [
+        "Dry scrubber",
+        "To be determined",
+        "tbd"
+      ],
+      [
+        "Exhaust ducts",
+        "700 mm dia, GI, 15.6 m/s transport velocity",
+        "rule"
+      ],
+      [
         "Illumination",
-        "flame proof LED 700-800 LUX",
+        "3 nos 40 W weatherproof LED (750 lux)",
+        "rule"
+      ],
+      [
+        "Electrical fittings & motors",
+        "13.0 kW MCC panel, Star Delta starter; MCC panel, Main isolator, Emergency stop, Overload relay",
+        "rule"
+      ],
+      [
+        "Fire extinguishing system",
+        "Flameproof components, ABC extinguishers, Fire detection, Interlocked shutdown",
+        "standard"
+      ],
+      [
+        "Material handling for painting",
+        "To be confirmed with the customer",
+        "customer_decision"
+      ],
+      [
+        "Control panel",
+        "Star Delta MCC, 13.0 kW",
+        "rule"
+      ],
+      [
+        "Finish",
+        "MS finish paint",
         "kept"
+      ],
+      [
+        "Paint process",
+        "liquid",
+        "given"
       ],
       [
         "Paint arresting",
@@ -759,23 +958,8 @@
         "kept"
       ],
       [
-        "Blower motor hp",
-        "7.5 / 10 / 12.5 (2 nos each, IE3 FLP)",
-        "kept"
-      ],
-      [
-        "Exhaust duct",
-        "GI 22swg 10m",
-        "kept"
-      ],
-      [
         "Activated carbon chamber",
         "2 sets/booth (cartridge, frame type)",
-        "kept"
-      ],
-      [
-        "Finish",
-        "MS finish paint",
         "kept"
       ]
     ]
