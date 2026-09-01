@@ -187,6 +187,26 @@ check("a client-stated value fills its template field instead of becoming TBD",
 check("and it is attributed to the client, not to history",
       _air is not None and _air["origin"] == "given", _air and _air["origin"])
 
+# --- The offer corpus must never absorb ingested documents ------------------
+# `rag.ingest` writes into the SAME Chroma collection under type="document", and
+# those chunks carry a `_raw` of their own. Without the type filter in
+# `store.offer_records` every offer-derived view counts them: the first real
+# ingest made list_projects report 211 offers instead of 33, and pricing and
+# analytics began reading document chunks as historical projects.
+from app import store as _store
+
+_recs = _store.offer_records()
+check(all(r.get("category") for r in _recs),
+      "every record in the offer corpus has an equipment category")
+check(all(r.get("id") for r in _recs),
+      "every record in the offer corpus has an offer id")
+_col = _store.get_collection()
+_metas = _col.get(include=["metadatas"])["metadatas"] if _col.count() else []
+_offers = [m for m in _metas if m.get("type") == "offer"]
+check(len(_recs) == len(_offers),
+      f"offer_records returns exactly the type=offer rows "
+      f"({len(_recs)} of {len(_metas)} stored)")
+
 print()
 if _fail:
     print(f"{_fail} LOOKUP TEST(S) FAILED")

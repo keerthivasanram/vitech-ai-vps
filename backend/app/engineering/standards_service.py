@@ -44,3 +44,7 @@ CLIENT_VOC_CALC = "Vitech paint-shop VOC calculation (design limit 1000 mg/m3)"
 CLIENT_HEAT_LOAD_CALC = "Vitech heat-load calculation (1 kW = 860 Kcal)"
 CLIENT_SCRUBBER_DIAMETER_CALC = "Vitech scrubber diameter calculation (tower 1.0 m/s, duct 15 m/s)"
 CLIENT_STOCK_WEIGHTS = "Vitech stock-section weight table (kg per standard length)"
+
+# Vitech's own standard product range (AI database PDF, 2026-09-01). A value
+# carrying this standard was QUOTED from their catalogue, not calculated.
+CLIENT_BOOTH_CATALOGUE = "Vitech standard paint-booth range (published model data)"

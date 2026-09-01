@@ -1,0 +1,70 @@
+name: tests
+
+# The offline suites only. Ten of the thirteen need nothing but Python and the
+# repo, so they can gate every push; `tests_auth` and `tests_api_contract` need
+# a running server and a credential, and `tests_pdf` needs the dev extras.
+#
+# WHY THIS EXISTS: the golden tests are the platform's proof that an engine
+# change did not move a customer-facing number, and until now nothing ran them
+# except a person remembering to. A guard that only runs when someone remembers
+# is not a guard.
+
+on:
+  push:
+    branches: [main, "fix/**", "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Golden tests (must stay byte-identical)
+        run: python tests_golden.py
+
+      - name: Engineering (the client's own formulas and worked examples)
+        run: python tests_engineering.py
+
+      - name: Drawing
+        run: python tests_drawing.py
+
+      - name: PDF renderers
+        run: python tests_pdf.py
+
+      - name: Lookup
+        run: python tests_lookup.py
+
+      - name: Pricing
+        run: python tests_pricing.py
+
+      - name: Retrieval
+        run: python tests_retrieval.py
+
+      - name: Review layer
+        run: python tests_review.py
+
+      - name: Bill of materials
+        run: python tests_bom.py
+
+      - name: Engineering package
+        run: python tests_package.py
+
+      - name: Observability
+        run: python tests_observability.py

@@ -1,0 +1,12 @@
+# Test-only dependencies. NOT installed in production and NOT imported by any
+# module under `app/` or `rag/` - keep it that way, so a test tool can never
+# become a runtime dependency of the platform.
+#
+#   .venv/bin/pip install -r requirements-dev.txt
+#
+# pymupdf reads the RENDERED text back out of a generated PDF. That is what lets
+# tests_pdf.py assert what a READER sees rather than that bytes were produced -
+# the difference between catching a dropped engineering value and not.
+# (ezdxf is the same idea for the DXF export and is likewise never imported by
+# app code; the DXF writer is hand-rolled and dependency-free by design.)
+pymupdf==1.28.0
