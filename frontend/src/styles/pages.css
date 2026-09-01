@@ -1278,3 +1278,59 @@
 }
 
 @media (max-width: 860px) { .dv-two { grid-template-columns: 1fr; } }
+
+/* ============================ Site Placement =============================
+   A photograph with an engineering claim drawn on it. The marking canvas and
+   the result deliberately look DIFFERENT from the GA sheet: a siting view is
+   indicative, and it must never be mistaken at a glance for issued drafting. */
+.siting { padding: 22px 26px 40px; }
+.siting-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.siting-head h1 { margin: 0 0 6px; font-size: 22px; }
+.siting-sub { margin: 0; max-width: 62ch; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+.siting-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; margin-top: 20px; }
+@media (max-width: 1100px) { .siting-grid { grid-template-columns: 1fr; } }
+
+.siting-panel { display: flex; flex-direction: column; gap: 14px; }
+.siting-step { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+               background: var(--panel); opacity: 0.55; transition: opacity .15s ease; }
+.siting-step.active { opacity: 1; border-color: var(--accent); }
+.siting-step.done { opacity: 1; }
+.siting-step h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px;
+                  font-size: 13px; font-weight: 650; }
+.siting-step-n { display: inline-flex; align-items: center; justify-content: center;
+                 width: 20px; height: 20px; border-radius: 50%; font-size: 11px;
+                 background: var(--border); color: var(--text); }
+.siting-step.active .siting-step-n,
+.siting-step.done .siting-step-n { background: var(--accent); color: #fff; }
+.siting-note { margin: 6px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+.siting-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.siting-row label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px;
+                    color: var(--muted); flex: 1 1 96px; }
+.siting-panel input[type="text"], .siting-panel input[type="number"] {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--bg); color: var(--text); font-size: 13px; }
+.siting-btn { padding: 7px 12px; border-radius: 7px; border: 1px solid var(--accent);
+              background: var(--accent); color: #fff; font-size: 12.5px; cursor: pointer; }
+.siting-btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+.siting-btn.primary { padding: 11px; font-weight: 650; }
+.siting-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.siting-error { margin: 4px 0 0; color: #b91c1c; font-size: 12.5px; }
+.siting-verdict { border-radius: 8px; padding: 10px 12px; font-size: 12.5px; font-weight: 650; }
+.siting-verdict.ok { background: rgba(22,101,52,.12); color: #166534; }
+.siting-verdict.bad { background: rgba(185,28,28,.12); color: #b91c1c; }
+.siting-verdict .siting-note { font-weight: 400; }
+
+.siting-stage { min-height: 420px; border: 1px solid var(--border); border-radius: 12px;
+                background: var(--panel); overflow: hidden; display: flex;
+                align-items: center; justify-content: center; }
+.siting-empty { color: var(--muted); font-size: 13.5px; padding: 40px; text-align: center; }
+.siting-canvas { position: relative; width: 100%; cursor: crosshair; line-height: 0; }
+.siting-canvas img { width: 100%; height: auto; display: block; }
+.siting-mark { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px;
+               border-radius: 50%; display: flex; align-items: center; justify-content: center;
+               font-size: 11px; font-weight: 700; color: #fff; line-height: 1;
+               box-shadow: 0 0 0 2px rgba(255,255,255,.85); }
+.siting-mark.floor { background: #0d5a82; }
+.siting-mark.vert { background: #c2410c; }
+.siting-result { width: 100%; padding: 12px; }
+.siting-result svg { width: 100%; height: auto; display: block; }

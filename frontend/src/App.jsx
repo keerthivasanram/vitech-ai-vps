@@ -11,6 +11,7 @@ import { UploadPage } from "./pages/UploadPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { DrawingStudio } from "./pages/DrawingStudio";
+import { SitePlacement } from "./pages/SitePlacement";
 import { LoginPage } from "./pages/LoginPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { PackageCenter } from "./pages/PackageCenter";
@@ -140,6 +141,7 @@ export default function App() {
       );
     }
     if (view === "drawing") return <DrawingStudio key={view} isDark={isDark} />;
+    if (view === "siting") return <SitePlacement key={view} />;
     if (view === "dashboard") return <Dashboard key={view} setView={go} />;
     if (view === "packages") return <PackageCenter key={view} />;
     // Service-provider console. The nav hides it from engineers and the
