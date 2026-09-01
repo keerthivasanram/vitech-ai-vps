@@ -91,6 +91,7 @@ backend/
     engineering/        THE DETERMINISTIC CALCULATION CORE (see §4).
     drawing/            geometry -> byte-stable SVG / DXF / PDF general arrangements.
     package/            composes one resolved analysis into 14 reviewable documents.
+    siting/             places resolved equipment on a customer's site photograph.
     auth/               accounts, sessions, and policy.py - the security matrix as code.
     observability/      contextvars, spans, JSON logs, jobs, artifacts, metrics.
     resolver.py         one resolver, two policies (Consulting / ATS).
@@ -244,7 +245,7 @@ writes to a fact bag as well as to the vars.
 
 ## 8. Tests
 
-Thirteen suites, all plain scripts — no pytest, no fixtures framework.
+Fifteen suites, all plain scripts — no pytest, no fixtures framework.
 
 ```bash
 cd backend
@@ -254,7 +255,8 @@ cd backend
 .venv/bin/python tests_pdf.py             # the customer-facing renderers (needs requirements-dev.txt)
 .venv/bin/python tests_lookup.py tests_pricing.py tests_retrieval.py tests_review.py
 .venv/bin/python tests_bom.py tests_package.py tests_observability.py
-.venv/bin/python tests_auth.py            # needs a running server
+.venv/bin/python tests_siting.py          # site placement geometry
+.venv/bin/python tests_auth.py            # needs a running server (VT_TEST_* for the role tests)
 .venv/bin/python tests_api_contract.py    # needs a running server AND admin credentials
 ```
 

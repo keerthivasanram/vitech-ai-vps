@@ -14,7 +14,7 @@ from ..observability import jobs as _jobs, trace as _obs
 from ..siting.homography import SolveError, from_rectangle, height_scale
 from ..siting.plan import fits_within, place
 from ..siting.render import compose
-from .support import _named_requirement, _spec_for_drawing, _spec_geometry, _tool_q
+from .support import _named_requirement, _spec_for_drawing, _tool_q
 
 router = APIRouter()
 
@@ -74,15 +74,20 @@ def place_on_site(payload: dict = Body(...)):
                          "size, or pass an explicit envelope.", need_requirement=True)
         _obs.note(tool="place_equipment_on_site")
         spec = _spec_for_drawing(q)
-        geom = _spec_geometry(spec) or {}
-        mm = geom.get("envelope_mm") or {}
+        # `_spec_for_drawing` has ALREADY resolved the geometry - it is the same
+        # `geometry` block the GA sheet is dimensioned from. Re-deriving it here
+        # would be a second resolution that could disagree with the drawing, and
+        # the first version did exactly that: it passed the drawing spec to
+        # `_spec_geometry`, which expects the ANALYSIS, and every placement came
+        # back "does not resolve to a footprint".
+        mm = ((spec.get("geometry") or {}).get("envelope_mm")) or {}
         if not (mm.get("length") and mm.get("width")):
             return _need("That requirement does not resolve to a footprint, so it cannot be "
                          "placed on a photograph. The specification will say which dimension "
                          "is outstanding.", envelope_mm=mm)
         env = {"length_m": mm["length"] / 1000.0, "width_m": mm["width"] / 1000.0,
                "height_m": (mm.get("height") or 0) / 1000.0 or None}
-        equipment = equipment or spec.get("equipment") or "Equipment"
+        equipment = equipment or spec.get("category_label") or "Equipment"
 
     equipment = equipment or "Equipment"
 

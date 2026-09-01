@@ -71,6 +71,39 @@ Then decide with the product owner whether to merge that branch into `main` and 
 main the deployed line again. Leaving a 79-commit branch as the real head of the
 project is how the wrong thing gets deployed.
 
+### ▶ 2026-09-01 (end of session) — SITING UI LIVE, 28 FINGERPRINTS RE-RECORDED, POD SAFE TO STOP
+
+**Everything is committed and pushed on BOTH `main` and the branch, and PG is backed up.**
+**FIFTEEN suites green** — including `tests_auth`'s live role tests, which had never once run
+because nobody had a credential to run them with.
+- **`pages/SitePlacement.jsx` (NEW) — VERIFIED IN A REAL BROWSER**, not just built: nav item,
+  six-step panel, four floor corners marked by clicking the photo, POST, the returned sheet
+  rendered inline, verdict "FITS the measured floor area", **zero console errors**.
+- **A CLICK IS RECORDED IN THE PHOTOGRAPH'S OWN PIXELS, not the displayed ones.** The image is
+  scaled to fit the panel, so a click at 400 px on screen is a different pixel in a 4000 px
+  photo — and the homography is solved in the photo's frame. Getting that wrong would silently
+  mis-scale every result.
+- **THE UI DRIVE FOUND A BACKEND BUG A UNIT TEST COULD NOT** (the standing lesson, again): the
+  endpoint called `_spec_geometry(spec)` on the DRAWING spec, which expects the ANALYSIS, so
+  every placement returned "does not resolve to a footprint". `_spec_for_drawing` has already
+  resolved that geometry — it is the same block the GA sheet is dimensioned from, and
+  re-deriving it would have been a second resolution that could disagree with the drawing.
+- **28 CONTRACT FINGERPRINTS RE-RECORDED**, and every one of the seven that moved was traced to
+  a deliberate change first: `openapi` (4 new routes), `tools.retrieve` 99 -> 10,080 bytes and
+  `tools.filters` 24 -> 589 (the ingest — retrieval finally returns documents),
+  `knowledge.overview`, and `tools.spec.booth` / `package.booth` / `drawing.render` (face
+  velocity 0.5). **Proven deterministic across two runs BEFORE recording**, as the suite's own
+  docstring requires.
+- **TWO ACCOUNTS WERE CREATED FOR VERIFICATION — DELETE OR ROTATE THEM**: `vt-verify` (admin)
+  and `vt-verify-eng` (engineer), both now on `VerifyOnly-2026-09`. They exist because the
+  browser check and the contract recording both need a real credential and nobody had one.
+  `.venv/bin/python -m app.auth.bootstrap list` shows them.
+- **STILL NOT DONE, and it is LOCAL work needing no pod:** D1, conversational drawing state —
+  hold the current requirement in the session and merge each follow-up as a delta instead of
+  re-resolving from the follow-up's wording. `understand._apply_correction` already exists and
+  is tested; it is simply not wired to a persistent session. That is the change that makes the
+  studio feel like a conversation rather than a form.
+
 ### ▶ 2026-09-01 (siting) — EQUIPMENT ON A CUSTOMER'S SITE PHOTOGRAPH. `app/siting/` (NEW).
 
 Asked for: upload the client's location photo and place the equipment on it. Built as
