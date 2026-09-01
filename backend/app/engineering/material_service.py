@@ -66,12 +66,19 @@ def select_paint_process(paint_type, booth_type=None) -> dict:
 # even though no rule computes its weight yet": a structure whose lengths are
 # known can now be weighed, and therefore costed, from the client's own table.
 #
-# TWO ROWS ARE WITHHELD, ON PURPOSE (open question DQ-4). The client's two
-# workbooks disagree on them: square tube is 21 kg per 6 m in the paint-booth
-# sheet and 18 kg in this one, and flat is 12 kg against 16 kg. Picking one
-# would silently choose which of the client's own documents is right, and the
-# error lands in a costed BOM. They are listed in `STOCK_WEIGHT_DISPUTED` so the
-# question is visible in code, and no caller can read them by accident.
+# DQ-4, HALF RESOLVED by reading the workbooks themselves (2026-09-01). The
+# square-tube "conflict" was not one: the booth sheet's tube is 40 x 40 x 3 at
+# 21 kg and the cyclone sheet's is 40 x 40 x 2 at 18 kg — two different sections,
+# both correct, and the earlier transcription simply lost the thickness. Both are
+# on the table below, keyed by thickness so they can never be confused again.
+#
+# ONE ROW IS STILL WITHHELD. MS flat 40 x 6 x 6000 is 12 kg in the booth sheet
+# and 16 kg in the cyclone sheet for the SAME nominal section — and 12 kg is what
+# the steel weighs (40 x 6 mm x 6 m x 7850 = 11.3 kg), so the 16 cannot simply be
+# adopted. Picking one would silently decide which of the client's own documents
+# is right, and the error lands in a costed BOM. It stays in
+# `STOCK_WEIGHT_DISPUTED` so the question is visible in code, and no caller can
+# read it by accident.
 STOCK_WEIGHT_STANDARD = "Vitech stock table (kg per standard length / sheet)"
 
 STOCK_WEIGHTS_KG = {
@@ -81,12 +88,13 @@ STOCK_WEIGHTS_KG = {
     "ms_angle_65x65x6_6000": 36.0,
     "ms_angle_40x40x6_6000": 24.0,
     "ms_channel_75x40_6000": 44.0,
+    "ms_square_tube_40x40x2_6000": 18.0,   # cyclone sheet
+    "ms_square_tube_40x40x3_6000": 21.0,   # booth sheet — 3 mm wall, not a conflict
 }
 
 # Under query (DQ-4) — deliberately NOT part of STOCK_WEIGHTS_KG.
 STOCK_WEIGHT_DISPUTED = {
-    "ms_square_tube_40x40x2_6000": (18.0, 21.0),   # (cyclone sheet, booth sheet)
-    "ms_flat_40x6_6000": (16.0, 12.0),
+    "ms_flat_40x6_6000": (16.0, 12.0),   # (cyclone sheet, booth sheet)
 }
 
 # The standard purchase length these section weights are quoted against.

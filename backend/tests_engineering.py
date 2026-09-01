@@ -212,6 +212,16 @@ check(tank.kcal == 264125.0, f"tank anchor: 2250x1500x1500, 25->75 C, 750 kg ste
 check(tank.kw == 308, f"tank anchor: 264,125 Kcal = 308 kW (got {tank.kw})")
 check(hl.kw_from_kcal(860.0) == 1 and hl.kw_from_kcal(861.0) == 2,
       "kW rounds UP from Kcal, as every sheet does")
+# DQ-8, resolved by reading the actual cell (2026-09-01): the whole 188,786 vs
+# 191,399 gap is a BRACKET in the client's D18, which adds two wall AREAS in m2
+# to a mass in kg. We reproduce their cell exactly, and use the sound reading.
+check(hl.sheet_oven_steel_mass_kg(4.3, 2.75, 3.0, 1.2) == 377,
+      "the client's own D18 cell is reproduced exactly (377 kg), bracket bug included")
+_their = hl.dry_off_oven_heat_load(4.3, 2.75, 3.0, 30, 120, 1.2, job_mass_kg=1500,
+                                   jobs_per_hour=6, air_density_kg_m3=101.325)
+check(_their.kcal - 188786 == 3877,
+      f"our total differs from the sheet's 188,786 by exactly the steel-mass bracket "
+      f"({_their.kcal - 188786} Kcal = (733-377) kg x 0.11 x 90 +10%)")
 check(hl.oven_shell_steel_mass_kg(4.3, 2.75, 3.0, 1.2) == 733,
       "oven shell mass follows the sheets' own ((LH)2 + (WH)2 + (LW)3) x 7.85 x thk expression")
 
@@ -231,17 +241,19 @@ check(any("job mass" in g for g in partial.gaps),
       "a dry-off oven with no stated job load says so rather than heating an empty oven silently")
 
 cure = hl.curing_oven_heat_load(25, 2.1, 3.0, 30, 220, 1.2,
-                                conveyor_mass_kg=2000, job_mass_kg=2000,
-                                insulation_thickness_mm=100)
-check(cure.components["air"] == 8648.0,
-      f"curing oven air term uses 1.204 kg/m3, the sheet's own density (got {cure.components['air']})")
+                                conveyor_mass_kg=2500, job_mass_kg=4000,
+                                insulation_thickness_mm=100)  # the sheet's own inputs
+check(cure.components["air"] == 8675.0,
+      f"curing oven air anchor: 158 m3 (rounded up) x 1.204 -> 8,675 Kcal (got {cure.components['air']})")
 check(cure.components.get("insulation_loss_kw") == 9,
       f"curing oven insulation loss at 100 mm / U=0.35 (got {cure.components.get('insulation_loss_kw')})")
+check(hl.sheet_oven_steel_mass_kg(25, 2.1, 3.0, 1.2) == 1647,
+      "the curing sheet's D17 carries the SAME bracket bug, reproduced exactly (1,647 kg)")
 check(hl.insulation_loss_kw(25, 2.1, 3.0, 190, 75) is None,
       "no U-value is interpolated for a thickness the client has not given")
 bare = hl.curing_oven_heat_load(25, 2.1, 3.0, 30, 220, 1.2)
-check(len(bare.gaps) == 2 and bare.kcal < cure.kcal,
-      "a curing oven with no conveyor or job mass reports both as gaps")
+check(len(bare.gaps) == 3 and bare.kcal < cure.kcal,
+      "a curing oven with no conveyor, job mass or insulation reports all three as gaps")
 
 # --- Scrubber / duct diameter (workbook: Vertical Scrubber - Diameter) ----
 tower = sc.tower_diameter(6750)
@@ -264,10 +276,13 @@ check(mat.section_weight_kg("ms_channel_75x40_6000", 40) == 308.0,
       "structure anchor: 40 m of channel = 7 standard lengths = 308 kg")
 check(mat.stock_lengths_required(36) == 6 and mat.stock_lengths_required(37) == 7,
       "lengths are bought whole, rounded up")
-check(mat.stock_weight_kg("ms_square_tube_40x40x2_6000") is None,
-      "a section the client's two workbooks disagree about returns None (DQ-4), never a picked side")
-check(set(mat.STOCK_WEIGHT_DISPUTED) == {"ms_square_tube_40x40x2_6000", "ms_flat_40x6_6000"},
-      "both disputed sections stay visible in code as open questions")
+check(mat.stock_weight_kg("ms_square_tube_40x40x2_6000") == 18.0
+      and mat.stock_weight_kg("ms_square_tube_40x40x3_6000") == 21.0,
+      "DQ-4: the square-tube 'conflict' was two thicknesses, and both are now on the table")
+check(mat.stock_weight_kg("ms_flat_40x6_6000") is None,
+      "the one section the client's workbooks really disagree about returns None, never a picked side")
+check(set(mat.STOCK_WEIGHT_DISPUTED) == {"ms_flat_40x6_6000"},
+      "the remaining disputed section stays visible in code as an open question")
 
 print()
 if FAILS:

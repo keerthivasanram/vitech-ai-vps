@@ -4,8 +4,9 @@ Source: six Excel workbooks supplied by Vitech, delivered 2026-09-01. Every form
 below is transcribed from the workbook cells, not inferred. Cell references are given
 so any value can be traced back.
 
-> **Status (2026-09-01, later): PARTIALLY IMPLEMENTED — Phase 1 of the plan has
-> landed.** Sections 1 (scrubber/duct diameter), 2 (heat load), 3 (VOC/LEL) and the
+> **Status (2026-09-01, third pass): PARTIALLY IMPLEMENTED, and now VERIFIED AGAINST
+> THE ACTUAL WORKBOOK CELLS** — the files reached the pod, so every formula below was
+> re-read from the cell rather than from the transcription. **Phase 1 has landed.** Sections 1 (scrubber/duct diameter), 2 (heat load), 3 (VOC/LEL) and the
 > stock-weight table in 6 are now executable in `app/engineering/scrubber_service.py`,
 > `heat_load_service.py`, `voc_service.py` and `material_service.py`, guarded by
 > anchor tests in `tests_engineering.py`. **No existing output path calls them yet**,
@@ -274,16 +275,53 @@ Margin options on the sheet: **x1.17, x1.25, x1.35**.
 
 ---
 
+## 7. The two AI knowledge-base PDFs (delivered 2026-09-01)
+
+`VITECH_AI_Paint_Booth_Database_V02_Source_Based.pdf` and
+`VITECH_AI_Engineering_Knowledge_Base_...pdf` are written FOR this platform, and
+they are careful about their own provenance — they mark derived relationships as
+"observed", and say plainly where a VITECH value is still owed. Take them at their
+word rather than treating everything in them as confirmed data.
+
+**The product range, as source data.** `VT/<width>/DTPB/<OP|CL>` — front-open booths
+are 1500 deep, enclosed are 2250, both 2425 high, widths 1500 / 2250 / 3000 / 3750 /
+4500. Wet and dry, 2-row and 3-row filter variants, each with CMH, CFM and motor HP.
+This is a real standard-product catalogue and belongs in the engine as one.
+
+**The airflow formula it states — and why it contradicts `Standard Booth.xlsx`:**
+
+```
+CMH = W(m) x 1.5(m) x 0.5(m/s) x 3600      # 1.5 m EFFECTIVE FILTER OPENING
+CFM = CMH x 0.588578                        # = / 1.69901, our own constant
+```
+
+`Standard Booth.xlsx` computes the same booth from the **full 2.4 m height**. On a
+3.0 m booth: **8,100 CMH here against 12,960 there**. Both are Vitech documents,
+delivered together. That is open item DQ-10, and it decides the blower.
+
+The database also flags its own two unconfirmed factors: the 3-row table's airflow is
+**1.4x** the 2-row at the same width (implying ~0.70 m/s, though the table prints 0.5),
+and the wet table is **0.90x** the simple calculation. It says explicitly that the
+basis "must be confirmed" — so neither is implemented.
+
+**Conversions confirmed against ours:** 1 CFM = 1.69901 CMH (we use 1.699; the
+costing sheets use a rounded 1.7). **A selection rule worth heeding:** "Final blower
+selection must be from the approved manufacturer fan curve at the calculated duty
+point. Never select a blower from CFM alone." Our `blower_service` pins the CLP-4
+pressure class rather than working a duty point — defensible, and worth revisiting
+when static pressure is available per design.
+
 ## Open items — MUST be resolved with Vitech before implementing
 
 | id | Question | Blocks |
 |---|---|---|
-| **DQ-1** | Dry-off oven air density is **101.325** (kPa, a pressure) where the curing oven uses **1.204 kg/m3**. Typo? The dry-off air heat load is ~84x too high if so. | Heat load service |
-| ~~DQ-2~~ | **RESOLVED 2026-09-01 by the product owner: 0.5 m/s adopted, and made overridable per design.** Landed in `design_standards.BOOTH_TYPES` (the three face-based dry types), `paint_shop_service.DEFAULT_FACE_VELOCITY` and `formula_service`. Booth goldens re-recorded; wet-scrubber and knowledge cases byte-identical. | closed |
-| **DQ-3** | Scrubber/duct diameter rounding: computed 1545 mm shown as `~950`. What is the standard-diameter ladder and the rounding rule? | Scrubber diameter rule |
-| **DQ-4** | Square tube is **21 kg**/6 m in the booth sheet but **18 kg** in the cyclone sheet; flat is **12** vs **16**. Which governs? | Structure weight |
-| **DQ-5** | Painting is **Rs 35/sq.ft** in the booth and cartridge sheets but **Rs 50/sq.ft** in the cyclone sheet. Rate change, or unit difference? | Rate card |
-| **DQ-6** | `Combine` B5 = Rs 70,000 is unlabelled. Blower? Panel? | Cyclone cost model |
-| **DQ-7** | Margin: booth **x1.40** / duct **x1.26** here, but the cyclone sheet offers **x1.17 / x1.25 / x1.35**. What selects the multiplier — equipment type, order value, customer? | Quotation model |
-| **DQ-8** | The dry-off oven's stated total (188,786 Kcal / 220 kW) does not reproduce from the inputs on its own sheet — those formulas give 191,399 Kcal / 223 kW. Which input differs? | Dry-off oven heat load |
-| **DQ-9** | **WHICH AXIS IS THE OPEN FACE?** The booth sheet computes the face as **L x H** (3.0 x 2.4 = 7.2 m2 -> 12,960 CMH). `formula_service.compute_spec` computes it as **W x H**, so for that same booth stated as 3.0L x 2.25W x 2.4H we return **9,720 CMH — 33% lower**. Which dimension does Vitech call length when a customer states one? | Every booth's airflow, blower, filters and duct |
+| **DQ-1** | Dry-off oven air density is **101.325** (kPa, a pressure) where the curing oven uses **1.204 kg/m3**. Typo? With their value the air term is 86,670 of their 188,786 Kcal — nearly half the oven. | Heat load service |
+| ~~DQ-2~~ | **CLOSED 2026-09-01: 0.5 m/s adopted and made overridable.** | closed |
+| **DQ-3** | Scrubber/duct rounding. **Confirmed by reading the cells: D13 / D26 / D40 are hand-typed TEXT** (`~ 950`, `~ 300`, `~ 350`), not formulas, and do not correspond to the computed 1545 / 399 / 399. What is the standard-diameter ladder and the rounding rule? | Scrubber diameter rule |
+| ~~DQ-4~~ | **HALF CLOSED by the workbooks: the square-tube "conflict" was two different thicknesses** — booth 40x40x**3** = 21 kg, cyclone 40x40x**2** = 18 kg. Both are now on the table. **Still open:** MS flat 40x6x6000 is **12 kg** (booth) vs **16 kg** (cyclone) for the same nominal section, and 12 is what the steel actually weighs. | Structure weight (flat only) |
+| **DQ-5** | Painting rate. Refined: it is not workbook-vs-workbook but **line-vs-line inside one workbook** — the cartridge filter unit is costed at **Rs 35/sq.ft** and the cyclone + duct at **Rs 50/sq.ft**. Different paint spec, or a rate change? | Rate card |
+| **DQ-6** | `Combine` B5 = Rs 70,000. **Confirmed a hardcoded number with no label and no formula.** What is it? | Cyclone cost model |
+| **DQ-7** | Margin. The booth `Combine` applies **x1.40** (booth) and **x1.26** (duct) then a 10% discount for 27% profit; the cyclone `Combine` is a scratch pad of **x1.35 / x1.25 / x1.17** beside a typed Rs 760,000 and a Rs 150,000 deduction. What selects the multiplier? | Quotation model |
+| ~~DQ-8~~ | **CLOSED by reading the cell. It is a BRACKET, and it is in BOTH oven sheets.** `Dry off Oven` D18 and `Curing Oven` D17 apply `* density * thickness` to only the THIRD area term, so two wall areas in **m2** are added straight to a mass in **kg**: 377 kg where the prose formula gives 733, and 1,647 against 3,016. Their totals reproduce exactly once that is accounted for. Is the bracket the intent, or the typo it appears to be? | Both oven heat loads |
+| **DQ-9** | **Which dimension is the open face?** The costing sheet computes the face from **L x H** (3.0 x 2.4), and `Standard Booth.xlsx` proves it: **W is a menu of options (1250/1500/2250/3000) that never enters the formula**. The model database calls that same dimension **W** and the depth **D**. Our engine uses `width_m x height`. Under Vitech's costing-sheet naming we are computing the face from the DEPTH. | Every booth's airflow, blower, filters and duct |
+| **DQ-10** | **NEW, and larger than DQ-9: which HEIGHT?** `Standard Booth.xlsx` uses the full booth height (2.4 m); the model database computes `CMH = W x **1.5** x 0.5 x 3600` on an **effective filter-opening height of 1.5 m**, and states its own 3-row and wet factors (1.4x, 0.90x) are **unconfirmed**. For one 3.0 m booth that is **12,960 CMH against 8,100 — 60%**, and it selects a different blower. | Every booth's airflow and blower |

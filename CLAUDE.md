@@ -71,6 +71,54 @@ Then decide with the product owner whether to merge that branch into `main` and 
 main the deployed line again. Leaving a 79-commit branch as the real head of the
 project is how the wrong thing gets deployed.
 
+### ▶ 2026-09-01 (pod, later) — THE WORKBOOKS ARRIVED. READING THE CELLS CLOSED THREE QUESTIONS AND OPENED THE BIGGEST ONE.
+
+The client files are now in `backend/data/knowledge_docs/` (commit `a4faf37`) and **INGESTED**:
+178 chunks from 15 files. **`retrieve_knowledge` no longer returns `count:0`** — the standing
+"#1 value item" since 2026-07-23 is closed. Ingest used a per-file `--manifest` so every chunk
+carries equipment_type / doc_category / customer; the Wendt India offer resolved its own offer
+number and revision from the body. **The backend was RESTARTED afterwards**, because the
+in-process query index does not see another process's writes and
+`POST /api/admin/reload-index` is administrator-only (401 without a credential).
+- **DQ-8 CLOSED, AND IT IS A BRACKET IN THEIR SPREADSHEET.** `Dry off Oven` D18 and
+  `Curing Oven` D17 apply `* density * thickness` to only the THIRD area term, so two wall
+  areas in **m2** are added straight to a mass in **kg**. Their steel mass reads 377 kg where
+  the formula they wrote in prose gives 733 (curing: 1,647 vs 3,016). Their totals then
+  reproduce EXACTLY. `sheet_oven_steel_mass_kg()` computes their cell verbatim **for comparison
+  only** and a test pins both readings, so we can show Vitech precisely where we part company.
+  **We use the dimensionally sound reading** — adding an area to a mass is not a convention
+  anyone can adopt.
+- **Two more cell-level corrections**: the chamber volume is **ROUNDED UP to whole m3 before
+  the air mass** (35.475 -> 36), and **kW is summed PER TERM, not converted from the total** —
+  the curing oven's 209 kW is steel 198 + air 11 + **insulation loss 9**, and the 15% margin in
+  H32 is a Kcal figure nothing downstream reads. Our first implementation had all three wrong;
+  the transcription could not have shown them.
+- **DQ-4 HALF CLOSED: the square-tube "conflict" was two different THICKNESSES** — booth
+  40x40x**3** = 21 kg, cyclone 40x40x**2** = 18 kg. Both are on the table now, keyed by
+  thickness. Still open: MS flat 40x6x6000 is 12 kg in one sheet and 16 in the other for the
+  same nominal section, and **12 is what the steel actually weighs**.
+- **DQ-3 CONFIRMED, not resolved:** the scrubber's "rounded" rows are **hand-typed TEXT**
+  (`~ 950`), not formulas. Nothing to derive a ladder from.
+- **DQ-9 IS REAL AND THE PROOF IS ABSOLUTE.** In `Standard Booth.xlsx` the face formula is
+  `=1.5*2.4*0.5*3600` where 1.5 is **L** and 2.4 is **H** — and **W is a menu of options
+  (1250/1500/2250/3000) that never enters the calculation at all**. Vitech's L is the open
+  front; our engine computes the face from `width_m`, i.e. their DEPTH.
+- **DQ-10, NEW AND BIGGER THAN DQ-9 — WHICH HEIGHT?** The AI knowledge-base PDF states
+  `CMH = W x **1.5** x 0.5 x 3600`, an **effective filter-opening height of 1.5 m**, where
+  `Standard Booth.xlsx` uses the full 2.4 m. On the same 3.0 m booth that is **8,100 CMH
+  against 12,960 — 60%**, and it selects a different blower. Both are Vitech documents,
+  delivered together, and **the database PDF flags its own 1.4x and 0.90x factors as
+  unconfirmed**. Nothing here is implemented until Vitech says which basis governs.
+- **The product range is real source data and is not yet in the engine**:
+  `VT/<width>/DTPB/OP|CL`, front-open 1500 deep / enclosed 2250, 2425 high, five widths, wet
+  and dry, 2-row and 3-row, each with CMH, CFM and motor HP. That is a standard-product
+  catalogue — the natural next build once DQ-9/DQ-10 are answered, and it would let the
+  platform quote a STANDARD model rather than engineering every booth from scratch.
+- **Conversion confirmed:** 1 CFM = 1.69901 CMH, exactly our constant (their costing sheets
+  round to 1.7). **A rule worth heeding**: "never select a blower from CFM alone — use the
+  manufacturer fan curve at the calculated duty point". Our selector pins the CLP-4 pressure
+  class instead; revisit when per-design static pressure exists.
+
 ### ▶ 2026-09-01 (pod session) — STACK BACK UP, FACE VELOCITY IS NOW 0.5, AND A BIGGER FINDING BEHIND IT
 
 **The pod's container disk was wiped again** — psql, node and ollama were all gone, so

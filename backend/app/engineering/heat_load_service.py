@@ -78,14 +78,47 @@ class HeatLoad(NamedTuple):
 
 def oven_shell_steel_mass_kg(length_m: float, width_m: float, height_m: float,
                              thickness_mm: float) -> int:
-    """Shell steel mass for an oven, per the sheets' own expression:
+    """Shell steel mass for an oven:
 
         ROUNDUP(((L*H)*2 + (W*H)*2 + (L*W)*3) * 7850/1000 * thk_mm, 0)
 
     The floor/roof term is counted three times (roof, floor and the false
-    ceiling / plenum), exactly as the client writes it."""
+    ceiling / plenum), exactly as the client writes it.
+
+    THIS DIFFERS FROM WHAT THE CLIENT'S CELL ACTUALLY COMPUTES, and the
+    difference is a bracket, not a judgement. `Heat Load.xlsx` Dry off Oven D18
+    reads:
+
+        =ROUNDUP(((D8/1000*F8/1000)*2)+((E8/1000*F8/1000)*2)
+                 +((D8/1000*E8/1000)*3)*N12/1000*H18, 0)
+
+    The `* density * thickness` binds only to the THIRD term. So the two wall
+    terms — 25.8 and 16.5 square METRES on their worked oven — are added
+    straight to a mass in kilograms, and the cell returns 377 kg where the
+    formula they wrote in prose gives 733 kg. Adding an area to a mass is not a
+    convention we can adopt; the dimensionally sound reading is used here and
+    the discrepancy is open question DQ-8. Their 220 kW total is reproduced
+    exactly by `sheet_oven_steel_mass_kg` below, so the two can be compared.
+    """
     area_term = (length_m * height_m) * 2 + (width_m * height_m) * 2 + (length_m * width_m) * 3
     return _roundup(area_term * (STEEL_DENSITY_KG_M3 / 1000.0) * float(thickness_mm))
+
+
+def sheet_oven_steel_mass_kg(length_m: float, width_m: float, height_m: float,
+                                thickness_mm: float) -> int:
+    """What the client's cell computes, bracket bug and all — for comparison ONLY.
+
+    THE SAME BRACKET APPEARS IN BOTH OVEN SHEETS (Dry off Oven D18 and Curing
+    Oven D17), so it is a copied cell, not a one-off slip: their dry-off oven
+    reads 377 kg against a sound 733, and their curing oven 1,647 against 3,016.
+
+    Never call this to produce a customer-facing number. It exists so the
+    platform can show Vitech exactly where our figure and theirs part company,
+    and so a test can prove we read their cell correctly rather than guessing at
+    it (their worked oven: this returns 377, the sound reading returns 733)."""
+    walls = (length_m * height_m) * 2 + (width_m * height_m) * 2
+    roof_floor = (length_m * width_m) * 3 * (STEEL_DENSITY_KG_M3 / 1000.0) * float(thickness_mm)
+    return _roundup(walls + roof_floor)
 
 
 def tank_heat_load(length_mm: float, width_mm: float, height_mm: float,
@@ -156,7 +189,10 @@ def dry_off_oven_heat_load(length_m: float, width_m: float, height_m: float,
         gaps.append("air heat term omitted: the sheet's air density is under query (DQ-1)")
         kcal = kcal_steel
     else:
-        air_mass = (length_m * width_m * height_m) * float(air_density_kg_m3)
+        # The sheet rounds the chamber volume UP to whole m3 (D10) BEFORE the
+        # air mass, so 35.475 m3 is charged as 36. Verified against the cell.
+        volume_m3 = _roundup(length_m * width_m * height_m)
+        air_mass = volume_m3 * float(air_density_kg_m3)
         kcal_air = float(_roundup(air_mass * SPECIFIC_HEAT_AIR * dt * DRY_OFF_MARGIN))
         components["air"] = kcal_air
         kcal = kcal_steel + kcal_air
@@ -165,8 +201,12 @@ def dry_off_oven_heat_load(length_m: float, width_m: float, height_m: float,
                       f"(density {float(air_density_kg_m3):g} kg/m3 supplied by caller)",
                       std.CLIENT_HEAT_LOAD_CALC))
 
-    kw = kw_from_kcal(kcal)
-    trail.append(("Heat load", f"{kw} kW", f"{kcal:g} Kcal / {KCAL_PER_KW:g}",
+    # The sheet converts EACH term to kW and adds the kW figures (E27 + E35 ->
+    # K35), rather than converting the total. Two roundings, not one, so the
+    # answer can differ by a kilowatt from Kcal/860 — reproduced deliberately.
+    kw = sum(kw_from_kcal(v) for v in components.values())
+    trail.append(("Heat load", f"{kw} kW",
+                  " + ".join(f"{k} {kw_from_kcal(v)} kW" for k, v in components.items()),
                   std.CLIENT_HEAT_LOAD_CALC))
     return HeatLoad(kcal, kw, components, tuple(gaps), tuple(trail))
 
@@ -210,11 +250,17 @@ def curing_oven_heat_load(length_m: float, width_m: float, height_m: float,
     moving_mass = float(conveyor_mass_kg or 0.0) + float(job_mass_kg or 0.0)
     kcal_steel = float(_roundup((steel_mass + moving_mass) * SPECIFIC_HEAT_STEEL * dt))
 
-    air_mass = (length_m * width_m * height_m) * AIR_DENSITY_KG_M3
+    volume_m3 = _roundup(length_m * width_m * height_m)
+    air_mass = volume_m3 * AIR_DENSITY_KG_M3
     kcal_air = float(_roundup(air_mass * SPECIFIC_HEAT_AIR * dt))
 
-    kcal = (kcal_steel + kcal_air) * CURING_MARGIN
-    kw = kw_from_kcal(kcal)
+    # THE SHEET'S OWN TOTAL IS NOT THE MARGINED KCAL. H33 = E25 + E33 + E36,
+    # i.e. steel kW + air kW + INSULATION LOSS kW, each rounded up separately;
+    # the 15% margin sits in H32 as a Kcal figure that nothing downstream reads.
+    # Both are reported: `kcal` is what the terms sum to, `kcal_with_margin`
+    # is their H32, and `kw` is the number the sheet actually quotes.
+    kcal = kcal_steel + kcal_air
+    kcal_with_margin = kcal * CURING_MARGIN
 
     components = {"steel_and_load": kcal_steel, "air": kcal_air}
     trail = [("Shell steel mass", f"{steel_mass} kg",
@@ -227,19 +273,28 @@ def curing_oven_heat_load(length_m: float, width_m: float, height_m: float,
              ("Air heat", f"{kcal_air:g} Kcal",
               f"{air_mass:g} kg x {SPECIFIC_HEAT_AIR} x {dt:g} "
               f"(density {AIR_DENSITY_KG_M3} kg/m3)", std.CLIENT_HEAT_LOAD_CALC),
-             ("Heat load", f"{kw} kW",
-              f"({kcal_steel:g} + {kcal_air:g}) Kcal +15% / {KCAL_PER_KW:g}",
-              std.CLIENT_HEAT_LOAD_CALC)]
+             ]
 
-    if insulation_thickness_mm is not None:
+    loss_kw = 0
+    if insulation_thickness_mm is None:
+        gaps.append("insulation thickness not supplied; envelope loss not included")
+    else:
         loss = insulation_loss_kw(length_m, width_m, height_m, dt, insulation_thickness_mm)
         if loss is None:
             gaps.append(f"no U-value on file for {insulation_thickness_mm} mm insulation")
         else:
+            loss_kw = loss
             components["insulation_loss_kw"] = loss
             trail.append(("Insulation loss", f"{loss} kW",
                           f"envelope area x {dt:g} K x U "
                           f"{INSULATION_U_BY_THICKNESS_MM[int(insulation_thickness_mm)]} W/m2K",
                           std.CLIENT_HEAT_LOAD_CALC))
+
+    kw = kw_from_kcal(kcal_steel) + kw_from_kcal(kcal_air) + loss_kw
+    trail.append(("Heat load", f"{kw} kW",
+                  f"steel {kw_from_kcal(kcal_steel)} kW + air {kw_from_kcal(kcal_air)} kW"
+                  + (f" + insulation loss {loss_kw} kW" if loss_kw else ""),
+                  std.CLIENT_HEAT_LOAD_CALC))
+    components["kcal_with_15pct_margin"] = kcal_with_margin
 
     return HeatLoad(kcal, kw, components, tuple(gaps), tuple(trail))
