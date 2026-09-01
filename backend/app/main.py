@@ -11,7 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config
-from .api import (admin, auth, bom, data, documents, drawing, health, ingest,
+from .api import (admin, auth, bom, calculations, data, documents, drawing,
+                  health, ingest,
                   jobs, package, query, session, tools, uploads)
 from .auth.middleware import auth_middleware
 from .observability import writer as obs_writer
@@ -62,5 +63,5 @@ def _start_observability():
 # could capture it as `/api/offers/{offer_id}`. The order below reproduces the
 # order the single-module version declared its routes in.
 for _router in (health, auth, session, ingest, query, documents, data, tools,
-                drawing, bom, package, jobs, uploads, admin):
+                calculations, drawing, bom, package, jobs, uploads, admin):
     app.include_router(_router.router)

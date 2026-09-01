@@ -71,6 +71,57 @@ Then decide with the product owner whether to merge that branch into `main` and 
 main the deployed line again. Leaving a 79-commit branch as the real head of the
 project is how the wrong thing gets deployed.
 
+### ▶ 2026-09-01 (agents) — THREE NEW AGENT TOOLS LIVE, and two Flowise traps worth never hitting again
+
+The Phase-1 calculation services are now reachable from chat, and the orphaned BOM endpoint has
+an agent. **Ten offline suites green, goldens byte-identical, and `ops/verify-agents.sh` reports
+all three agents reproducible from git** (Engineering 9953 / Quotation 5622 / Drawing 3102).
+- **`ops/flowise/add-tool.py` (NEW, in git)** generalises `agent-add-list-tool.py`: any tool,
+  any chatflow, any input schema, idempotent, and it **reads the service key out of an existing
+  tool row** so the script carries no secret and can be committed.
+- **`app/api/calculations.py` (NEW)** — `POST /api/tools/voc` (`check_voc_safety`) and
+  `/api/tools/heat-load` (`calculate_heat_load`). **A missing input is a QUESTION, never a
+  default**: both return `need_inputs` naming what to ask for, because letting an 8B model
+  supply a paint consumption or a job mass is precisely the vacuum-filling that caused the
+  hot-air-oven hallucination. Each returns a code-rendered `*_markdown`.
+- **`POST /api/tools/bom` is a THIN BRIDGE to `/api/bom`, and it exists for a SECURITY reason.**
+  `auth/policy.py` lets the service principal reach `^/api/tools/` and nothing else; pointing an
+  agent at `/api/bom` would have meant widening that rule for every route it guards. One wrapper
+  is cheaper than a hole. `/api/bom` keeps `operation_id=generate_bom` for the UI.
+- **TRAP 1 — `$prop` IS UNDEFINED FOR AN OPTIONAL PROPERTY THE MODEL OMITS.** A bare `$question`
+  in a tool function throws `ReferenceError: $question is not defined` INSIDE the NodeVM. The
+  agent then sees an EMPTY tool result and **invents an answer** — it produced a fabricated heat
+  transfer formula with a made-up specific heat. **Every optional property must be read as
+  `(typeof $x !== 'undefined' ? $x : null)`**; `add-tool.py` now generates that automatically.
+  Worst possible failure mode, and the tool call looked successful from the outside.
+- **TRAP 2 — a `required: true` input the model omits is rejected BEFORE the call**
+  ("Received tool input did not match expected schema"). Only `equipment` and the dimensions are
+  required now; the prose `question` is optional.
+- **TRAP 3 — `quotation-agent-build.py` REBUILDS FROM A CLONE AND DROPS ANY TOOL NOT IN
+  `KEEP_TOOLS`.** Running it silently removed `generate_bom` minutes after it was added.
+  `generate_bom` is now in that set.
+- **THE PARAPHRASE FIX THAT WORKED WAS STRUCTURAL, NOT A PROMPT.** The agent labelled a Vitech
+  calculation "General engineering guidance (not from Vitech records)" 3/3 even after the
+  prompt told it not to. **Applying the Drawing Agent's `delete data.svg` lesson — stripping the
+  structured fields from the tool response so there is nothing left to summarise — removed the
+  false label 3/3.** Give the model less, not more instruction.
+- **Prompt change, folded in place per the standing lesson**: the Engineering Agent's
+  SPECIFICATIONS bullet became **READY-MADE REPLIES**, naming all seven markdown fields at once,
+  and was **rewritten SHORTER so the prompt landed at 9,953 chars** — under the 10,001 where both
+  known failure modes reproduce. Quotation Agent gained **RULE 4c** (a BOM is not a quotation:
+  never add the company heading), 5,370 -> 5,622.
+- **Verified live**: VOC 3/3 correct with the false label gone; heat load 2/2 (252 kW) after the
+  guard fix; BOM prints through the Quotation Agent; **spec still prints VERBATIM** (no
+  regression); plain greetings clean 3/3.
+- **STILL OPEN, unchanged and pre-existing**: the compound greeting `hi, who are you?` still
+  leaks `{"name": "WHO YOU ARE", ...}` (guarded at the chat boundary by `agentReply.js`), and
+  the **Engineering Agent still paraphrases `quotation_markdown`** instead of printing it. The
+  strip-fields fix is NOT safe to apply there — the `generate_quotation` tool row is SHARED with
+  the Quotation Agent, whose RULE 5 needs `pricing_basis_markdown` and whose compare flow needs
+  `price_display`. Both remain llama3.1:8b limitations; roadmap D2 is the real fix.
+- **`tests_api_contract.py` now needs re-recording for two reasons** (booth airflow, and 2 new
+  routes in `/openapi.json`) and still needs an admin credential.
+
 ### ▶ 2026-09-01 (pod, later) — THE WORKBOOKS ARRIVED. READING THE CELLS CLOSED THREE QUESTIONS AND OPENED THE BIGGEST ONE.
 
 The client files are now in `backend/data/knowledge_docs/` (commit `a4faf37`) and **INGESTED**:

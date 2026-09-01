@@ -7,7 +7,7 @@ Engineering Agent's flow (guarantees correctly-shaped nodes for this install),
 keeps only the quotation-relevant tools, and swaps in a quotation system prompt.
 
 Tools kept (reusing the SAME shared tool rows — no new tool rows created):
-  generate_quotation, lookup_project, retrieve_knowledge, list_projects
+  generate_quotation, lookup_project, retrieve_knowledge, list_projects, generate_bom
 Dropped: generate_specification (that's the Engineering Agent's job).
 
 Idempotent: if a chatflow named 'Quotation Agent' already exists it is UPDATED
@@ -17,7 +17,11 @@ import json, uuid, copy, subprocess, os
 
 ENG_ID = "c4bfba16-aeb0-4c1b-840e-21b474639a8d"
 NAME = "Quotation Agent"
-KEEP_TOOLS = {"generate_quotation", "lookup_project", "retrieve_knowledge", "list_projects"}
+# generate_bom joined the agent 2026-09-01. It MUST be listed here: this script
+# rebuilds the flow from a clone and DROPS any tool not named, so a rebuild
+# silently removed it once already.
+KEEP_TOOLS = {"generate_quotation", "lookup_project", "retrieve_knowledge",
+              "list_projects", "generate_bom"}
 
 env = os.environ.copy()
 for line in open("/workspace/vitech-ai-vps/.env"):
@@ -51,6 +55,8 @@ RULE 3 - WHICH TOOL:
 Never use a tool for greetings, "who are you", a name, thanks or chit-chat.
 
 RULE 4 - AFTER generate_quotation SUCCEEDS, YOUR WHOLE REPLY IS THE quotation_markdown FIELD, VERBATIM (it starts with "### VITECH ENVIRO SYSTEMS PVT. LTD."). No sentence before or after, no summary, no follow-up question. If your reply does not start with "###", stop and paste that field. The customer quotation never shows margin, cost, market band or confidence.
+
+RULE 4c - AFTER generate_bom SUCCEEDS, YOUR WHOLE REPLY IS THE bom_markdown FIELD, VERBATIM (it starts with "**BILL OF MATERIALS"). A BOM IS NOT A QUOTATION: never add the Vitech company heading, a total price, or any line the field does not contain.
 
 RULE 4b - AFTER lookup_project SUCCEEDS, YOUR WHOLE REPLY IS THE lookup_markdown FIELD, VERBATIM (it starts with "### Historical Project"). No sentence before or after. NEVER write the Vitech company name as a heading yourself and never re-format an archive record to look like a quotation - a past offer is not a new quote.
 

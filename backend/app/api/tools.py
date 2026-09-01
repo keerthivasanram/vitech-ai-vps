@@ -385,3 +385,21 @@ def tool_list_projects(payload: dict = Body(...)):
         "lowest_project": lowest_project,
         "highest_answer": highest_answer,
     }
+
+
+@router.post("/api/tools/bom", operation_id="generate_bom_tool")
+def tool_bom(payload: dict = Body(...)):
+    """Requirement -> bill of materials, for the agents.
+
+    A THIN BRIDGE to `/api/bom`, and it exists for a security reason rather than
+    a functional one: `auth/policy.py` lets the service principal reach
+    `^/api/tools/` and nothing else, so a leaked agent key cannot ingest, upload
+    or read the database. Pointing an agent at `/api/bom` directly would have
+    meant widening that rule for every route it guards. One wrapper is cheaper
+    than a hole.
+
+    `/api/bom` keeps `operation_id=generate_bom` for the UI; the Flowise tool row
+    is named `generate_bom`, which is what the agent actually sees.
+    """
+    from .bom import bom_endpoint
+    return bom_endpoint(payload)
