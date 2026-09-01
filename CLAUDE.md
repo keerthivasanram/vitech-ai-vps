@@ -71,6 +71,55 @@ Then decide with the product owner whether to merge that branch into `main` and 
 main the deployed line again. Leaving a 79-commit branch as the real head of the
 project is how the wrong thing gets deployed.
 
+### ▶ 2026-09-01 (close-out) — MAIN IS THE DEPLOYED LINE AGAIN, and the agent matrix found a real regression
+
+**`main` was merged and pushed: 85 commits ahead / 3 behind became 0.** The branch had been the
+real head of the project for a month and a half; a pod that pulled main got none of the
+authentication, DevOps backend, Package Center, drawing correctness or calculation work. The two
+documents main carried of its own (ARCHITECTURE.md, SHARING_GUIDE.md) came across untouched.
+- **THE INGEST POISONED THE OFFER CORPUS, and only driving the agents found it.**
+  `list_projects` reported **211 offers instead of 33** — 33 + the 178 document chunks ingested
+  this session. `rag.ingest` writes into the SAME Chroma collection under `type="document"`, and
+  its own contract says that "never touches the ATS spec engine, which only reasons over
+  type=offer" — but **those chunks carry a `_raw` of their own**, and `store.offer_records()`
+  filtered on `_raw` alone. So pricing, analytics and every offer view were reading document
+  chunks as historical projects. One-line filter, now pinned by a test in `tests_lookup.py`.
+  **Note this contradicts the A3 entry's assumption that ingested documents carry no `_raw`.**
+- **AGENT MATRIX: 14/14 CLEAN** across all three agents — spec x2, list, lookup, VOC, heat load,
+  knowledge, greeting, confidentiality, quote, BOM, repeat-clients, and both drawings. The
+  matrix driver is in the session scratchpad; it is worth rebuilding before any prompt change.
+  RULE 4c worked: the BOM now prints without the wrongly-added quotation header.
+- **`tests_pdf.py` (NEW, thirteenth suite, 28 checks)** — the 1,119 lines of customer-facing
+  renderers had ZERO tests. **Fixtures are built by the ENGINE, not hand-written**, because a
+  hand-made dict drifts from the real shape and then the suite passes while the renderer is fed
+  something production never sends. It asserts what a READER sees (the text is extracted back
+  out of the rendered PDF): every resolved value reaches the page, a TBD row survives, rendering
+  is deterministic, unicode does not raise, and **confidence NEVER appears on a customer
+  quotation**. Needs `requirements-dev.txt` (pymupdf, test-only, never imported by app code).
+- **EVERY DEPENDENCY IS PINNED** (10 of 12 were floating). fpdf2 has broken this codebase twice
+  from an unpinned upgrade, and the review had flagged it as the same drift trap already guarded
+  on the Flowise side.
+- **`.github/workflows/tests.yml` (NEW)** runs the eleven offline suites on every push. The
+  goldens were the platform's proof that an engine change moved nothing, and until now nothing
+  ran them except a person remembering to.
+- **`app/engineering/booth_catalogue.py` (NEW) — Vitech's STANDARD RANGE, 31 published models.**
+  `VT/1.5` to `VT/7.5`, front-open and enclosed, wet / dry 2-row / dry 3-row, each with its
+  published airflow, static pressure and motor. **Every number is QUOTED, never computed** —
+  which is what lets it answer a standard enquiry WITHOUT settling DQ-10, because citing
+  Vitech's own figure for a Vitech model sidesteps the contradiction between their two formulas.
+  A width 200 mm off the range returns **None, not the nearest machine**: that booth is a
+  special, and quietly rounding a stated size to sell a catalogue unit is how the wrong machine
+  gets built. NOT yet wired into the resolver — that is the next increment.
+- **`docs/developer_handbook.md` REWRITTEN.** The old one described Gemini, Supabase, a
+  monolithic App.jsx and port 8001, none of which was ever true here.
+- **`docs/Vitech_Calculation_Workbook_Queries.pdf` (NEW, 4 pages)** — the eight questions for
+  Vitech, ordered by what each blocks, each citing the cell it came from, plus what the
+  workbooks already answered. **`SENDER` in its generator is still a placeholder.** A layout bug
+  in it was, once again, invisible in the source and obvious in the render.
+- **Known and left alone**: the Quotation Agent heads a `list_projects` answer with
+  "### Historical Project" (RULE 4b over-applied). Cosmetic, and not worth a third prompt edit
+  in one session given the documented instability.
+
 ### ▶ 2026-09-01 (agents) — THREE NEW AGENT TOOLS LIVE, and two Flowise traps worth never hitting again
 
 The Phase-1 calculation services are now reachable from chat, and the orphaned BOM endpoint has

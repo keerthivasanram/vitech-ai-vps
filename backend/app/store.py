@@ -58,7 +58,18 @@ _records_cache: list | None = None
 
 
 def offer_records() -> list[dict]:
-    """Every stored record, parsed from its `_raw` metadata. Cached."""
+    """Every stored OFFER, parsed from its `_raw` metadata. Cached.
+
+    THE `type == "offer"` FILTER IS LOad-BEARING. `rag.ingest` writes ingested
+    documents into this same collection under `type="document"` - deliberately,
+    so retrieval can search both - and its own contract is that doing so "never
+    touches the ATS spec engine, which only reasons over type=offer". Those
+    chunks carry a `_raw` of their own, so without this filter every
+    offer-derived view silently counts them: after the first real ingest
+    `list_projects` reported 211 offers instead of 33, and the pricing and
+    analytics layers were reading document chunks as historical projects.
+    Found by driving the live agent, not by any test - hence the one below it.
+    """
     global _records_cache
     cached = _records_cache
     if cached is not None:
@@ -68,7 +79,7 @@ def offer_records() -> list[dict]:
     if col.count():
         for meta in col.get(include=["metadatas"])["metadatas"]:
             raw = meta.get("_raw")
-            if not raw:
+            if not raw or meta.get("type") != "offer":
                 continue
             try:
                 records.append(json.loads(raw))

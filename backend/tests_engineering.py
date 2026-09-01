@@ -12,6 +12,7 @@ change to `app/engineering/`.
 import sys
 
 from app.engineering import paint_shop_service as ps
+from app.engineering import booth_catalogue as bcat
 from app.engineering import design_standards as ds_mod
 from app.engineering import standards_service as std
 from app.engineering.blower_service import (PAINT_BOOTH_SERIES, by_model, chart,
@@ -283,6 +284,30 @@ check(mat.stock_weight_kg("ms_flat_40x6_6000") is None,
       "the one section the client's workbooks really disagree about returns None, never a picked side")
 check(set(mat.STOCK_WEIGHT_DISPUTED) == {"ms_flat_40x6_6000"},
       "the remaining disputed section stays visible in code as an open question")
+
+# --- Vitech's standard product range (the AI database PDF) -----------------
+# Every figure here is QUOTED from their catalogue, never computed, which is
+# what lets the platform answer a standard enquiry without first settling DQ-10.
+check(len(bcat.CATALOGUE) == 31, f"the published range loads ({len(bcat.CATALOGUE)} models)")
+_m = bcat.select(3000, bcat.DRY_2ROW, bcat.FRONT_OPEN)
+check(_m is not None and _m.model == "VT/3.0/DTPB/OP" and _m.airflow_cmh == 8100
+      and _m.motor_hp == 5,
+      "a 3.0 m dry front-open booth resolves to VT/3.0/DTPB/OP, 8100 CMH, 5 HP")
+check(bcat.select(3200, bcat.DRY_2ROW, bcat.FRONT_OPEN) is None,
+      "a width 200 mm off the range is a SPECIAL, not the nearest catalogue machine")
+check(bcat.select(3000, bcat.DRY_3ROW, bcat.FRONT_OPEN).airflow_cmh == 11340,
+      "the 3-row variant of the same width carries its own published airflow")
+check(bcat.by_model("VT/7.5/DTPB/CL").motor_hp is None,
+      "a model the catalogue leaves unrated reports no motor rather than a scaled guess")
+check(all(m.height_mm == 2425 for m in bcat.CATALOGUE),
+      "every published model is 2425 high, as the range specifies")
+check(all(m.airflow_cfm > 0 and m.airflow_cmh > m.airflow_cfm for m in bcat.CATALOGUE),
+      "every model carries both airflow units, and CMH exceeds CFM")
+_d = bcat.describe(_m)
+check(len(_d["rows"]) == 5 and all(len(r) == 3 for r in _d["rows"]),
+      "a model describes itself as attributed spec rows")
+check(_d["standard"] == std.CLIENT_BOOTH_CATALOGUE,
+      "catalogue rows cite the catalogue, never a calculation")
 
 print()
 if FAILS:

@@ -1,14 +1,28 @@
 # Install with prebuilt wheels on Windows (no C++ build tools needed):
 #   pip install --only-binary=:all: -r requirements.txt
-chromadb>=0.5,<0.6
-fastapi
-uvicorn[standard]
-httpx
-python-dotenv
-pydantic
-fpdf2                 # pure-Python PDF generation for quotation export (no system deps)
-python-multipart      # file uploads (multipart/form-data) for the Upload page
-pdfplumber            # page-aware PDF text + table extraction for the RAG loader
-python-docx            # DOCX text + table extraction for the RAG document loader
-openpyxl               # XLSX text extraction for the RAG document loader
-redis>=5,<6
+#
+# EVERY VERSION IS PINNED, and that is deliberate. Ten of these were unpinned
+# until 2026-09-01, which the production-readiness review flagged as the same
+# version-drift trap already guarded on the Flowise side with an `overrides`
+# block. It is not theoretical here: fpdf2 has broken this codebase TWICE from
+# an unpinned upgrade - `circle()` changed from bounding-box to centre+radius
+# (every drawing balloon rendered at twice size, offset up-left), and an
+# explicit (w, h) page format started being swapped when orientation="L" was
+# also passed (a 420x297 landscape sheet came out 297x420 portrait).
+#
+# These are the versions the platform is verified against: twelve test suites
+# green, goldens byte-identical, 28 HTTP contract fingerprints matched. Upgrade
+# ONE at a time, deliberately, and run the suites before and after.
+
+chromadb==0.5.23          # 0.6 changes the collection API; the store assumes 0.5
+fastapi==0.139.0
+uvicorn[standard]==0.51.0
+httpx==0.28.1
+python-dotenv==1.2.2
+pydantic==2.13.4
+fpdf2==2.8.7              # pure-Python PDF generation (no system deps). SEE THE NOTE ABOVE.
+python-multipart==0.0.32  # file uploads (multipart/form-data) for the Upload page
+pdfplumber==0.11.10       # page-aware PDF text + table extraction for the RAG loader
+python-docx==1.2.0        # DOCX text + table extraction for the RAG document loader
+openpyxl==3.1.5           # XLSX extraction for the RAG loader, and BOM.xlsx export
+redis==5.3.1
