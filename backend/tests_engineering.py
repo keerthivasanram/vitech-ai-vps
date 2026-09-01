@@ -12,11 +12,16 @@ change to `app/engineering/`.
 import sys
 
 from app.engineering import paint_shop_service as ps
+from app.engineering import design_standards as ds_mod
 from app.engineering import standards_service as std
 from app.engineering.blower_service import (PAINT_BOOTH_SERIES, by_model, chart,
                                             select_blower, select_booth_blower,
                                             select_booth_blower_set, select_in_series,
                                             series_of)
+from app.engineering import voc_service as voc
+from app.engineering import scrubber_service as sc
+from app.engineering import material_service as mat
+from app.engineering import heat_load_service as hl
 from app.engineering.formula_service import compute_spec
 
 FAILS: list[str] = []
@@ -87,7 +92,27 @@ down = ps.compute_paint_shop_unit("paint_booth", 5, 3, 4, draft=ps.Draft.DOWN)
 check(cross.face_area_m2 == 3 * 4, "cross draft uses the end face (width x height)")
 check(side.face_area_m2 == 5 * 4, "side draft uses the side face (length x height)")
 check(down.face_area_m2 == 5 * 3, "down draft uses the plan area (length x width)")
-check(abs(cross.exhaust_cmh - (12 * 0.45 * 3600)) < 1e-6, "exhaust = area x velocity x 3600")
+check(abs(cross.exhaust_cmh - (12 * ps.DEFAULT_FACE_VELOCITY * 3600)) < 1e-6,
+      "exhaust = area x velocity x 3600")
+
+# DQ-2, adopted 2026-09-01: the face velocity is the CLIENT's 0.5 m/s, from
+# `Standard Booth.xlsx`, not the NFPA 33 default we used while they were silent.
+check(ps.DEFAULT_FACE_VELOCITY == 0.50, "face velocity is the client's stated 0.5 m/s")
+std_booth = ps.compute_paint_shop_unit("paint_booth", 3.0, 2.25, 2.4, draft=ps.Draft.SIDE)
+check(round(std_booth.exhaust_cmh) == 12960,
+      f"standard-booth anchor: 3000 x 2400 face -> 12,960 CMH (got {std_booth.exhaust_cmh})")
+for _t in ("cross_draft", "side_draft", "semi_down_draft"):
+    check(ds_mod.BOOTH_TYPES[_t].velocity == 0.50, f"{_t} designs to 0.5 m/s")
+check(ds_mod.BOOTH_TYPES["full_down_draft"].velocity == 0.35
+      and ds_mod.BOOTH_TYPES["powder"].velocity == 0.55,
+      "DQ-2 did not touch the types the client's face-based table does not describe")
+
+# The override is what makes 0.5 a default rather than a hard-coded law.
+_ovr = compute_spec(5, 3, 4, "liquid", "cross draft", face_velocity=0.45)
+_ovr_row = next(r for r in _ovr.rules if r.name == "Exhaust airflow")
+check("19440" in _ovr_row.value, f"a stated face velocity overrides the table (got {_ovr_row.value})")
+check("stated for this design" in _ovr_row.formula,
+      "the rule trail says the velocity was stated, not taken from the table")
 
 # "Inlet Air volume": +10% rooms/zones, -10% booths, nil for a side-draft booth.
 check(side.inlet_cmh is None, "side-draft paint booth has NIL forced inlet air")
@@ -155,6 +180,94 @@ check(any(r.standard == std.CLIENT_PAINT_SHOP_CALC for r in spec.rules),
 huge = compute_spec(400, 400, 400, "liquid")
 huge_labels = {v.label for v in huge.values}
 check("Exhaust airflow" in huge_labels, "an over-range booth still computes its airflow")
+
+
+# ==========================================================================
+# The 2026-09-01 calculation workbooks (docs/client-calculation-sheets.md).
+# Each block pins our output to the sheet's OWN worked example wherever that
+# example is reproducible from the inputs the sheet records. Where it is not,
+# the missing input is asserted as a reported GAP rather than papered over.
+# ==========================================================================
+
+# --- VOC / LEL gate (workbook: Paint shop VOC calculation) ----------------
+v = voc.assess_voc(paint_consumption_l_hr=10, voc_percent=60,
+                   density_kg_l=1.2, airflow_cmh=10000)
+check(round(v.voc_kg_hr, 3) == 7.2, f"VOC anchor: 10 l/hr x 1.2 kg/l x 60% = 7.2 kg/hr (got {v.voc_kg_hr})")
+check(round(v.concentration_mg_m3) == 720,
+      f"VOC anchor: 7.2 kg/hr into 10000 m3/h = 720 mg/m3 (got {v.concentration_mg_m3})")
+check(v.verdict == voc.PASS, "VOC anchor: 720 mg/m3 passes the client's 1000 mg/m3 limit")
+over = voc.assess_voc(20, 60, 1.2, 10000)
+check(over.verdict == voc.FAIL, "double the paint consumption fails the same limit")
+check(over.required_airflow_cmh and round(over.required_airflow_cmh) == 14400,
+      f"a failing design states the airflow that would pass (got {over.required_airflow_cmh})")
+unknown = voc.assess_voc(10, None, 1.2, 10000)
+check(unknown.verdict is None and "VOC content" in unknown.reason,
+      "an unanswered safety question is reported unanswered, never as a pass")
+check(voc.assess_voc(10, 60, 1.2, 10000, solvent_lel_mg_m3=None).percent_lel is None,
+      "no %LEL is reported without the solvent's own LEL (the sheet gives no molecular weight)")
+
+# --- Heat load (workbook: Heat Load) --------------------------------------
+tank = hl.tank_heat_load(2250, 1500, 1500, 25, 75, 750)
+check(tank.kcal == 264125.0, f"tank anchor: 2250x1500x1500, 25->75 C, 750 kg steel = 264,125 Kcal (got {tank.kcal})")
+check(tank.kw == 308, f"tank anchor: 264,125 Kcal = 308 kW (got {tank.kw})")
+check(hl.kw_from_kcal(860.0) == 1 and hl.kw_from_kcal(861.0) == 2,
+      "kW rounds UP from Kcal, as every sheet does")
+check(hl.oven_shell_steel_mass_kg(4.3, 2.75, 3.0, 1.2) == 733,
+      "oven shell mass follows the sheets' own ((LH)2 + (WH)2 + (LW)3) x 7.85 x thk expression")
+
+dry = hl.dry_off_oven_heat_load(4.3, 2.75, 3.0, 30, 120, 1.2,
+                                job_mass_kg=1500, jobs_per_hour=6)
+check("air" not in dry.components,
+      "dry-off oven omits the air term while its air density is under query (DQ-1)")
+check(any("DQ-1" in g for g in dry.gaps),
+      "the dry-off oven result names the open question instead of guessing the density")
+dry_air = hl.dry_off_oven_heat_load(4.3, 2.75, 3.0, 30, 120, 1.2,
+                                    job_mass_kg=1500, jobs_per_hour=6,
+                                    air_density_kg_m3=hl.AIR_DENSITY_KG_M3)
+check(dry_air.kcal > dry.kcal and "air" in dry_air.components,
+      "an explicitly supplied air density is honoured, and only then")
+partial = hl.dry_off_oven_heat_load(4.3, 2.75, 3.0, 30, 120, 1.2)
+check(any("job mass" in g for g in partial.gaps),
+      "a dry-off oven with no stated job load says so rather than heating an empty oven silently")
+
+cure = hl.curing_oven_heat_load(25, 2.1, 3.0, 30, 220, 1.2,
+                                conveyor_mass_kg=2000, job_mass_kg=2000,
+                                insulation_thickness_mm=100)
+check(cure.components["air"] == 8648.0,
+      f"curing oven air term uses 1.204 kg/m3, the sheet's own density (got {cure.components['air']})")
+check(cure.components.get("insulation_loss_kw") == 9,
+      f"curing oven insulation loss at 100 mm / U=0.35 (got {cure.components.get('insulation_loss_kw')})")
+check(hl.insulation_loss_kw(25, 2.1, 3.0, 190, 75) is None,
+      "no U-value is interpolated for a thickness the client has not given")
+bare = hl.curing_oven_heat_load(25, 2.1, 3.0, 30, 220, 1.2)
+check(len(bare.gaps) == 2 and bare.kcal < cure.kcal,
+      "a curing oven with no conveyor or job mass reports both as gaps")
+
+# --- Scrubber / duct diameter (workbook: Vertical Scrubber - Diameter) ----
+tower = sc.tower_diameter(6750)
+check(round(tower.diameter_mm) == 1545,
+      f"scrubber anchor: 6750 m3/h at 1.0 m/s = 1545 mm (got {tower.diameter_mm})")
+duct = sc.duct_diameter(6750)
+check(round(duct.diameter_mm) == 399,
+      f"duct anchor: 6750 m3/h at 15 m/s = 399 mm (got {duct.diameter_mm})")
+check(tower.standard_diameter_mm is None and "DQ-3" in tower.note,
+      "the standard-size ladder is not invented; the result says the rounding rule is outstanding")
+check(sc.tower_diameter(None).diameter_mm is None,
+      "no airflow, no diameter")
+
+# --- Stock section weights (workbook: Cyclone recovery & Cartridge filter) -
+check(mat.stock_weight_kg("ms_channel_75x40_6000") == 44.0,
+      "stock table: MS channel 75x40 is 44 kg per 6 m")
+check(mat.stock_weight_kg("ms_plate_1250x2500x6") == 150.0,
+      "stock table: MS 6 mm plate is 150 kg per sheet")
+check(mat.section_weight_kg("ms_channel_75x40_6000", 40) == 308.0,
+      "structure anchor: 40 m of channel = 7 standard lengths = 308 kg")
+check(mat.stock_lengths_required(36) == 6 and mat.stock_lengths_required(37) == 7,
+      "lengths are bought whole, rounded up")
+check(mat.stock_weight_kg("ms_square_tube_40x40x2_6000") is None,
+      "a section the client's two workbooks disagree about returns None (DQ-4), never a picked side")
+check(set(mat.STOCK_WEIGHT_DISPUTED) == {"ms_square_tube_40x40x2_6000", "ms_flat_40x6_6000"},
+      "both disputed sections stay visible in code as open questions")
 
 print()
 if FAILS:

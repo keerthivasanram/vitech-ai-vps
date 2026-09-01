@@ -17,9 +17,14 @@ from .schema import ComputedSpec, RuleResult, SpecValue
 
 
 def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
+    # `face_velocity_ms` is the per-design override (DQ-2): absent, the booth
+    # type's own design velocity governs. It is deliberately NOT in
+    # `required_inputs` / `optional_inputs` yet — adding it there changes the
+    # studio form and the drawing catalog response, which is a UI decision, not
+    # an engineering one.
     return compute_spec(params.get("length_m"), params.get("width_m"),
                         params.get("height_m"), params.get("paint_type"),
-                        params.get("booth_type"))
+                        params.get("booth_type"), params.get("face_velocity_ms"))
 
 
 def _paint_shop_rules(unit: str) -> Callable[[dict[str, Any]], ComputedSpec]:

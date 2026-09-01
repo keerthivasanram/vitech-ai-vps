@@ -27,10 +27,13 @@ from typing import NamedTuple, Optional
 from . import standards_service as std
 from .unit_converter import CFM_TO_CMH
 
-# Face velocity across the open working face, m/s. The client's document gives
-# the formula but not this value; this is the existing ATS / NFPA 33 constant
-# the paint-booth engine is already calibrated to. CLIENT-CONFIRMATION SLOT.
-DEFAULT_FACE_VELOCITY = 0.45
+# Face velocity across the open working face, m/s. NO LONGER A CONFIRMATION
+# SLOT: the client's `Standard Booth.xlsx` (2026-09-01) states 0.5 m/s and
+# computes its entire standard-booth table from it, for wet and dry alike. The
+# 0.45 this held was the NFPA 33 default, used only while the client's own
+# document was silent about it (DQ-2, adopted by the product owner 2026-09-01).
+# Overridable per call, and per design via `compute_spec(face_velocity=...)`.
+DEFAULT_FACE_VELOCITY = 0.50
 
 # Inlet (make-up) air as a fraction of exhaust, per the client's document.
 # Booths run NEGATIVE (inlet < exhaust) so contaminated air cannot escape;

@@ -71,6 +71,90 @@ Then decide with the product owner whether to merge that branch into `main` and 
 main the deployed line again. Leaving a 79-commit branch as the real head of the
 project is how the wrong thing gets deployed.
 
+### ▶ 2026-09-01 (pod session) — STACK BACK UP, FACE VELOCITY IS NOW 0.5, AND A BIGGER FINDING BEHIND IT
+
+**The pod's container disk was wiped again** — psql, node and ollama were all gone, so
+`bootstrap-pod.sh` ran first, then `start-all.sh`. **All six services verified: backend 200,
+Flowise 200, frontend 200, Ollama 200, Postgres up, Redis PONG.** The checkout is on
+`fix/list-projects-category-filter` at `00c241b` (NOT main — the 79-commit divergence is real,
+and the pod would have lost a month of work on a plain `git pull` from main).
+- **DQ-2 CLOSED BY THE PRODUCT OWNER: face velocity is 0.5 m/s, and it is now OVERRIDABLE.**
+  The 0.45 was NFPA 33, used only while the client's document was silent; `Standard Booth.xlsx`
+  states 0.5 and builds its whole table from it. Changed in `design_standards.BOOTH_TYPES` for
+  the three FACE-BASED DRY types, plus `paint_shop_service.DEFAULT_FACE_VELOCITY` and
+  `formula_service.FACE_VELOCITY`. **`full_down_draft`, `pressurized` and `powder` were
+  deliberately left alone** — the client's table is an L x H face calculation and does not
+  describe those, so adopting 0.5 for them would be OUR extrapolation of their document.
+- **The override is what makes it a default rather than a law**:
+  `compute_spec(..., face_velocity=)`, fed from `params["face_velocity_ms"]` in
+  `catalog._booth_rules`, and **the rule trail states which value was used and whether it was
+  stated or taken from the table**. It is NOT in `required_inputs`/`optional_inputs` yet, on
+  purpose — that changes the studio form and the drawing-catalog response, which is a UI call.
+- **Measured, and scoped exactly as intended**: booth airflow **+11.1%** (19,440 -> 21,600 m3/h
+  on the 5x3x4 case), filters 16 -> 17, duct 14.0 -> 15.6 m/s, **blower model UNCHANGED in both
+  dry cases**. Goldens re-recorded: **3 paint-booth cases moved; all 4 wet-scrubber and all 3
+  knowledge cases byte-identical**, and the powder case moved in WORDING ONLY (0.55 m/s and
+  47,520 m3/h untouched) — that is the proof the change reached only the types it was aimed at.
+  Eleven suites green. **`tests_api_contract.py` MUST be re-recorded for the booth endpoints
+  and was NOT** — it needs an admin credential this session does not hold.
+- **DQ-9 — FOUND WHILE DOING THIS, AND IT IS BIGGER THAN DQ-2. THE FACE AXIS DISAGREES.**
+  The client's booth sheet computes the open face as **L x H**; `compute_spec` computes it as
+  **W x H**. On the client's OWN worked booth (3.0L x 2.25W x 2.4H) their sheet gives
+  12,960 CMH and we give **9,720 — 33% lower**, which would undersize the blower on every booth
+  whose length exceeds its width. **Deliberately NOT fixed**: which axis a customer's "length"
+  refers to is a convention only Vitech can settle, and a wrong guess is a wrong machine.
+  Note the platform is internally inconsistent about this too — `paint_shop_service` maps a
+  SIDE draft to L x H, which is the client's reading, while `compute_spec` does not.
+- **DQ-1..DQ-9 now, not DQ-1..DQ-7.** DQ-2 is closed; DQ-8 (the dry-off total does not
+  reproduce) and DQ-9 (the face axis) are new. **Send the remaining eight to Vitech as one
+  list — DQ-9 first.**
+
+### ▶ 2026-09-01 (later) — PHASE 1 OF THE CALCULATION PLAN IS IN CODE. Purely additive.
+
+The extraction doc's status line no longer reads "nothing in `backend/app/` reads any of it".
+Four of the six workbooks are now executable engineering, **163 added lines and zero deleted**,
+and **nothing in `app/` imports any of it yet** — which is exactly why **all ten offline suites
+pass with every golden byte-identical**, and why the two HTTP suites cannot have moved (no
+route, no response body, no `operation_id` was touched; the contract suite needs an admin
+credential this machine does not hold, so it was not run — the change is provably outside its
+surface). **29 anchor checks** added to `tests_engineering.py`.
+- **`app/engineering/voc_service.py`** — VOC mass rate, concentration and the LEL gate.
+  Reproduces the sheet exactly: 10 l/hr, 60%, 1.2 kg/l into 10000 CMH -> 7.2 kg/hr ->
+  **720 mg/m3, PASS** against the client's 1000 mg/m3 rule. It returns a **verdict, not a spec
+  row**, and a missing input yields `verdict=None` with a reason — an unanswered safety question
+  is never reported as a pass. **%LEL is returned only when the caller supplies the solvent's
+  own LEL in mg/m3**: the sheet gives 1.2 % by VOLUME and no molecular weight, so the
+  conversion is not ours to invent. **NOT yet wired into `release_gate.assess()`** — that is
+  Phase 2, because it changes what an assessment returns.
+- **`app/engineering/heat_load_service.py`** — tank, dry-off oven, curing oven, insulation
+  U-values. Tank reproduces exactly (2250x1500x1500, 25->75 C, 750 kg -> **264,125 Kcal /
+  308 kW**). **This is the answer to "oven exhaust is TBD until an ACH is supplied"** — heat
+  load follows from mass and temperature rise and needs no ACH at all.
+- **THE DRY-OFF OVEN'S OWN WORKED TOTAL DOES NOT REPRODUCE — new open item DQ-8.** Applying the
+  sheet's formulas to the sheet's inputs, *including* its disputed `101.325` air factor, gives
+  **191,399 Kcal / 223 kW**, not the stated 188,786 / 220. A ~1.4% gap means one recorded input
+  differs from what the cell used. Found by implementing it, not by reading it — the same
+  lesson as rendering a drawing before believing it.
+- **THE REFUSALS ARE THE POINT.** The dry-off **air term is omitted** until DQ-1 is answered
+  (its density is atmospheric pressure in kPa; the curing sheet uses 1.204 kg/m3 for the same
+  quantity) and the caller sees the gap named. The scrubber's **standard-size rounding is not
+  applied** (DQ-3 — the sheet's rounding row is stale, reading `~950` where it computed 1545).
+  The two stock sections the client's **own two workbooks disagree about return `None`**
+  (DQ-4: square tube 21 vs 18 kg, flat 12 vs 16) rather than silently choosing which of their
+  documents is right. A curing oven with no conveyor or job mass **says so** instead of
+  totalling as though complete.
+- **`app/engineering/scrubber_service.py`** — tower bore at 1.0 m/s, duct at 15 m/s, using the
+  sheet's own 3.14. Reproduces **1545 mm** and **399 mm** at 6750 m3/h. Until now nothing
+  derived a tower diameter: a scrubber requirement stating only an airflow had no diameter, and
+  therefore no footprint for `geometry_service` to draw.
+- **Stock-section weights in `material_service.py`** (six unambiguous rows + `section_weight_kg`)
+  — the missing rule behind "MS structure is listed even though no rule computes its weight".
+  Reproduces the sheet's 40 m of channel -> 7 standard lengths -> **308 kg**.
+- **STILL PHASE 2, all of it blocked or gated**: face velocity 0.45 -> 0.5 (**DQ-2** — moves
+  every booth ~11% and re-records the goldens), the panel-count booth weight, structure +
+  painting area, the booth BOM cost model (now validatable against Rs 6,49,264), and the
+  per-line margin model (**DQ-7**). **Send DQ-1..DQ-8 to Vitech as one list.**
+
 ### ▶ 2026-09-01 — CLIENT CALCULATION SHEETS EXTRACTED. Plan written, NO code yet.
 
 Vitech supplied **six Excel workbooks** (calculation + costing). Every formula is

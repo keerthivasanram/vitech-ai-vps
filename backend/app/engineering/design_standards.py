@@ -24,9 +24,20 @@ class BoothType(NamedTuple):
 
 
 BOOTH_TYPES: dict[str, BoothType] = {
-    "cross_draft":      BoothType("cross_draft", "Dry Filter Cross Draft", 0.45, (0.45, 0.45), "dry"),
-    "side_draft":       BoothType("side_draft", "Dry Filter Side Draft", 0.45, (0.45, 0.45), "dry"),
-    "semi_down_draft":  BoothType("semi_down_draft", "Dry Filter Semi Down Draft", 0.45, (0.45, 0.45), "dry"),
+    # 0.50 m/s is VITECH'S OWN stated design value, from `Standard Booth.xlsx`
+    # (delivered 2026-09-01), whose whole table computes CMH = L x H x 0.5 x 3600
+    # for both wet and dry booths. These three carried 0.45 only because the
+    # earlier client document was silent and NFPA 33 was used as the default;
+    # the client has now stated a value, so the client's value governs (DQ-2,
+    # adopted by the product owner 2026-09-01). The velocity is overridable per
+    # design — see `formula_service.compute_spec(face_velocity=...)`.
+    "cross_draft":      BoothType("cross_draft", "Dry Filter Cross Draft", 0.50, (0.50, 0.50), "dry"),
+    "side_draft":       BoothType("side_draft", "Dry Filter Side Draft", 0.50, (0.50, 0.50), "dry"),
+    "semi_down_draft":  BoothType("semi_down_draft", "Dry Filter Semi Down Draft", 0.50, (0.50, 0.50), "dry"),
+    # UNCHANGED by DQ-2: the client's standard-booth table is a face-based
+    # (L x H) calculation and does not describe a full down draft, a pressurized
+    # booth or a powder booth. Adopting 0.5 for them would be OUR extrapolation
+    # of their document, not their statement.
     "full_down_draft":  BoothType("full_down_draft", "Dry Filter Full Down Draft", 0.35, (0.30, 0.35), "dry"),
     "water_wash":       BoothType("water_wash", "Water Wash Booth", 0.50, (0.50, 0.50), "water-wash"),
     "powder":           BoothType("powder", "Powder Coating Booth", 0.55, (0.50, 0.60), "powder"),

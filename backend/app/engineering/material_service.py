@@ -53,3 +53,66 @@ def select_paint_process(paint_type, booth_type=None) -> dict:
     if paint in _LIQUID_PROCESSES:
         return dict(_WATER_WASH if _is_water_wash(booth_type) else _LIQUID_DRY)
     return dict(PROCESS_RULES.get(paint, PROCESS_RULES[_DEFAULT_PROCESS]))
+
+
+# --- Stock-section weights -------------------------------------------------
+# Source: the client's own workbook `Cyclone recovery & Cartridge filter
+# unit.xlsx` (delivered 2026-09-01), transcribed in
+# docs/client-calculation-sheets.md §6. Vitech buys steel in standard lengths
+# and sheets and costs it per piece, so a weight is a property of the STOCK
+# ITEM, not something derived from a density and a volume.
+#
+# This is the missing rule behind the standing note that "MS structure is listed
+# even though no rule computes its weight yet": a structure whose lengths are
+# known can now be weighed, and therefore costed, from the client's own table.
+#
+# TWO ROWS ARE WITHHELD, ON PURPOSE (open question DQ-4). The client's two
+# workbooks disagree on them: square tube is 21 kg per 6 m in the paint-booth
+# sheet and 18 kg in this one, and flat is 12 kg against 16 kg. Picking one
+# would silently choose which of the client's own documents is right, and the
+# error lands in a costed BOM. They are listed in `STOCK_WEIGHT_DISPUTED` so the
+# question is visible in code, and no caller can read them by accident.
+STOCK_WEIGHT_STANDARD = "Vitech stock table (kg per standard length / sheet)"
+
+STOCK_WEIGHTS_KG = {
+    "ms_sheet_16swg_1250x2500x1.6": 40.0,
+    "ms_sheet_14swg_1250x2500x2.0": 50.0,
+    "ms_plate_1250x2500x6": 150.0,
+    "ms_angle_65x65x6_6000": 36.0,
+    "ms_angle_40x40x6_6000": 24.0,
+    "ms_channel_75x40_6000": 44.0,
+}
+
+# Under query (DQ-4) — deliberately NOT part of STOCK_WEIGHTS_KG.
+STOCK_WEIGHT_DISPUTED = {
+    "ms_square_tube_40x40x2_6000": (18.0, 21.0),   # (cyclone sheet, booth sheet)
+    "ms_flat_40x6_6000": (16.0, 12.0),
+}
+
+# The standard purchase length these section weights are quoted against.
+STOCK_LENGTH_M = 6.0
+
+
+def stock_weight_kg(item: str):
+    """Weight of one standard length / sheet of `item`, or None.
+
+    None means "not answerable from the client's data" — either the item is not
+    on their table, or their two workbooks disagree about it (DQ-4). A caller
+    must report that as an open item, never substitute a computed weight."""
+    return STOCK_WEIGHTS_KG.get(item)
+
+
+def stock_lengths_required(total_length_m: float) -> int:
+    """Whole standard lengths needed to cover a run, per the sheets' own
+    `ROUNDUP(metres / 6, 0)`. You buy the length, not the metre."""
+    import math
+    return max(1, int(math.ceil(float(total_length_m) / STOCK_LENGTH_M - 1e-9)))
+
+
+def section_weight_kg(item: str, total_length_m: float):
+    """Weight of the standard lengths needed to cover `total_length_m`, or None
+    when the item's weight is unknown or under query."""
+    per = stock_weight_kg(item)
+    if per is None:
+        return None
+    return stock_lengths_required(total_length_m) * per

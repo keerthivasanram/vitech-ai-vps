@@ -4,8 +4,15 @@ Source: six Excel workbooks supplied by Vitech, delivered 2026-09-01. Every form
 below is transcribed from the workbook cells, not inferred. Cell references are given
 so any value can be traced back.
 
-> **Status: EXTRACTED, NOT YET IMPLEMENTED.** Nothing in `backend/app/` reads these
-> yet. The implementation plan is `docs/agent-completion-plan.md`.
+> **Status (2026-09-01, later): PARTIALLY IMPLEMENTED — Phase 1 of the plan has
+> landed.** Sections 1 (scrubber/duct diameter), 2 (heat load), 3 (VOC/LEL) and the
+> stock-weight table in 6 are now executable in `app/engineering/scrubber_service.py`,
+> `heat_load_service.py`, `voc_service.py` and `material_service.py`, guarded by
+> anchor tests in `tests_engineering.py`. **No existing output path calls them yet**,
+> which is why every golden and every contract fingerprint is unchanged. Sections 4
+> and 5 (face velocity, panel weight, structure, cost and margin) are Phase 2: they
+> MOVE customer-facing numbers and are blocked on DQ-2, DQ-4 and DQ-7.
+> The implementation plan is `docs/agent-completion-plan.md`.
 
 ---
 
@@ -58,6 +65,13 @@ Kcal_air   = ROUNDUP((air_mass * 0.24 * dT) * 1.10, 0)           # +10%
 ```
 
 Worked: 4300x2750x3000, 30->120 C, 6/hr x 1500 kg, 1.2 mm -> 188,786 Kcal -> **220 kW**.
+
+> **THE DRY-OFF WORKED TOTAL DOES NOT REPRODUCE — see DQ-8.** Applying the formulas
+> above to those inputs, *including* the sheet's own `101.325` air factor, gives
+> 105,993 (steel + load) + 85,406 (air) = **191,399 Kcal -> 223 kW**, not 188,786 /
+> 220 kW. A ~1.4% gap means one recorded input differs from what the cell actually
+> used. Found by implementing the formulas in `heat_load_service`, which reproduces
+> the tank (264,125 Kcal / 308 kW) and both scrubber diameters exactly.
 
 > **NOTE — air density 101.325 (N13) is wrong dimensionally**; that is standard
 > atmospheric *pressure* in kPa, not density. The curing-oven sheet uses **1.204
@@ -191,6 +205,13 @@ cfm          = CMH / 1.7
 Worked: 3.0 x 2.4 = 7.2 m2 -> 12,960 CMH -> 7,624 cfm -> blower **CLP-4-10-9000**.
 (Matches `blower_service.select_booth_blower` — the anchor test still holds.)
 
+> **THE FACE AXIS DOES NOT MATCH OURS — see DQ-9.** This sheet's face is **L x H**;
+> `compute_spec` uses **W x H**. On this very booth (3.0L x 2.25W x 2.4H) we return
+> 9,720 CMH against the sheet's 12,960 — a 33% gap, larger than the DQ-2 velocity
+> change. It is NOT fixed unilaterally: which axis a customer's "length" refers to is
+> a convention question only Vitech can settle, and guessing it wrong mis-sizes the
+> blower on every booth.
+
 ### 5e. Rates confirmed (all match `rate_card.py`)
 
 MS sheet **Rs 85/kg** RM + **Rs 45/kg** labour. MS sections **Rs 75/kg** + **Rs 50/kg**.
@@ -258,9 +279,11 @@ Margin options on the sheet: **x1.17, x1.25, x1.35**.
 | id | Question | Blocks |
 |---|---|---|
 | **DQ-1** | Dry-off oven air density is **101.325** (kPa, a pressure) where the curing oven uses **1.204 kg/m3**. Typo? The dry-off air heat load is ~84x too high if so. | Heat load service |
-| **DQ-2** | Face velocity **0.5 m/s** confirmed in two workbooks vs our NFPA-33 **0.45**. Adopt 0.5 as the Vitech standard? Moves every booth airflow ~11% and re-records goldens. | Booth airflow, all booth goldens |
+| ~~DQ-2~~ | **RESOLVED 2026-09-01 by the product owner: 0.5 m/s adopted, and made overridable per design.** Landed in `design_standards.BOOTH_TYPES` (the three face-based dry types), `paint_shop_service.DEFAULT_FACE_VELOCITY` and `formula_service`. Booth goldens re-recorded; wet-scrubber and knowledge cases byte-identical. | closed |
 | **DQ-3** | Scrubber/duct diameter rounding: computed 1545 mm shown as `~950`. What is the standard-diameter ladder and the rounding rule? | Scrubber diameter rule |
 | **DQ-4** | Square tube is **21 kg**/6 m in the booth sheet but **18 kg** in the cyclone sheet; flat is **12** vs **16**. Which governs? | Structure weight |
 | **DQ-5** | Painting is **Rs 35/sq.ft** in the booth and cartridge sheets but **Rs 50/sq.ft** in the cyclone sheet. Rate change, or unit difference? | Rate card |
 | **DQ-6** | `Combine` B5 = Rs 70,000 is unlabelled. Blower? Panel? | Cyclone cost model |
 | **DQ-7** | Margin: booth **x1.40** / duct **x1.26** here, but the cyclone sheet offers **x1.17 / x1.25 / x1.35**. What selects the multiplier — equipment type, order value, customer? | Quotation model |
+| **DQ-8** | The dry-off oven's stated total (188,786 Kcal / 220 kW) does not reproduce from the inputs on its own sheet — those formulas give 191,399 Kcal / 223 kW. Which input differs? | Dry-off oven heat load |
+| **DQ-9** | **WHICH AXIS IS THE OPEN FACE?** The booth sheet computes the face as **L x H** (3.0 x 2.4 = 7.2 m2 -> 12,960 CMH). `formula_service.compute_spec` computes it as **W x H**, so for that same booth stated as 3.0L x 2.25W x 2.4H we return **9,720 CMH — 33% lower**. Which dimension does Vitech call length when a customer states one? | Every booth's airflow, blower, filters and duct |

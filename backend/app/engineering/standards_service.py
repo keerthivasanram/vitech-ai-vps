@@ -36,3 +36,11 @@ ATS_SPRAY_COVERAGE = "ATS wet-scrubber spray-coverage standard"
 HYDRAULIC_PUMP_POWER = "Hydraulic pump-power formula"
 ATS_RECIRC_TANK = "ATS recirculation-tank standard"
 ATS_SPRAY_TOWER_HEIGHT = "ATS spray-tower height standard"
+
+# Client calculation workbooks (delivered 2026-09-01), transcribed in
+# docs/client-calculation-sheets.md. Like the paint-shop rules above, these cite
+# Vitech's own sheets as the authority because that is exactly what they are.
+CLIENT_VOC_CALC = "Vitech paint-shop VOC calculation (design limit 1000 mg/m3)"
+CLIENT_HEAT_LOAD_CALC = "Vitech heat-load calculation (1 kW = 860 Kcal)"
+CLIENT_SCRUBBER_DIAMETER_CALC = "Vitech scrubber diameter calculation (tower 1.0 m/s, duct 15 m/s)"
+CLIENT_STOCK_WEIGHTS = "Vitech stock-section weight table (kg per standard length)"

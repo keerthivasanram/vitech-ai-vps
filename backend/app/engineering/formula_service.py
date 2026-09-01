@@ -28,7 +28,7 @@ from .unit_converter import CFM_TO_CMH, air_cmh
 # package gives a design velocity per canonical booth type and a filter count
 # derived from media velocity (see `design_standards`). FACE_VELOCITY remains
 # only as the fallback when no booth type can be resolved.
-FACE_VELOCITY = 0.45          # m/s, fallback only (Dry Filter Cross Draft)
+FACE_VELOCITY = 0.50          # m/s, fallback only (Dry Filter Cross Draft)
 DEFAULT_HEIGHT = 4.0          # assumed booth height when not specified
 
 # --- Wet scrubber design constants (ATS, calibrated to OFF-C2C-WS-172) -----
@@ -45,11 +45,19 @@ _G = 9.81                     # m/s^2
 def compute_spec(length_m: Optional[float], width_m: Optional[float],
                  height_m: Optional[float] = None,
                  paint_type: Optional[str] = None,
-                 booth_type: Optional[str] = None) -> ComputedSpec:
+                 booth_type: Optional[str] = None,
+                 face_velocity: Optional[float] = None) -> ComputedSpec:
     """Apply engineering rules to a paint-booth requirement. Returns computed
     values, each tagged with provenance, plus the rule trail (formula + standard).
     booth_type is honoured so a liquid booth's filtration/material stays coherent
-    with the actual booth design (dry-filter unless a water-wash booth)."""
+    with the actual booth design (dry-filter unless a water-wash booth).
+
+    `face_velocity` overrides the booth type's design velocity for THIS design.
+    A stated override is engineering the customer or our engineer has specified
+    (a duty a local regulator requires, a booth built to a customer standard),
+    so it must beat the table rather than be silently ignored — and the rule
+    trail says which value was used and where it came from, so a reader can
+    never be left wondering which velocity produced the airflow."""
     spec = ComputedSpec(length_m=length_m, width_m=width_m, height_m=height_m)
     if length_m is None or width_m is None:
         return spec  # not enough to compute a booth; caller handles concept Qs
@@ -66,7 +74,9 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     # the velocity the spec states and the velocity that computed the airflow are
     # by construction the same number — the contradiction the review found.
     booth, booth_warning = ds.resolve_booth_type(booth_type, paint_type)
-    velocity = booth.velocity
+    velocity = float(face_velocity) if face_velocity else booth.velocity
+    velocity_source = ("stated for this design" if face_velocity
+                       else f"design face velocity for {booth.label}")
     airflow = face_area * velocity * 3600
 
     # Exhaust blower comes from the VENDOR CATALOGUE, not a capacity heuristic:
@@ -98,11 +108,12 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
 
     spec.rules = [
         RuleResult(name="Type of paint booth", value=booth.label,
-                   formula=f"canonical booth type; design face velocity {velocity:g} m/s",
+                   formula=f"canonical booth type; face velocity {velocity:g} m/s "
+                           f"({velocity_source})",
                    standard=std.CLIENT_BOOTH_STANDARD),
         RuleResult(name="Exhaust airflow", value=f"{round_to_step(airflow, 10)} m3/h",
-                   formula=(f"face area {width_m}x{height} = {face_area:g} m2 x design velocity "
-                            f"{velocity:g} m/s ({booth.label}) x 3600"),
+                   formula=(f"face area {width_m}x{height} = {face_area:g} m2 x velocity "
+                            f"{velocity:g} m/s ({velocity_source}) x 3600"),
                    standard=std.CLIENT_BOOTH_STANDARD),
         RuleResult(name="Inlet air volume", value=f"{round_to_step(inlet, 10)} m3/h",
                    formula=f"exhaust {round_to_step(airflow, 10)} m3/h 10% less (booth held under suction)",
