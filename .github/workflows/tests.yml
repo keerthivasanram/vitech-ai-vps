@@ -68,3 +68,6 @@ jobs:
 
       - name: Observability
         run: python tests_observability.py
+
+      - name: Site placement
+        run: python tests_siting.py

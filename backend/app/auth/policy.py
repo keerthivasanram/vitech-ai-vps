@@ -67,6 +67,10 @@ _RULES: list[tuple[str, str, tuple[str, bool]]] = [
 
     # --- engineer: the engines, the documents, and the data views ----------
     (r".*", r"^/api/(bom|package|drawing|quotation|specification|datasheet)", (ENGINEER, False)),
+    # Siting carries a CUSTOMER PHOTOGRAPH in its payload, so the service
+    # principal is deliberately excluded: a leaked agent key must not be able
+    # to post pictures of a customer's premises into the platform.
+    (r".*", r"^/api/siting/", (ENGINEER, False)),
     (r".*", r"^/api/(offers|records|knowledge)", (ENGINEER, False)),
     (r"GET", r"^/api/uploads$", (ENGINEER, False)),
     (r"GET", r"^/records$", (ENGINEER, False)),

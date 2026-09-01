@@ -71,6 +71,54 @@ Then decide with the product owner whether to merge that branch into `main` and 
 main the deployed line again. Leaving a 79-commit branch as the real head of the
 project is how the wrong thing gets deployed.
 
+### ▶ 2026-09-01 (siting) — EQUIPMENT ON A CUSTOMER'S SITE PHOTOGRAPH. `app/siting/` (NEW).
+
+Asked for: upload the client's location photo and place the equipment on it. Built as
+**single-view metrology — exact, deterministic, no ML, no model in the loop.** Fourteen suites
+green (`tests_siting.py`, 24 checks, added to CI).
+- **A PHOTOGRAPH CARRIES NO SCALE, and that is the whole design.** Nothing in an image says
+  whether a floor is three metres wide or thirty, so the engineer marks the four corners of a
+  rectangle they MEASURED, and states its size. Those two numbers are the scale of the entire
+  photograph. It is golden rule #2 applied to pixels: the scale comes from what somebody
+  measured, never from what a model guessed.
+- **`homography.py`** solves the plane-to-image map exactly from four points (8x8 Gaussian
+  elimination, hand-rolled — an 8x8 system does not justify a linear-algebra dependency, and
+  hand-rolling keeps the numeric behaviour auditable). **Proven against a synthetic photo taken
+  by a KNOWN camera: reprojection error 1.1e-13 px at points nobody marked.**
+- **THE VANISHING POINTS ARE KEPT HOMOGENEOUS.** A camera square-on to the floor has one
+  vanishing point at infinity — parallel lines that stay parallel — and dividing by w to get a
+  finite point throws that case away and loses the horizon. The cross product handles it with no
+  special case. First version returned None for exactly the commonest site photo.
+- **HEIGHTS NEED THEIR OWN REFERENCE.** A ground-plane homography says nothing about vertical,
+  so an elevation is drawn ONLY when a vertical of known height is marked (a 2.1 m shutter, a
+  column). Without one the sheet draws the **footprint and states why** — the honest-gap
+  contract, applied to a photograph. Camera model is level-camera; a heavily tilted photo reads
+  slightly tall at the frame edges and the sheet says so.
+- **A MACHINE THAT DOES NOT FIT IS REPORTED, NEVER NUDGED.** `fits_within` names the overhang in
+  metres. Moving a machine to make a picture work is the same failure as rounding a dimension to
+  reach a catalogue size.
+- **The position is the ENGINEER'S**, never the platform's — layout involves services, access,
+  fire routes and the customer's own plans, none of which is in a photograph. The sheet says so.
+- **The envelope comes from the SAME resolution as the spec and the GA**, so a siting view can
+  never show a machine of a size the specification does not describe.
+- **`POST /api/siting/place`** (`place_equipment_on_site`). **The service principal is
+  deliberately EXCLUDED in `policy.py`** — the payload carries a customer photograph, and a
+  leaked agent key must not be able to post pictures of a customer's premises into the platform.
+  Recorded in `docs/endpoint-security-matrix.md`.
+- **Output is SVG with the photo embedded as a data URI**: byte-stable (so the artifact digest
+  means something), sharp when printed, one self-contained file that survives being emailed, and
+  **the overlay stays separable from the photograph** — a reader must always be able to tell
+  which is the picture and which is the engineering claim.
+- **The standing caveat is reserved FIRST on the caption band**, the same lesson as the GA
+  sheet's standing notes: drawn last it is the first thing a crowded sheet drops, and losing
+  "not a survey" from a photo-realistic overlay is a golden-rule-#3 failure.
+- **TWO LAYOUT BUGS, both invisible in the source and obvious in the render** (again): the label
+  anchored to the smallest image y, which on a tall machine is a TOP corner, and it ran off the
+  right edge printing "Paint Booth 5 x 3 x 4 " with no unit. Now anchored to the nearest corner
+  and clamped into the frame.
+- **STILL TO DO:** no UI yet — the endpoint takes marked points, so the studio needs a
+  click-to-mark overlay. That is the next increment, and it is frontend work.
+
 ### ▶ 2026-09-01 (close-out) — MAIN IS THE DEPLOYED LINE AGAIN, and the agent matrix found a real regression
 
 **`main` was merged and pushed: 85 commits ahead / 3 behind became 0.** The branch had been the
