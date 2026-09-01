@@ -42,10 +42,90 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-01 — READ THIS FIRST. The branch note below was WRONG, and it matters on pull.
+
+**THE DIVERGENCE IS NOT "3 DOC COMMITS". Measured 2026-09-01:**
+
+```
+git rev-list --count origin/main..fix/list-projects-category-filter   ->  79
+git rev-list --count fix/list-projects-category-filter..origin/main   ->   3
+git diff --stat origin/main..HEAD  ->  170 files, +26,160 / -2,701
+```
+
+The branch is **79 commits AHEAD** of main and 3 behind. The earlier note read that
+backwards. **If the pod is on `main` and you `git pull`, you get NONE of the last
+month's work** — not server-side authentication, not the DevOps backend, not the
+Package Center, not the drawing correctness fixes, not the Requirement Consultant
+design, and not the calculation work below.
+
+**On the pod, do this before anything else:**
+
+```bash
+cd /workspace/.../vitech-ai-vps
+git fetch origin
+git checkout fix/list-projects-category-filter
+git pull
+```
+
+Then decide with the product owner whether to merge that branch into `main` and make
+main the deployed line again. Leaving a 79-commit branch as the real head of the
+project is how the wrong thing gets deployed.
+
+### ▶ 2026-09-01 — CLIENT CALCULATION SHEETS EXTRACTED. Plan written, NO code yet.
+
+Vitech supplied **six Excel workbooks** (calculation + costing). Every formula is
+transcribed with cell references in **`docs/client-calculation-sheets.md`**; the
+sequenced build is **`docs/agent-completion-plan.md`**. **Nothing in `backend/app/`
+reads any of it yet** — this entry is the handoff, not a completion.
+
+- **THE Rs 80,730 GAP IS CLOSED.** The cropped first row of the client's cost sheet —
+  open since 2026-08-01 — is `MS 18 SWG Sheet, 621 kg -> RM 52,785 + labour 27,945 =
+  80,730`. Rs 5,68,534 + Rs 80,730 = **Rs 6,49,264**, the stated total, exactly.
+  **The booth BOM cost model can now be built AND validated**, which this file has
+  been saying was impossible.
+- **FACE VELOCITY IS 0.5 m/s, NOT 0.45.** `paint_shop_service.DEFAULT_FACE_VELOCITY`
+  uses the NFPA 33 value of 0.45 *only because the earlier client document did not
+  state one*. Two independent workbooks now state **0.5**. Changing it moves every
+  booth's airflow ~11%, and with it blower selection, motor HP and price. **DO NOT
+  land this without an explicit product decision** — it re-records the booth goldens.
+- **THE BOOTH WEIGHT RULE IS WRONG, and we now know the right one.** The engine
+  computes 1,240 kg from a 5-side surface area; the pricing model seeds 3,645 kg from
+  180 kg/m2. The client builds from a **panel module**: 27 panels x 23 kg = **621 kg**
+  for a 3000x2250x2400 booth. This is the three-way disagreement this file has
+  carried since 2026-08-01, resolved.
+- **THE MARGIN MODEL IS RECOVERED.** Per-line multipliers (booth **x1.40**, duct
+  **x1.26**) plus fixed adders (design 25k, P&F 11k, E&C 65k), minus a 10% discount,
+  giving 27% profit. This **replaces the flat 15% bought-out allowance** that this
+  file identifies as the cause of the -57% cost-plus divergence.
+- **Structure weight rules now exist** (length formulas + a kg-per-6m stock table) —
+  the missing piece behind "MS structure is listed even though no rule computes its
+  weight yet".
+- **THREE NEW CAPABILITIES with no code at all**: VOC/LEL safety gate (a pass/fail
+  verdict — belongs in `release_gate.py`, not as a spec row), heat load for tank /
+  dry-off oven / curing oven with insulation U-values (closes the "oven exhaust is
+  TBD until an ACH is supplied" gap), and scrubber diameter from airflow (1.0 m/s
+  across the tower, 15 m/s in ducts).
+- **SEVEN OPEN QUESTIONS FOR VITECH (DQ-1..DQ-7)**, listed at the end of the
+  extraction doc. Three are load-bearing. **DQ-1 looks like a client typo**: the
+  dry-off oven sheet uses `101.325` for air density, which is atmospheric *pressure*
+  in kPa — the curing oven uses `1.204 kg/m3` for the same quantity. It is left as a
+  question, deliberately: silently "fixing" a client formula is how wrong engineering
+  gets into a customer document.
+- **The workbooks are currently in `frontend/public/`, which is Vite's static web
+  root** — served unauthenticated, and they contain Vitech's cost build-ups and
+  profit margin. Nothing in `frontend/src/` references them. **Move them to
+  `backend/data/knowledge_docs/`** (Phase 0 of the plan); they are untracked, so they
+  do not reach the pod until someone commits them.
+- **Two live endpoints have no agent calling them**: `generate_bom` and
+  `generate_engineering_package` both have `operation_id`s but are wired into no
+  chatflow. Decide per agent when the pod is up (Phase 3 of the plan).
+
 ### ▶ 2026-08-06 (Requirement Consultant design)
-**BRANCH NOTE.** This work is on **`fix/list-projects-category-filter`**, NOT main, and the pod
-runs main. Merge the branch into main (divergence is 3 doc commits) or deploy this branch —
-otherwise a `git pull` on the pod will not show `docs/requirement-consultant.md`.
+**BRANCH NOTE — CORRECTED 2026-09-01, see the entry above.** This work is on
+**`fix/list-projects-category-filter`**, NOT main, and the pod runs main. The
+divergence is **79 commits**, not 3. Merge the branch into main or deploy the branch —
+otherwise a `git pull` on the pod will not show `docs/requirement-consultant.md`, or
+anything else from the last month.
 
 **NO OPENAI. There is no hosted-model code in this repo — do not add any without a decision.**
 A spec-narrative OpenAI provider (`app/openai_client.py` + a `_route` seam in `llm.py`) was
