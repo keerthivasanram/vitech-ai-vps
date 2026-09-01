@@ -75,6 +75,7 @@ consume GPU and produce customer-facing output, which is why they are not merely
 | POST | `/api/bom` | `generate_bom` |
 | POST | `/api/package` | heavy: spec + drawing + quote + retrieval |
 | POST | `/api/package/export` | writes to disk when `write:true` |
+| POST | `/api/siting/place` | **service principal deliberately EXCLUDED** — the payload carries a customer photograph, and a leaked agent key must not be able to post pictures of a customer's premises into the platform |
 | GET | `/api/drawing/catalog` | |
 | POST | `/api/drawing/render` | |
 | POST | `/api/drawing/export` | |
