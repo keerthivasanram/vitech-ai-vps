@@ -15,8 +15,8 @@
     "status": 200
   },
   "drawing.render": {
-    "bytes": 35752,
-    "sha256": "0faa558bd24fa9fed744618304e819bfac0ef44084d8ef9ddce6c150f5b6a672",
+    "bytes": 35647,
+    "sha256": "a6865e662f3647d81cdcdf5d16da990fea0c396e2960a1e3920f1d59cdc9e51b",
     "status": 200
   },
   "guard.bom": {

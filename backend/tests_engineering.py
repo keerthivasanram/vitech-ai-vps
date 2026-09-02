@@ -111,7 +111,7 @@ check(ds_mod.BOOTH_TYPES["full_down_draft"].velocity == 0.35
 # The override is what makes 0.5 a default rather than a hard-coded law.
 _ovr = compute_spec(5, 3, 4, "liquid", "cross draft", face_velocity=0.45)
 _ovr_row = next(r for r in _ovr.rules if r.name == "Exhaust airflow")
-check("19440" in _ovr_row.value, f"a stated face velocity overrides the table (got {_ovr_row.value})")
+check("12150" in _ovr_row.value, f"a stated face velocity overrides the table (got {_ovr_row.value})")
 check("stated for this design" in _ovr_row.formula,
       "the rule trail says the velocity was stated, not taken from the table")
 
@@ -157,8 +157,8 @@ check(empty.exhaust_cmh is None and empty.material_weight_kg is None,
 # --- Integration: the booth spec engine emits catalogue-backed rows --------
 spec = compute_spec(5, 3, 4, "liquid")
 labels = {v.label: v.value for v in spec.values}
-check(labels.get("Exhaust blower") == "CLP-4-15-14500", "booth spec names a real catalogue blower")
-check(labels.get("Exhaust blower motor (HP)") == "15", "booth spec carries the catalogue motor HP")
+check(labels.get("Exhaust blower") == "CLP-4-10-9000", "booth spec names a real catalogue blower")
+check(labels.get("Exhaust blower motor (HP)") == "10", "booth spec carries the catalogue motor HP")
 check("Inlet air volume" in labels, "booth spec carries the client's inlet-air rule")
 check("Enclosure sheet weight" in labels, "booth spec carries the 5-side material weight")
 
@@ -328,17 +328,33 @@ check(bcat.family_for("powder") is None,
 # The spec REPORTS the published machine; it never substitutes it. Vitech's
 # published airflow and their own calculation sheet disagree (DQ-10), so both
 # figures reach the engineer with the gap named.
-_std_spec = compute_spec(1.5, 3.0, 2.425, "liquid")
+# Axes are L x W x H, so the OPEN FRONT comes first (DQ-9): a 3.0 m front on a
+# 1.5 m deep booth is VT/3.0/DTPB/OP.
+_std_spec = compute_spec(3.0, 1.5, 2.425, "liquid")
 _std_labels = {v.label: v.value for v in _std_spec.values}
 check(_std_labels.get("Standard model") == "VT/3.0/DTPB/OP",
       "a standard booth names its published model")
-check("Exhaust airflow" in _std_labels and _std_labels["Exhaust airflow"] != "8100 m3/h",
-      "the engineered airflow is still computed, not replaced by the catalogue")
+# The engineered airflow is still COMPUTED by the rule engine and merely agrees
+# with the catalogue; it is not read out of it. Pinned on the rule trail rather
+# than on the number, because the number now legitimately coincides.
+_air_rule = next(r for r in _std_spec.rules if r.name == "Exhaust airflow")
+check(_air_rule.standard != std.CLIENT_BOOTH_CATALOGUE
+      and "x velocity" in _air_rule.formula,
+      "the engineered airflow is still computed from the rule, not read off the catalogue")
 _pub_rule = next((r for r in _std_spec.rules if r.name == "Standard model"), None)
 check(_pub_rule is not None and "8100 m3/h (4765 cfm)" in _pub_rule.formula,
       "the published duty is QUOTED from the catalogue in the basis trail")
-check(_pub_rule is not None and "CONFIRM WHICH BASIS GOVERNS" in _pub_rule.formula,
-      "where published and engineered airflow disagree, the gap is REPORTED not resolved")
+# A WET booth is where published and engineered still diverge, and it is the one
+# place they can: the published 7,290 carries the range's own x0.90 wet factor,
+# which the database marks unconfirmed and the engine therefore does not apply.
+_wet = next(r for r in compute_spec(3.0, 1.5, 2.425, "liquid", "water wash").rules
+            if r.name == "Standard model")
+check("7290 m3/h" in _wet.formula and "8100 m3/h engineered" in _wet.formula,
+      "a wet booth shows BOTH the published and the engineered duty")
+check("CONFIRM WHICH FIGURE GOVERNS" in _wet.formula,
+      "where they disagree the gap is REPORTED, not silently resolved")
+check("unconfirmed" in _wet.formula,
+      "and it names WHY they differ: an unconfirmed factor in the published range")
 check(_pub_rule is not None and _pub_rule.standard == std.CLIENT_BOOTH_CATALOGUE,
       "the catalogue row cites the catalogue, never a calculation")
 
@@ -355,6 +371,55 @@ _special = compute_spec(5, 3, 4, "liquid")
 check(not any(v.label.startswith(("Standard model", "Published"))
               for v in _special.values),
       "a special booth carries no catalogue rows at all")
+
+# --- DQ-9 + DQ-10, settled by the product owner 2026-09-02 -----------------
+# The open face is the OPEN FRONT (the dimension Vitech write FIRST) x a fixed
+# 1.5 m effective filter opening. The booth's own height no longer enters its
+# airflow at all.
+#
+# THE ANCHOR, and the reason to believe the pair of decisions is right: the
+# engine must now reproduce Vitech's OWN PUBLISHED catalogue duty from first
+# principles. 3.0 x 1.5 x 0.5 x 3600 = 8,100 m3/h, which is exactly what
+# VT/3.0/DTPB/OP is published at.
+import app.engineering.formula_service as fs
+
+
+def _airflow(spec):
+    return next(v.value for v in spec.values if v.label == "Exhaust airflow")
+
+
+check(fs.EFFECTIVE_OPENING_M == 1.5, "the effective filter opening is the client's 1.5 m")
+check(_airflow(compute_spec(3.0, 1.5, 2.425, "liquid")) == "8100 m3/h",
+      "PUBLISHED-RANGE ANCHOR: a standard VT/3.0 booth computes its published 8,100 m3/h")
+# The published range gives the OP and CL machines of one width the SAME duty
+# despite different depths — which is what proves the second factor is neither
+# the depth nor the height, but this fixed opening.
+check(_airflow(compute_spec(3.0, 2.25, 2.425, "liquid")) == "8100 m3/h",
+      "and its enclosed sibling matches too, though it is 750 mm deeper")
+# Once they agree there is nothing left to confirm, so the DQ-10 caution goes.
+_agreed = next(r for r in compute_spec(3.0, 1.5, 2.425, "liquid").rules
+               if r.name == "Standard model")
+check("CONFIRM WHICH BASIS GOVERNS" not in _agreed.formula,
+      "the published/engineered caution disappears once the two figures agree")
+
+# The HEIGHT no longer changes the airflow on a face-based booth...
+check(_airflow(compute_spec(5, 3, 4, "liquid")) == _airflow(compute_spec(5, 3, 9, "liquid")),
+      "booth height no longer enters the airflow of a face-based booth")
+# ...but the OPEN FRONT does, and it is the first dimension, not the second.
+check(_airflow(compute_spec(8, 3, 4, "liquid")) != _airflow(compute_spec(5, 3, 4, "liquid")),
+      "the open front drives the airflow (DQ-9: it is the dimension written first)")
+check(_airflow(compute_spec(5, 3, 4, "liquid")) == _airflow(compute_spec(5, 9, 4, "liquid")),
+      "the depth does not, which is what DQ-9 corrected")
+
+# SCOPE: only the types the client's face x velocity table describes. Powder is
+# untouched, exactly as DQ-2 left it — extending their liquid-booth table to a
+# powder booth would be our extrapolation, not their engineering.
+check(_airflow(compute_spec(10, 6, 4, "powder")) == "47520 m3/h",
+      "a powder booth is NOT moved to the 1.5 m opening basis")
+check("full_down_draft" not in fs.FACE_BASED_BOOTH_TYPES
+      and "powder" not in fs.FACE_BASED_BOOTH_TYPES
+      and "pressurized" not in fs.FACE_BASED_BOOTH_TYPES,
+      "the types their table does not describe are out of scope by construction")
 
 print()
 if FAILS:

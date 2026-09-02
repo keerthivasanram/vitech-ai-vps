@@ -32,6 +32,33 @@ from .unit_converter import CFM_TO_CMH, air_cmh
 FACE_VELOCITY = 0.50          # m/s, fallback only (Dry Filter Cross Draft)
 DEFAULT_HEIGHT = 4.0          # assumed booth height when not specified
 
+# --- DQ-9 and DQ-10, settled by the product owner 2026-09-02 ---------------
+# The open face is the OPEN FRONT x an EFFECTIVE FILTER OPENING of 1.5 m, and
+# the booth's own height does not enter its airflow at all.
+#
+# DQ-10 (the height): `Standard Booth.xlsx` computes on the full 2.4 m booth
+# height, the model database on a 1.5 m effective filter opening. The published
+# range settles it — `VT/3.0/DTPB/OP` (1.5 m deep) and `VT/3.0/DTPB/CL` (2.25 m
+# deep) both publish 8,100 m3/h, identical despite different depths and
+# different from any full-height figure, so the second factor is neither the
+# depth nor the height but this fixed opening:
+#     3.0 x 1.5 x 0.5 x 3600 = 8,100 m3/h, exactly as published.
+#
+# DQ-9 (the axis): Vitech's open front is the dimension they write FIRST — their
+# worked booth is 3.0L x 2.25W x 2.4H, where 2.25 is the depth. The engine used
+# `width_m`, i.e. their DEPTH, which undersized every booth longer than it is
+# wide. The catalogue lookup in `_add_standard_model` reads the same way.
+EFFECTIVE_OPENING_M = 1.5
+
+# ONLY the types the client's face x velocity table actually describes. Powder
+# (0.55 m/s), full down draft (0.35) and pressurized are NOT in it, so applying
+# this to them would be our extrapolation of their document rather than their
+# engineering — the same scoping decision taken when DQ-2 moved the face
+# velocity to 0.5. The published range's own 3-row (x1.4) and wet (x0.90)
+# factors are deliberately NOT applied: the database flags them as unconfirmed.
+FACE_BASED_BOOTH_TYPES = frozenset(
+    {"cross_draft", "side_draft", "semi_down_draft", "water_wash"})
+
 # --- Wet scrubber design constants (ATS, calibrated to OFF-C2C-WS-172) -----
 WS_LG_RATIO = 5.0             # recirculation liquid-to-gas ratio, L per m3 of gas
 WS_NOZZLE_LPM = 6.0           # spray-nozzle throughput at design pressure, L/min
@@ -68,7 +95,6 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     paint = (paint_type or "powder").lower()
     proc = select_paint_process(paint_type, booth_type)
 
-    face_area = width_m * height          # open working face
     floor_area = length_m * width_m
 
     # Booth type drives the design face velocity (client standards package), so
@@ -78,6 +104,17 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     velocity = float(face_velocity) if face_velocity else booth.velocity
     velocity_source = ("stated for this design" if face_velocity
                        else f"design face velocity for {booth.label}")
+
+    # The open working face (DQ-9 / DQ-10 above). A type the client's table does
+    # not describe keeps the previous width x height reading rather than being
+    # given a basis their document never stated for it.
+    if booth.key in FACE_BASED_BOOTH_TYPES:
+        face_area = length_m * EFFECTIVE_OPENING_M
+        face_basis = (f"open front {length_m:g} m x effective filter opening "
+                      f"{EFFECTIVE_OPENING_M:g} m = {face_area:g} m2")
+    else:
+        face_area = width_m * height
+        face_basis = f"face area {width_m}x{height} = {face_area:g} m2"
     airflow = face_area * velocity * 3600
 
     # Exhaust blower comes from the VENDOR CATALOGUE, not a capacity heuristic:
@@ -113,7 +150,7 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
                            f"({velocity_source})",
                    standard=std.CLIENT_BOOTH_STANDARD),
         RuleResult(name="Exhaust airflow", value=f"{round_to_step(airflow, 10)} m3/h",
-                   formula=(f"face area {width_m}x{height} = {face_area:g} m2 x velocity "
+                   formula=(f"{face_basis} x velocity "
                             f"{velocity:g} m/s ({velocity_source}) x 3600"),
                    standard=std.CLIENT_BOOTH_STANDARD),
         RuleResult(name="Inlet air volume", value=f"{round_to_step(inlet, 10)} m3/h",
@@ -217,7 +254,11 @@ def _add_standard_model(spec: ComputedSpec, booth, length_m: float,
     family = bc.family_for(booth.filtration)
     if family is None:                 # powder booths are not in this range
         return
-    model = bc.match_requirement(width_mm=width_m * 1000, depth_mm=length_m * 1000,
+    # The catalogue's WIDTH is the open front, which under Vitech's own naming
+    # (DQ-9) is the dimension written first — so `length_m` here, and `width_m`
+    # is their depth. Reading these the other way round matched a 3.0 m machine
+    # to a booth whose open front is 1.5 m.
+    model = bc.match_requirement(width_mm=length_m * 1000, depth_mm=width_m * 1000,
                                  height_mm=height_m * 1000, family=family)
     if model is None:                  # not in the range: a special, engineered above
         return
@@ -233,16 +274,21 @@ def _add_standard_model(spec: ComputedSpec, booth, length_m: float,
     # 5% absorbs rounding between their published figure and ours; a real
     # disagreement between the two airflow bases is far larger than that.
     agrees = abs(model.airflow_cmh - computed) <= 0.05 * model.airflow_cmh
+    # With DQ-10 settled, a face-based booth computes its published duty exactly,
+    # so the two can now only diverge where the published figure carries one of
+    # the range's OWN factors that the database marks unconfirmed — 3-row x1.4
+    # and wet x0.90 — which the engine deliberately does not apply.
     caution = ("" if agrees else
-               f" — against {computed} m3/h engineered here, so CONFIRM WHICH BASIS "
-               f"GOVERNS before ordering the blower: the published range and the "
-               f"calculation sheet use different filter-opening heights")
+               f" — against {computed} m3/h engineered here on the 1.5 m opening "
+               f"basis, so CONFIRM WHICH FIGURE GOVERNS before ordering the blower: "
+               f"the published duty carries the range's own filter-row / wet-booth "
+               f"factor, which the database itself marks unconfirmed")
 
     spec.values.append(SpecValue(label="Standard model", value=model.model,
                                  origin="standard"))
     spec.rules.append(RuleResult(
         name="Standard model", value=model.model,
-        formula=(f"stated {width_m:g} x {length_m:g} x {height_m:g} m matches the published "
+        formula=(f"stated {length_m:g} x {width_m:g} x {height_m:g} m matches the published "
                  f"{model.config} {model.family.replace('_', ' ')} machine "
                  f"({model.width_mm} W x {model.depth_mm} D x {model.height_mm} H mm), "
                  f"published duty {published}, motor {motor}{caution}"),

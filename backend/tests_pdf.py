@@ -119,7 +119,7 @@ _computed = [r for r in _rows if str(r.get("value", "")).strip()
 _missing = [r["label"] for r in _computed
             if str(r["value"]).split()[0] not in st and str(r["value"])[:14] not in st]
 check(not _missing, f"every resolved value reaches the page; missing: {_missing[:4]}")
-check("21600" in st, "the computed exhaust airflow is printed")
+check("13500" in st, "the computed exhaust airflow is printed")
 
 # THE HONEST-GAP CONTRACT, in the printed document rather than only the JSON.
 check("To be determined" in st,
