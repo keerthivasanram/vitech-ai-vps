@@ -42,6 +42,85 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-02 (later) — DQ-9 AND DQ-10 ARE CLOSED BY THE PRODUCT OWNER. Booth airflow moved.
+
+**Read this before touching booth airflow.** Both settled 2026-09-02, and together they
+change the blower on every face-based booth.
+- **DQ-10 — the face is computed on a 1.5 m EFFECTIVE FILTER OPENING**, not the booth height.
+  The booth's own height no longer enters its airflow at all. The published range settles it:
+  `VT/3.0/DTPB/OP` (1.5 m deep) and `VT/3.0/DTPB/CL` (2.25 m deep) both publish **8,100 m3/h** —
+  identical despite different depths, so the second factor is neither depth nor height.
+- **DQ-9 — the OPEN FRONT is the dimension Vitech write FIRST** (their booth is 3.0L x 2.25W x
+  2.4H, where 2.25 is the depth). The engine had been computing the face from `width_m`, i.e.
+  THEIR DEPTH, undersizing every booth longer than it is wide. **`_add_standard_model`'s
+  catalogue lookup had to be flipped with it**, or a 3.0 m machine matches a 1.5 m open front.
+- **THE ANCHOR: the engine now reproduces Vitech's published duty from first principles** —
+  3.0 x 1.5 x 0.5 x 3600 = 8,100 m3/h exactly — and the "CONFIRM WHICH BASIS GOVERNS" caution
+  disappears of its own accord. It still fires on a **WET** booth (7,290 published vs 8,100),
+  which is exactly the range's own **x0.90** factor that the database marks UNCONFIRMED and the
+  engine deliberately does not apply (nor the 3-row **x1.4**).
+- **SCOPE, as DQ-2 was scoped**: `cross_draft`, `side_draft`, `semi_down_draft`, `water_wash`
+  only. Powder (0.55), `full_down_draft` (0.35) and `pressurized` keep width x height — their
+  table does not describe those, and extending it would be OUR extrapolation.
+- **Measured**: 5x3x4 goes 21,600 -> **13,500 m3/h**, blower CLP-4-15-14500 -> **CLP-4-10-9000**.
+  All 4 wet-scrubber goldens, the POWDER booth and all 3 knowledge goldens BYTE-IDENTICAL.
+- **KNOWN, pre-existing, left alone**: `paint_shop_service` still maps a side draft to L x H on
+  the FULL height, so `compute_paint_shop_unit("paint_booth", ...)` and `compute_spec` now
+  disagree. Nothing in production routes a paint booth through the former.
+
+**ALSO LANDED (all committed on `main`, still UNPUSHED at time of writing):**
+- **VOC SAFETY NOW BLOCKS RELEASE.** `voc_service` could answer the client's LEL question since
+  the workbooks landed and **nothing called it**, so an over-limit extraction could reach
+  `Customer Ready`. A FAIL is a **BLOCKER** naming the airflow that would fix it; a PASS is
+  REPORTED (not omitted); missing inputs are a **QUESTION**, because paint consumption and VOC
+  content are the customer's process figures. **A powder booth is skipped entirely.** The first
+  wiring was half a fix — the gate worked but the figures never reached it, because there was no
+  deterministic parser and `_drop_undeclared` correctly stripped them. They are now read by
+  REGEX (a safety verdict must not rest on an 8B model) and declared as `safety_inputs`.
+- **THE SCRUBBER'S BLANK SHEET IS FIXED.** A scrubber stating only an airflow drew **zero
+  views**. `compute_wet_scrubber` now derives the tower bore at 1.0 m/s when none is stated
+  (a STATED one still wins). **Two more gates stood behind it**: `tower_diameter_mm` was not in
+  `rule_covers` so the planner dropped the computed value, and it was a REQUIRED input so the
+  router fell back to knowledge mode and the rules never ran. Now 3 views at 1:50.
+- **BOOTH WEIGHT IS THE PANEL COUNT** (27 panels x 23 kg = 621 kg on their worked booth,
+  reproduced exactly), settling the 1,240 / 3,645 / 621 kg three-way split.
+- **`booth_catalogue` IS WIRED IN** — a booth names its standard model, REPORTED not
+  substituted. **`match_requirement` needs EVERY stated axis**: `select()` matches width alone,
+  and a 5.0 x 3.0 x 4.0 booth shares its width with VT/3.0/DTPB/OP, published 1.5 m deep and
+  2.425 m high — width-only matching would ship a booth 1.6 m too short.
+
+### ▶ 2026-09-02 (drawing quality) — an engineering review of a generated GA, acted on
+
+Reported by the product owner after reading a real sheet. **Every fix below was found or
+verified by RASTERISING the sheet and looking at it** (`cairosvg` is in the venv) — none of it
+was visible in the SVG source.
+- **THE PLAN LABELLED EVERY BOOTH "DOWN DRAFT"** with vertical arrows, on a sheet whose own
+  design data said Cross Draft, and always drew the extract bank across the REAR WALL — so it
+  showed air entering one face and leaving another it could not reach. Caption, arrows, bank,
+  blower, carbon chamber and inlet now all follow the resolved type.
+- **THE DRAWING CONTRADICTED THE SPEC ON LIGHTING**: the glyph hardcoded "Flame-proof LED
+  luminaire" while the item list said "40 W weatherproof LED". Different fittings, and
+  flame-proof is a HAZARDOUS-AREA classification — a safety claim the engineering never made.
+- **The "blower mismatch" (21,600 m3/h vs 14,500 CFM) is a CATALOGUE STEP-UP, not an error.**
+  Nothing is built at the exact duty. The cell now reads `9000 (duty 7946 CFM)`.
+- **SHEET STYLE**: line weights re-ratioed to 0.60 / 0.30 / 0.15 / 0.10 (the old 0.5 / 0.35 /
+  0.18 is barely a pixel apart at sheet scale, so every render looked flat); **section hatching
+  as REAL LINE SEGMENTS**, never an SVG `<pattern>` — the DXF and PDF exporters consume
+  coordinates and a pattern would vanish from both; **panel joints at Vitech's real 750 x 2500
+  module**, using the model mm each view already carries; intake plenum, base frame, hatched
+  floor slab; ISO 129 gaps on extension lines; **balloon LEADERS** (`item(..., to=)`, optional,
+  so an unwired glyph is unchanged).
+- **A REGRESSION I CAUSED AND CAUGHT THE SAME WAY**: `text-rendering="geometricPrecision"`
+  looked like a free win and rendered EVERY label as an illegible outlined blob under cairosvg.
+  Reverted. **Line caps are now `butt`** — a round cap adds half a line width at each end,
+  bulging 0.10 mm hatching into blobs.
+- **Positions inside the machine remain INDICATIVE** and the standing note still says so —
+  Vitech have supplied no component setting-out rules. **Chase those** if a fabrication-grade GA
+  is ever wanted.
+- **STILL TO DO on the studio**: the product owner wants direct manipulation where an edit
+  changes the REQUIREMENT and the engine re-resolves ("edit as inputs"), never a hand-edited
+  sheet. Not started; it is frontend work on top of `/api/drawing/render`.
+
 ### ▶ 2026-09-02 — THE POD IS ON `main` NOW. Two engine fixes; retrieval found to be non-reproducible.
 
 Container disk wiped again -> `bootstrap-pod.sh` (3 chatflows + 9 tools restored) then
