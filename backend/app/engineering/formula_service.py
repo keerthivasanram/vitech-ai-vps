@@ -16,6 +16,7 @@ from typing import Optional
 from ..schema import ComputedSpec, RuleResult, SpecValue
 from . import standards_service as std
 from . import design_standards as ds
+from . import booth_catalogue as bc
 from .blower_service import select_booth_blower_set
 from .calculation_engine import count_ceil, count_round, round_to_step
 from .material_service import select_paint_process
@@ -191,7 +192,61 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
             SpecValue(label="Exhaust blower motor (HP)", value=f"{blower.motor_hp:g}", origin="rule"),
             SpecValue(label="Blower drive", value=blower.drive, origin="rule"),
         ]
+
+    _add_standard_model(spec, booth, length_m, width_m, height, airflow)
     return spec
+
+
+def _add_standard_model(spec: ComputedSpec, booth, length_m: float,
+                        width_m: float, height_m: float, airflow: float) -> None:
+    """Name the published model when the customer has asked for one Vitech builds.
+
+    Until now the platform engineered every booth from first principles, even
+    where Vitech already publish the machine, its airflow and its motor. A
+    standard model is the better answer: it is what they actually sell, and it
+    needs no assumptions.
+
+    It is REPORTED, never substituted. The catalogue's published airflow rests
+    on a 1.5 m effective filter opening while `Standard Booth.xlsx` computes the
+    same booth on the full 2.4 m height — 8,100 m3/h against 12,960 on one 3.0 m
+    booth, which is a different blower. That contradiction is open question
+    DQ-10 and only Vitech can settle it, so where the two disagree BOTH are put
+    in front of the engineer with the gap named. Silently adopting either basis
+    would be this platform choosing between two of the client's own documents.
+    """
+    family = bc.family_for(booth.filtration)
+    if family is None:                 # powder booths are not in this range
+        return
+    model = bc.match_requirement(width_mm=width_m * 1000, depth_mm=length_m * 1000,
+                                 height_mm=height_m * 1000, family=family)
+    if model is None:                  # not in the range: a special, engineered above
+        return
+
+    # ONE row, and it is an IDENTIFICATION, not a component. The published
+    # airflow and motor ride in the basis trail rather than becoming rows of
+    # their own: emitted as values they were picked up as bill-of-materials
+    # lines, and a BOM that lists both a 10 HP engineered motor and a 5 HP
+    # published one is a procurement document contradicting itself.
+    published = f"{model.airflow_cmh} m3/h ({model.airflow_cfm} cfm)"
+    motor = f"{model.motor_hp:g} HP" if model.motor_hp else "not rated in the catalogue"
+    computed = round_to_step(airflow, 10)
+    # 5% absorbs rounding between their published figure and ours; a real
+    # disagreement between the two airflow bases is far larger than that.
+    agrees = abs(model.airflow_cmh - computed) <= 0.05 * model.airflow_cmh
+    caution = ("" if agrees else
+               f" — against {computed} m3/h engineered here, so CONFIRM WHICH BASIS "
+               f"GOVERNS before ordering the blower: the published range and the "
+               f"calculation sheet use different filter-opening heights")
+
+    spec.values.append(SpecValue(label="Standard model", value=model.model,
+                                 origin="standard"))
+    spec.rules.append(RuleResult(
+        name="Standard model", value=model.model,
+        formula=(f"stated {width_m:g} x {length_m:g} x {height_m:g} m matches the published "
+                 f"{model.config} {model.family.replace('_', ' ')} machine "
+                 f"({model.width_mm} W x {model.depth_mm} D x {model.height_mm} H mm), "
+                 f"published duty {published}, motor {motor}{caution}"),
+        standard=std.CLIENT_BOOTH_CATALOGUE))
 
 
 def compute_wet_scrubber(params: dict) -> dict[str, dict]:

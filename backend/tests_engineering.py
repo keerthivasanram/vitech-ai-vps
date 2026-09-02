@@ -309,6 +309,53 @@ check(len(_d["rows"]) == 5 and all(len(r) == 3 for r in _d["rows"]),
 check(_d["standard"] == std.CLIENT_BOOTH_CATALOGUE,
       "catalogue rows cite the catalogue, never a calculation")
 
+# --- A booth IS a standard model only on EVERY stated dimension ------------
+# Matching on width alone is not a near-miss, it is a different machine: a
+# 5.0 x 3.0 x 4.0 m booth shares its 3.0 m width with VT/3.0/DTPB/OP, which is
+# published 1.5 m deep and 2.425 m high. Calling that standard would ship a
+# booth 1.6 m too short.
+check(bcat.match_requirement(3000, 1500, 2425, bcat.DRY_2ROW).model == "VT/3.0/DTPB/OP",
+      "a booth matching every published dimension resolves to its standard model")
+check(bcat.match_requirement(3000, 2250, 2425, bcat.DRY_2ROW).config == bcat.ENCLOSED,
+      "the configuration follows from the depth, it is never guessed")
+check(bcat.match_requirement(3000, 5000, 4000, bcat.DRY_2ROW) is None,
+      "a booth sharing only its WIDTH with a published model is not that model")
+check(bcat.match_requirement(3200, 1500, 2425, bcat.DRY_2ROW) is None,
+      "a width 200 mm off the range stays a special under full-envelope matching")
+check(bcat.family_for("powder") is None,
+      "a powder booth has no standard model — the published range is liquid booths")
+
+# The spec REPORTS the published machine; it never substitutes it. Vitech's
+# published airflow and their own calculation sheet disagree (DQ-10), so both
+# figures reach the engineer with the gap named.
+_std_spec = compute_spec(1.5, 3.0, 2.425, "liquid")
+_std_labels = {v.label: v.value for v in _std_spec.values}
+check(_std_labels.get("Standard model") == "VT/3.0/DTPB/OP",
+      "a standard booth names its published model")
+check("Exhaust airflow" in _std_labels and _std_labels["Exhaust airflow"] != "8100 m3/h",
+      "the engineered airflow is still computed, not replaced by the catalogue")
+_pub_rule = next((r for r in _std_spec.rules if r.name == "Standard model"), None)
+check(_pub_rule is not None and "8100 m3/h (4765 cfm)" in _pub_rule.formula,
+      "the published duty is QUOTED from the catalogue in the basis trail")
+check(_pub_rule is not None and "CONFIRM WHICH BASIS GOVERNS" in _pub_rule.formula,
+      "where published and engineered airflow disagree, the gap is REPORTED not resolved")
+check(_pub_rule is not None and _pub_rule.standard == std.CLIENT_BOOTH_CATALOGUE,
+      "the catalogue row cites the catalogue, never a calculation")
+
+# The published figures stay OUT of the value list on purpose. Emitted as
+# values they were picked up as bill-of-materials lines, and a BOM listing both
+# a 10 HP engineered motor and a 5 HP published one contradicts itself.
+check(sum(1 for v in _std_spec.values if v.origin == "standard"
+          and v.label == "Standard model") == 1,
+      "a standard booth adds exactly ONE row, an identification not a component")
+check(not any(v.label.startswith("Published") for v in _std_spec.values),
+      "the published duty and motor never become component rows")
+
+_special = compute_spec(5, 3, 4, "liquid")
+check(not any(v.label.startswith(("Standard model", "Published"))
+              for v in _special.values),
+      "a special booth carries no catalogue rows at all")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} ENGINEERING TEST FAIL")

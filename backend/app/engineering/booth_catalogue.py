@@ -142,6 +142,59 @@ def select(width_mm: float,
     return min(candidates, key=lambda m: abs(m.width_mm - float(width_mm)))
 
 
+# A customer's booth is one of these machines only if EVERY dimension they
+# stated is the published one. Matching on width alone is not a near-miss, it is
+# a different machine: a 5.0 x 3.0 x 4.0 m booth shares its 3.0 m width with
+# VT/3.0/DTPB/OP and nothing else — that model is published 1.5 m deep and
+# 2.425 m high. Selling it as standard would ship a booth 1.6 m too short.
+FAMILY_BY_FILTRATION = {"water-wash": WET, "dry": DRY_2ROW}
+
+
+def match_requirement(width_mm: Optional[float],
+                      depth_mm: Optional[float] = None,
+                      height_mm: Optional[float] = None,
+                      family: str = DRY_2ROW,
+                      tolerance_mm: float = 100.0) -> Optional[BoothModel]:
+    """The published model a stated booth IS, or None if it is a special.
+
+    Every dimension the customer stated must agree with the published one; the
+    configuration is not guessed but falls out of which depth matches, so a
+    1.5 m deep booth resolves to the front-open model and a 2.25 m deep one to
+    the enclosed model of the same width.
+
+    None is the useful answer for everything else. A booth that is not in the
+    range is engineered from first principles, and that is the correct outcome —
+    quietly rounding a stated size onto a catalogue unit is how the wrong
+    machine gets built.
+    """
+    if width_mm is None:
+        return None
+
+    def fits(published: int, asked: Optional[float]) -> bool:
+        return asked is None or abs(published - float(asked)) <= tolerance_mm
+
+    candidates = [m for m in CATALOGUE
+                  if m.family == family
+                  and fits(m.width_mm, width_mm)
+                  and fits(m.depth_mm, depth_mm)
+                  and fits(m.height_mm, height_mm)]
+    if not candidates:
+        return None
+    # Nearest on the axes actually stated, so a booth sitting between the
+    # front-open and enclosed depths resolves to the closer of the two.
+    def gap(m: BoothModel) -> float:
+        axes = ((m.width_mm, width_mm), (m.depth_mm, depth_mm), (m.height_mm, height_mm))
+        return sum(abs(p - float(a)) for p, a in axes if a is not None)
+    return min(candidates, key=gap)
+
+
+def family_for(filtration: Optional[str]) -> Optional[str]:
+    """The catalogue family a resolved booth type belongs to, or None when the
+    range does not cover it. A powder booth is a different product — the
+    published range is liquid paint booths — so it has no standard model here."""
+    return FAMILY_BY_FILTRATION.get(filtration or "")
+
+
 def describe(m: BoothModel) -> dict:
     """A model as spec rows, each attributed to the catalogue rather than to a
     calculation — because that is exactly what they are."""
