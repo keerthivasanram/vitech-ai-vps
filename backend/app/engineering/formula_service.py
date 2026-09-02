@@ -82,9 +82,11 @@ def _blower_duty(blower, duty_cfm: float) -> str:
     selection takes the next size up. That is engineering, but it has to be
     stated or it reads as an inconsistency in the document.
     """
-    margin = (blower.cfm / duty_cfm - 1.0) * 100.0 if duty_cfm else 0.0
-    return (f"{blower.cfm} rated for a {round(duty_cfm)} CFM duty "
-            f"(+{margin:.0f}% to the next catalogue size)")
+    # Kept SHORT on purpose: this is a schedule cell on a drawing, and the
+    # first attempt ("... to the next catalogue size") was truncated mid-word by
+    # the item list, which is worse than the bare number it replaced. The margin
+    # and the reason live in the rule trail, where a basis belongs.
+    return f"{blower.cfm} (duty {round(duty_cfm)} CFM)"
 
 
 def compute_spec(length_m: Optional[float], width_m: Optional[float],

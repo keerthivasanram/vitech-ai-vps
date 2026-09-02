@@ -201,6 +201,31 @@ def _luminaire_label(rows) -> str:
     return cleaned.strip() or "LED luminaire"
 
 
+# Draft direction as the SPEC resolved it. Ordered so "semi down" is matched
+# before "down", and "cross" before anything else it contains.
+_DRAFTS = (("cross", "CROSS DRAFT", "across"),
+           ("semi down", "SEMI DOWN DRAFT", "down"),
+           ("full down", "DOWN DRAFT", "down"),
+           ("side", "SIDE DRAFT", "across"),
+           ("down", "DOWN DRAFT", "down"))
+
+
+def _draft(rows) -> tuple[str, str]:
+    """(caption, axis) for the booth's airflow, read from the resolved type.
+
+    The plan used to print "DOWN DRAFT" with vertical arrows on EVERY booth,
+    including one the specification on the same sheet called a Dry Filter CROSS
+    Draft. The draft direction is how the machine works and it is the thing a
+    reader checks first, so drawing it from a hardcoded caption rather than from
+    the resolved type made the sheet contradict its own design data.
+    """
+    text = (_find(rows, "type of paint booth") or "").lower()
+    for needle, caption, axis in _DRAFTS:
+        if needle in text:
+            return caption, axis
+    return "AIRFLOW", "down"
+
+
 def _lights(canvas, v, count: int, legend: list, label: str) -> None:
     """A row of luminaires along the roof of an elevation."""
     if not count:
@@ -367,26 +392,48 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
-        # Filter bank across the rear wall, drawn with the real filter count.
-        bank_d = h * 0.14
-        by = y + h - bank_d
-        canvas.add(Rect(x, by, w, bank_d, L_COMPONENT, LW_MED))
-        if filters:
-            for i in range(1, min(filters, 12)):
-                fx = x + w * i / min(filters, 12)
-                canvas.add(Line(fx, by, fx, by + bank_d, L_COMPONENT, LW_THIN))
-            item(canvas, legend, x + w * 0.16, by - 5.0,
-                 f"Paint arresting filter bank ({filters} nos)")
+        # THE EXTRACT FACE FOLLOWS THE DRAFT DIRECTION. A cross or side draft
+        # sweeps the booth END TO END and is extracted through an END wall; a
+        # down draft is extracted through the REAR. The plan used to draw the
+        # bank across the rear wall on every booth while the arrows ran across
+        # it, so the sheet showed air entering one face and leaving another it
+        # could not reach.
+        draft_caption, draft_axis = _draft(rows)
+        across = draft_axis == "across"
+        shown_filters = min(filters, 12) if filters else 0
 
-        # Exhaust blower on the extract centre line, drawn INSIDE the envelope.
-        bw = w * 0.16
-        bh = bank_d * 1.4
-        bx = x + (w - bw) / 2
-        byy = by - bh - 2.0
+        if across:
+            bank_w = w * 0.09
+            bx0 = x + w - bank_w
+            canvas.add(Rect(bx0, y, bank_w, h, L_COMPONENT, LW_MED))
+            for i in range(1, shown_filters):
+                fy = y + h * i / shown_filters
+                canvas.add(Line(bx0, fy, bx0 + bank_w, fy, L_COMPONENT, LW_THIN))
+            if filters:
+                item(canvas, legend, bx0 - 6.0, y + h * 0.12,
+                     f"Paint arresting filter bank ({filters} nos)")
+            # Blower sits ahead of the bank on the extract centre line.
+            bw, bh = w * 0.13, h * 0.24
+            bx = bx0 - bw - w * 0.03
+            byy = y + (h - bh) / 2
+        else:
+            bank_d = h * 0.14
+            by = y + h - bank_d
+            canvas.add(Rect(x, by, w, bank_d, L_COMPONENT, LW_MED))
+            for i in range(1, shown_filters):
+                fx = x + w * i / shown_filters
+                canvas.add(Line(fx, by, fx, by + bank_d, L_COMPONENT, LW_THIN))
+            if filters:
+                item(canvas, legend, x + w * 0.16, by - 5.0,
+                     f"Paint arresting filter bank ({filters} nos)")
+            bw, bh = w * 0.16, bank_d * 1.4
+            bx = x + (w - bw) / 2
+            byy = by - bh - 2.0
+
         canvas.add(Rect(bx, byy, bw, bh, L_COMPONENT, LW_MED))
         canvas.add(Circle(bx + bw / 2, byy + bh / 2, min(bw, bh) * 0.32,
                           L_COMPONENT, LW_THIN))
-        item(canvas, legend, bx + bw + 6.0, byy + bh / 2,
+        item(canvas, legend, bx - 6.0 if across else bx + bw + 6.0, byy + bh / 2,
              " ".join(t for t in (f"Exhaust blower {blower}".strip(),
                                   f"({blower_qty} no)",
                                   f"{blower_hp} HP" if str(blower_hp).strip() else "") if t))
@@ -394,23 +441,40 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Activated carbon chamber — a resolved item on a liquid-paint booth,
         # sitting after the arresting bank in the extract path.
         if carbon:
-            cw = w * 0.22
-            canvas.add(Rect(x + w * 0.06, byy - bh * 0.9, cw, bh * 0.8,
-                            L_COMPONENT, LW_THIN))
-            item(canvas, legend, x + w * 0.06 + cw + 5.5, byy - bh * 0.5,
+            if across:
+                cw, ch = w * 0.10, h * 0.30
+                cx, cy = bx - cw - w * 0.04, y + (h - ch) / 2
+            else:
+                cw, ch = w * 0.22, bh * 0.8
+                cx, cy = x + w * 0.06, byy - bh * 0.9
+            canvas.add(Rect(cx, cy, cw, ch, L_COMPONENT, LW_THIN))
+            item(canvas, legend, cx - 6.0 if across else cx + cw + 5.5, cy + ch / 2,
                  _clip(f"Activated carbon chamber {carbon}"))
 
-        # Air-inlet side (opposite the extract) shown as hidden detail.
-        canvas.add(Line(x, y + h * 0.10, x + w, y + h * 0.10, L_HIDDEN, LW_THIN, DASH_HIDDEN))
-        canvas.add(Text(x + w * 0.5, y + h * 0.075, "AIR INLET FILTER SIDE",
-                        L_TEXT, 2.1, "middle"))
-        # Airflow across the booth. The caption sits BESIDE the arrow, not on
-        # its tip, where it was printed over the arrowhead.
-        # Arrows moved inboard: at 0.30w the left one ran into the carbon
-        # chamber's balloon.
-        airflow(canvas, [(x + w * 0.42, y + h * 0.16), (x + w * 0.42, y + h * 0.52)])
-        airflow(canvas, [(x + w * 0.66, y + h * 0.16), (x + w * 0.66, y + h * 0.52)])
-        canvas.add(Text(x + w * 0.54, y + h * 0.38, "DOWN DRAFT", L_TEXT, 2.1, "middle"))
+        # Filtered-air inlet on the face OPPOSITE the extract, as hidden detail.
+        if across:
+            canvas.add(Line(x + w * 0.04, y, x + w * 0.04, y + h,
+                            L_HIDDEN, LW_THIN, DASH_HIDDEN))
+            # Inboard of the outline: centred at 0.15w the caption started on
+            # the envelope line itself.
+            canvas.add(Text(x + w * 0.26, y + h * 0.93, "AIR INLET FILTER END",
+                            L_TEXT, 2.1, "middle"))
+            airflow(canvas, [(x + w * 0.10, y + h * 0.28), (x + w * 0.40, y + h * 0.28)])
+            airflow(canvas, [(x + w * 0.10, y + h * 0.72), (x + w * 0.40, y + h * 0.72)])
+            canvas.add(Text(x + w * 0.25, y + h * 0.17, draft_caption,
+                            L_TEXT, 2.1, "middle"))
+        else:
+            canvas.add(Line(x, y + h * 0.10, x + w, y + h * 0.10,
+                            L_HIDDEN, LW_THIN, DASH_HIDDEN))
+            canvas.add(Text(x + w * 0.5, y + h * 0.075, "AIR INLET FILTER SIDE",
+                            L_TEXT, 2.1, "middle"))
+            # The caption sits BESIDE the arrow, not on its tip, where it was
+            # printed over the arrowhead; arrows are inboard of the carbon
+            # chamber's balloon.
+            airflow(canvas, [(x + w * 0.42, y + h * 0.16), (x + w * 0.42, y + h * 0.52)])
+            airflow(canvas, [(x + w * 0.66, y + h * 0.16), (x + w * 0.66, y + h * 0.52)])
+            canvas.add(Text(x + w * 0.54, y + h * 0.38, draft_caption,
+                            L_TEXT, 2.1, "middle"))
 
     # Real resolved services with no engineered position, and the setting-out a
     # production GA needs that the platform has not been given. Naming them

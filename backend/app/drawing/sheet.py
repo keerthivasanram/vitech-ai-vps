@@ -25,6 +25,23 @@ NOTE_W = 148.0         # notes/legend column width (matches the title block)
 LEGEND_CHARS = 96
 
 
+def _fit(text, limit: int) -> str:
+    """Clip to `limit` at a WORD boundary, and say that it was clipped.
+
+    A hard slice cuts mid-word — a blower schedule read "(+13% to the next
+    catalogue siz" — and a truncated engineering value looks like a WRONG one.
+    This is the same lesson `_wrap` already exists for on the legend.
+    """
+    text = str(text or "")
+    if len(text) <= limit:
+        return text
+    cut = text[:limit - 4]
+    space = cut.rfind(" ")
+    if space > limit * 0.5:
+        cut = cut[:space]
+    return cut.rstrip(" ,;-") + " ..."
+
+
 def _wrap(text: str, limit: int, max_lines: int = 2) -> list[str]:
     """Break a description at SPACES so a sheet never cuts a word in half.
 
@@ -116,8 +133,8 @@ def _item_table(canvas, x: float, y: float, bom: list,
         if y + line_h > limit_y:
             break
         canvas.add(Text(x, y, str(i), L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 6.0, y, str(row.get("item", ""))[:42], L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 62.0, y, str(row.get("spec", ""))[:62], L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 6.0, y, _fit(row.get("item"), 42), L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 62.0, y, _fit(row.get("spec"), 62), L_TEXT, 2.3, "start"))
         y += line_h
         shown += 1
     if shown < len(bom) and y + line_h <= limit_y:
@@ -152,8 +169,8 @@ def _kv_block(canvas, x: float, y: float, heading: str, data: list,
     for row in data:
         if y + line_h > limit_y:
             break
-        canvas.add(Text(x, y, str(row.get("label", ""))[:34], L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 60.0, y, str(row.get("value", ""))[:56], L_TEXT, 2.3, "start"))
+        canvas.add(Text(x, y, _fit(row.get("label"), 34), L_TEXT, 2.3, "start"))
+        canvas.add(Text(x + 60.0, y, _fit(row.get("value"), 56), L_TEXT, 2.3, "start"))
         y += line_h
         shown += 1
     if shown < len(data) and y + line_h <= limit_y:
