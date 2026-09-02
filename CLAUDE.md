@@ -42,6 +42,75 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-02 (END OF SESSION) — POD IS SAFE TO STOP. Everything pushed to `main`.
+
+**All committed AND PUSHED on `main`** (the pod is on main now, not the old branch), **PG backed
+up 15:48** with 3 chatflows + 9 tools in the dump, **all three agents reproducible from git**
+(9953 / 5622 / 3102) and verified answering live. **Fourteen suites green; 29 contract
+fingerprints byte-identical.**
+**On next start:** `bash /workspace/persistent/start-all.sh`; if psql/node/ollama are gone
+(container disk wiped — it was again this session) run `bootstrap-pod.sh` FIRST.
+- **CREDENTIALS.** The two verification accounts were ROTATED this session and KEPT, because
+  they are the only credential the two HTTP suites can run with:
+  `vt-verify` (admin) / `vtV-unm-P6aFqhJPkaJMaalH`, `vt-verify-eng` (engineer) /
+  `vtE--FB3ZuVV8z0TiGiOFjrJ`. `vitechadmin` and `engineer1` exist but their passwords were
+  never recorded. **Rotate these again if this transcript is shared.**
+- **THE DRAWING ENGINE WAS REBUILT TO A DRAFTING STANDARD** (see the entry below for detail).
+  The one thing to know before touching it: **`app/drawing/style.py` is now the standard** —
+  line ROLES over an ISO 128 ratio ladder, one type scale, dimension lanes — and
+  `app/drawing/components.py` is the equipment vocabulary. A glyph should COMPOSE from those,
+  never name a raw width or font size again. `primitives.py` imports `style`, not the reverse.
+- **STILL OPEN, and the two that need the PRODUCT OWNER, not more code:**
+  (a) whether to add an **ISOMETRIC** in the empty third-angle quadrant (a new view, not
+  styling); (b) **chase Vitech for COMPONENT SETTING-OUT RULES** — that is the only thing
+  between this and a fabrication-grade GA rather than a draft, and no drafting work substitutes
+  for it.
+- **STILL OPEN, and it is ordinary work:** the cyclone, cartridge collector, oven and the ten
+  thin glyphs have NOT been brought onto the component library (booth, scrubber and dust
+  collector have); balloon LEADERS are wired into the booth only (`item(..., to=)` is optional,
+  so the others are unchanged and can adopt it one at a time); the studio rebuild
+  ("edit as inputs, re-resolve") is NOT started.
+- **`tools.retrieve` FLAPS and is expected to.** It is left at its recorded baseline on purpose;
+  see the retrieval entry below. Do NOT "fix" it by re-recording.
+
+### ▶ 2026-09-02 (drawing engine) — A REAL DRAFTING STANDARD, in five stages
+
+Asked for: stop looking like a schematic, become a professional industrial GA — without
+changing any engineering. **Goldens are BYTE-IDENTICAL across every stage**, which is the proof
+that held: this work changed how the sheet LOOKS and not one resolved value.
+- **`style.py` (NEW) IS THE DRAFTING STANDARD.** Line weights used to be four physical
+  constants applied 160 times across four modules, so a caller said HOW THICK and never WHAT —
+  the same 0.30 mm served a duct wall, a door leaf and a panel seam. A line now declares its
+  ROLE (`PRIMARY_OUTLINE`, `PANEL_SEAM`, `DUCT`, `CENTRE_LINE`, `LEADER_LINE`, `HATCH_LINE`,
+  `AIRFLOW_LINE`…) over an ISO 128 ladder of 0.60 / 0.30 / 0.18 / 0.13 / 0.09. A `Pen` is
+  ordered `(layer, width, dash)` so a call site reads `Line(x1, y1, x2, y2, *PRIMARY_OUTLINE)`.
+  **Typography was nine bare numbers**; there is now ONE scale and ZERO inline sizes remain.
+- **`components.py` (NEW) IS THE EQUIPMENT VOCABULARY** — `filter_bank`, `blower`, `motor_box`,
+  `duct_run`, `flange`, `access_door`, `plenum`, `structural_base`. Every glyph used to draw its
+  own parts, so improving a blower improved exactly one machine. **Hatch and pleats are REAL
+  LINE SEGMENTS, never an SVG `<pattern>`** — the DXF and PDF exporters consume coordinates, and
+  a pattern would render on screen then vanish from both.
+- **Defects this surfaced, each real:** a dimension was drawn at the same weight as component
+  detail; **airflow shared `DASH_HIDDEN`**, so a flow arrow was indistinguishable from hidden
+  geometry; the item schedule **cut mid-word**; and a full column **dropped rows AND the notice
+  saying so** — both schedule renderers now RESERVE a line for it.
+- **DIMENSION HIERARCHY with a real collision check.** Lanes (OVERALL / MAJOR / COMPONENT) mean
+  parallel dimensions cannot collide by construction. **What may occupy a lane is an ENGINEERING
+  question**: component positions are indicative, so they get NO dimension rather than a
+  plausible-looking one. The one honest second level is the **PANEL BAY — 750 mm is Vitech's own
+  module**, the pitch their booth weight is costed from. It is drawn only when it ends clear of
+  the centred view caption; too narrow, and the sheet does without it.
+- **THREE REGRESSIONS I CAUSED AND CAUGHT BY RENDERING, which is the whole lesson again:**
+  `text-rendering="geometricPrecision"` looked like a free win and rendered EVERY label as an
+  illegible outlined blob; growing the title block squeezed the item list AND its truncation
+  notice; and pushing the view caption below every dimension lane put it 29 mm down, more than
+  the 28 mm the layout leaves between plan and elevation, so **the plan's title landed on the
+  elevation**. Rasterise with `cairosvg` (it is in the venv) and LOOK — crop and zoom for
+  anything small.
+- **`tools.drawing.scrub` ADDED to the contract suite.** The scrubber GA — the richest glyph in
+  the codebase and the second sheet rendered by hand at every change — **had no fingerprint at
+  all** and could have been broken with every suite green.
+
 ### ▶ 2026-09-02 (later) — DQ-9 AND DQ-10 ARE CLOSED BY THE PRODUCT OWNER. Booth airflow moved.
 
 **Read this before touching booth airflow.** Both settled 2026-09-02, and together they
