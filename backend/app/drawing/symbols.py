@@ -24,6 +24,7 @@ from .. import values
 from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_HATCH, LW_MED, LW_THICK,
                          LW_THIN, L_COMPONENT, L_HIDDEN, L_OUTLINE, L_TEXT,
                          Circle, Line, Rect, Text, hatch, poly)
+from . import components
 from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, LEADER_DOT_R,
                     LEADER_LINE, T_BODY, T_CAPTION, T_DIM, T_SMALL, T_TINY)
 
@@ -291,8 +292,8 @@ def _floor(canvas, v, legend: list = None, label: bool = True) -> float:
     """
     fy = v.y + v.h * 0.94
     canvas.add(Line(v.x, fy, v.x + v.w, fy, L_OUTLINE, LW_THICK))
-    # Base frame: the structural channel the enclosure stands on.
-    canvas.add(Rect(v.x, fy - v.h * 0.035, v.w, v.h * 0.035, L_COMPONENT, LW_MED))
+    # Base frame with its bearing points, from the shared library.
+    components.structural_base(canvas, v.x, fy, v.w, v.h * 0.035)
     canvas.add(hatch(v.x, fy, v.w, v.h * 0.06, spacing=2.0, slope=-1,
                         layer=L_COMPONENT, width=LW_HATCH))
     if label:
@@ -303,23 +304,13 @@ def _floor(canvas, v, legend: list = None, label: bool = True) -> float:
 
 def _filter_cells(canvas, x: float, y: float, w: float, h: float,
                   count: int, vertical: bool = True) -> None:
-    """A filter bank drawn as hatched media between its frames.
+    """A filter bank, from the shared component library.
 
-    The bank was an empty grid of rectangles, which reads as glazing rather than
-    as filter media. Hatching is what distinguishes a material from a void on a
-    drawing, and it is the cheapest signal that this is the extract face.
+    Kept as a thin adapter so every existing call site inherits the PLEATED
+    media without being rewritten: a plain rectangle reads as glazing, and even
+    a 45-degree hatch reads as solid material — neither says "filter".
     """
-    canvas.add(Rect(x, y, w, h, L_COMPONENT, LW_MED))
-    shown = max(1, min(count or 1, 12))
-    for i in range(1, shown):
-        if vertical:
-            cy = y + h * i / shown
-            canvas.add(Line(x, cy, x + w, cy, L_COMPONENT, LW_THIN))
-        else:
-            cx = x + w * i / shown
-            canvas.add(Line(cx, y, cx, y + h, L_COMPONENT, LW_THIN))
-    canvas.add(hatch(x, y, w, h, spacing=1.6, slope=1,
-                        layer=L_COMPONENT, width=LW_HATCH))
+    components.filter_bank(canvas, x, y, w, h, count, across=not vertical)
 
 
 def _lights(canvas, v, count: int, legend: list, label: str) -> None:
@@ -433,11 +424,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         dx = x + (w - dw) / 2
         dh = h * 0.66
         dy = y + h - dh
-        canvas.add(Rect(dx, dy, dw, dh, L_COMPONENT, LW_MED))
-        canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, L_COMPONENT, LW_THIN))
-        my = dy + dh / 2
-        canvas.add(Line(dx + dw * 0.18, my, dx + dw * 0.40, my, L_COMPONENT, LW_THIN),
-                   Line(dx + dw * 0.60, my, dx + dw * 0.82, my, L_COMPONENT, LW_THIN))
+        components.access_door(canvas, dx, dy, dw, dh, leaves=2)
         item(canvas, legend, dx + dw / 2, dy - 5.0, "Manual sliding door, double leaf",
              to=(dx + dw / 2, dy + dh * 0.20))
 
@@ -491,8 +478,13 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Exhaust duct off the extract end, drawn INSIDE the outline as a stub:
         # hung off the envelope it would cross the height dimension.
         if duct:
-            canvas.add(Rect(x + w * 0.60, y, w * 0.14, h * 0.09, L_COMPONENT, LW_MED))
-            airflow(canvas, [(x + w * 0.67, y + h * 0.14), (x + w * 0.67, y + h * 0.03)])
+            _dx = x + w * 0.67
+            # Stops AT the casing: run past it and the duct walls climb into
+            # the overall-height dimension above the view.
+            components.duct_run(canvas, _dx, y + h * 0.13, _dx, y + h * 0.005,
+                                w * 0.13)
+            components.flange(canvas, _dx, y + h * 0.11, w * 0.13)
+            airflow(canvas, [(_dx, y + h * 0.16), (_dx, y + h * 0.02)])
             item(canvas, legend, x + w * 0.44, y + h * 0.05, _clip(f"Exhaust duct {duct}"),
                  to=(x + w * 0.67, y + h * 0.045))
 
@@ -500,10 +492,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # it sits behind the enclosure wall in this view.
         if intake:
             pw = w * 0.10
-            canvas.add(Rect(x, y + h * 0.14, pw, h * 0.72, L_HIDDEN, LW_THIN, DASH_HIDDEN))
-            for i in range(1, 4):
-                py = y + h * (0.14 + 0.72 * i / 4)
-                canvas.add(Line(x, py, x + pw, py, L_HIDDEN, LW_THIN, DASH_HIDDEN))
+            components.plenum(canvas, x, y + h * 0.14, pw, h * 0.72)
             item(canvas, legend, x + pw + 6.0, y + h * 0.33,
                  _clip(f"Air intake filter {intake}"),
                  to=(x + pw * 0.5, y + h * 0.33))
@@ -552,9 +541,13 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             bx = x + (w - bw) / 2
             byy = by - bh - 2.0
 
-        canvas.add(Rect(bx, byy, bw, bh, L_COMPONENT, LW_MED))
-        canvas.add(Circle(bx + bw / 2, byy + bh / 2, min(bw, bh) * 0.32,
-                          L_COMPONENT, LW_THIN))
+        # A scroll with a tangential discharge, not a rectangle with a circle in
+        # it — the old symbol was equally true of a tank or a pump.
+        # Sized so the WHOLE symbol fits — the volute spans about 3.1r with its
+        # discharge, and at 0.46 it ran into the filter bank beside it.
+        _bl_r = min(bw, bh) * 0.34
+        _port = components.blower(canvas, bx + bw / 2, byy + bh / 2, _bl_r,
+                                  discharge="right" if across else "up")
         item(canvas, legend, bx - 6.0 if across else bx + bw + 6.0, byy + bh / 2,
              " ".join(t for t in (f"Exhaust blower {blower}".strip(),
                                   f"({blower_qty} no)",
