@@ -22,6 +22,7 @@ from typing import NamedTuple, Optional
 
 from .primitives import (DASH_CENTRE, LW_MED, LW_THIN, L_CENTRE, L_DIM,
                          L_OUTLINE, L_TEXT, Dim, Line, Rect, Text)
+from .style import T_VIEW_TITLE
 
 # Preferred drafting scales, largest first. The engine picks the first that
 # fits — a real drawing office uses these, not an arbitrary ratio.
@@ -148,4 +149,4 @@ def draw_view(canvas, v: View, dim_labels: dict) -> None:
                    dim_labels.get(v.h_axis, "TBD"), offset=7.0, vertical=True))
 
     canvas.add(Text(v.x + v.w / 2, v.y + v.h + LABEL_DROP + 8.0, v.label,
-                    L_TEXT, 3.2, "middle", bold=True))
+                    L_TEXT, T_VIEW_TITLE, "middle", bold=True))

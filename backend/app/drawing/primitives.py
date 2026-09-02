@@ -11,41 +11,22 @@ is converted to sheet mm by the caller (see `views.py`), never here.
 """
 from typing import NamedTuple, Optional
 
-# Layer ids — the studio renders one <g> per layer and toggles visibility.
-L_BORDER = "border"
-L_OUTLINE = "outline"
-L_COMPONENT = "component"
-L_DIM = "dimension"
-L_TEXT = "text"
-L_TITLE = "title"
-L_HIDDEN = "hidden"
-L_CENTRE = "centre"
+# Layers, dash patterns and the weight ladder now live in `style.py`, which is
+# the drafting standard for the whole engine. They are re-exported here because
+# every module already imports them from primitives, and because a shape still
+# needs to name its own layer.
+from .style import (DASH_CENTRE, DASH_HIDDEN, LAYER_LABELS, LAYER_ORDER,
+                    L_BORDER, L_CENTRE, L_COMPONENT, L_DIM, L_HIDDEN,
+                    L_OUTLINE, L_TEXT, L_TITLE, T_DIM, W_FINE, W_HAIR,
+                    W_HEAVY, W_LIGHT, W_MEDIUM)
 
-LAYER_ORDER = [L_BORDER, L_OUTLINE, L_HIDDEN, L_CENTRE, L_COMPONENT, L_DIM, L_TEXT, L_TITLE]
-LAYER_LABELS = {
-    L_BORDER: "Sheet border",
-    L_OUTLINE: "Equipment outline",
-    L_HIDDEN: "Hidden detail",
-    L_CENTRE: "Centre lines",
-    L_COMPONENT: "Components",
-    L_DIM: "Dimensions",
-    L_TEXT: "Notes & labels",
-    L_TITLE: "Title block",
-}
-
-# Line weights (mm) and dash patterns per drafting convention.
-#
-# ISO 128 works on a ratio, not on absolute widths: a reader tells a cut edge
-# from a component from a dimension by their RELATIVE weight. The first set ran
-# 0.5 / 0.35 / 0.18, and at sheet scale the top two are barely a pixel apart, so
-# every render came out visually flat — the outline never read as the outline.
-# Widening the ratio to roughly 4 : 2 : 1 : 0.7 is what gives the sheet depth.
-LW_THICK = 0.60     # visible outlines, cut edges — the heaviest line on the sheet
-LW_MED = 0.30       # components and borders
-LW_THIN = 0.15      # dimensions, hidden and centre lines
-LW_HATCH = 0.10     # section hatching, lighter than anything it sits behind
-DASH_HIDDEN = "2,1.5"
-DASH_CENTRE = "6,1.5,1.5,1.5"
+# Physical aliases kept for the call sites that still name a weight rather than
+# a role. New code should use a role from `style.py` instead.
+LW_THICK = W_HEAVY
+LW_MED = W_MEDIUM
+LW_THIN = W_LIGHT
+LW_FINE = W_FINE
+LW_HATCH = W_HAIR
 
 ARROW = 2.2         # dimension arrowhead length, mm
 EXT_GAP = 1.0       # gap between a feature and its extension line (ISO 129)
@@ -248,25 +229,25 @@ class Dim:
             ax, ay = self.x1 + dx, self.y1
             bx, by = self.x2 + dx, self.y2
             g = gap if dx > 0 else -gap
-            out += [Line(self.x1 + g, self.y1, ax + 1.5, ay, L_DIM, LW_THIN),
-                    Line(self.x2 + g, self.y2, bx + 1.5, by, L_DIM, LW_THIN),
-                    Line(ax, ay, bx, by, L_DIM, LW_THIN)]
+            out += [Line(self.x1 + g, self.y1, ax + 1.5, ay, L_DIM, LW_FINE),
+                    Line(self.x2 + g, self.y2, bx + 1.5, by, L_DIM, LW_FINE),
+                    Line(ax, ay, bx, by, L_DIM, LW_FINE)]
             u = 1.0 if by > ay else -1.0
             out += [_arrowhead(ax, ay, 0, -u), _arrowhead(bx, by, 0, u)]
             out.append(Text(ax - 1.2, (ay + by) / 2, self.label, L_DIM,
-                            TEXT_H, "middle", rotate=-90))
+                            T_DIM, "middle", rotate=-90))
         else:
             dy = self.offset
             ax, ay = self.x1, self.y1 + dy
             bx, by = self.x2, self.y2 + dy
             g = gap if dy > 0 else -gap
-            out += [Line(self.x1, self.y1 + g, ax, ay + 1.5, L_DIM, LW_THIN),
-                    Line(self.x2, self.y2 + g, bx, by + 1.5, L_DIM, LW_THIN),
-                    Line(ax, ay, bx, by, L_DIM, LW_THIN)]
+            out += [Line(self.x1, self.y1 + g, ax, ay + 1.5, L_DIM, LW_FINE),
+                    Line(self.x2, self.y2 + g, bx, by + 1.5, L_DIM, LW_FINE),
+                    Line(ax, ay, bx, by, L_DIM, LW_FINE)]
             u = 1.0 if bx > ax else -1.0
             out += [_arrowhead(ax, ay, -u, 0), _arrowhead(bx, by, u, 0)]
             out.append(Text((ax + bx) / 2, ay - 1.2, self.label, L_DIM,
-                            TEXT_H, "middle"))
+                            T_DIM, "middle"))
         return out
 
 

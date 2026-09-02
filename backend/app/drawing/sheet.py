@@ -7,6 +7,7 @@ philosophy of the platform expressed in drafting terms.
 """
 from . import title_block as tb
 from .primitives import (LW_MED, LW_THIN, L_BORDER, L_TEXT, Line, Rect, Text)
+from .style import T_BODY, T_DIM, T_SECTION, T_SHEET_TITLE, T_SMALL
 
 # (width, height) in mm, landscape.
 SHEET_SIZES = {
@@ -101,9 +102,9 @@ def drawing_area(w: float, h: float) -> tuple[float, float, float, float]:
 
 
 def header(canvas, w: float, title: str, subtitle: str) -> None:
-    canvas.add(Text(MARGIN + 4.0, MARGIN + 7.5, title, L_TEXT, 4.2, "start", bold=True))
+    canvas.add(Text(MARGIN + 4.0, MARGIN + 7.5, title, L_TEXT, T_SHEET_TITLE, "start", bold=True))
     if subtitle:
-        canvas.add(Text(w - MARGIN - 4.0, MARGIN + 7.5, subtitle, L_TEXT, 2.6, "end"))
+        canvas.add(Text(w - MARGIN - 4.0, MARGIN + 7.5, subtitle, L_TEXT, T_BODY, "end"))
     canvas.add(Line(MARGIN, MARGIN + 10.0, w - MARGIN, MARGIN + 10.0, L_BORDER, LW_THIN))
 
 
@@ -125,21 +126,21 @@ def _item_table(canvas, x: float, y: float, bom: list,
     line_h = 4.0
     if y + line_h * 3 > limit_y:
         return y
-    canvas.add(Text(x, y, f"ITEM LIST ({len(bom)})", L_TEXT, 2.9, "start", bold=True))
+    canvas.add(Text(x, y, f"ITEM LIST ({len(bom)})", L_TEXT, T_SECTION, "start", bold=True))
     y += line_h + 1.0
     canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
     shown = 0
     for i, row in enumerate(bom, 1):
         if y + line_h > limit_y:
             break
-        canvas.add(Text(x, y, str(i), L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 6.0, y, _fit(row.get("item"), 42), L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 62.0, y, _fit(row.get("spec"), 62), L_TEXT, 2.3, "start"))
+        canvas.add(Text(x, y, str(i), L_TEXT, T_SMALL, "start"))
+        canvas.add(Text(x + 6.0, y, _fit(row.get("item"), 42), L_TEXT, T_SMALL, "start"))
+        canvas.add(Text(x + 62.0, y, _fit(row.get("spec"), 62), L_TEXT, T_SMALL, "start"))
         y += line_h
         shown += 1
     if shown < len(bom) and y + line_h <= limit_y:
         canvas.add(Text(x + 6.0, y, f"... and {len(bom) - shown} more",
-                        L_TEXT, 2.2, "start"))
+                        L_TEXT, T_DIM, "start"))
         y += line_h
     return y + 3.0
 
@@ -162,20 +163,20 @@ def _kv_block(canvas, x: float, y: float, heading: str, data: list,
     line_h = 4.0
     if y + line_h * 3 > limit_y:            # no room for a header + a row
         return y
-    canvas.add(Text(x, y, heading, L_TEXT, 2.9, "start", bold=True))
+    canvas.add(Text(x, y, heading, L_TEXT, T_SECTION, "start", bold=True))
     y += line_h + 1.0
     canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
     shown = 0
     for row in data:
         if y + line_h > limit_y:
             break
-        canvas.add(Text(x, y, _fit(row.get("label"), 34), L_TEXT, 2.3, "start"))
-        canvas.add(Text(x + 60.0, y, _fit(row.get("value"), 56), L_TEXT, 2.3, "start"))
+        canvas.add(Text(x, y, _fit(row.get("label"), 34), L_TEXT, T_SMALL, "start"))
+        canvas.add(Text(x + 60.0, y, _fit(row.get("value"), 56), L_TEXT, T_SMALL, "start"))
         y += line_h
         shown += 1
     if shown < len(data) and y + line_h <= limit_y:
         canvas.add(Text(x, y, f"... and {len(data) - shown} more (see specification)",
-                        L_TEXT, 2.2, "start"))
+                        L_TEXT, T_DIM, "start"))
         y += line_h
     return y + 3.0
 
@@ -196,14 +197,14 @@ def revision_block(canvas, w: float, h: float, revisions: list) -> None:
     x = w - MARGIN - tb.TB_W
     bottom = h - MARGIN - tb.TB_H - 2.0
     y = bottom - line_h * len(rows)
-    canvas.add(Text(x, y - 3.0, "REVISIONS", L_TEXT, 2.4, "start", bold=True))
+    canvas.add(Text(x, y - 3.0, "REVISIONS", L_TEXT, T_BODY, "start", bold=True))
     canvas.add(Line(x, y - 1.6, x + tb.TB_W, y - 1.6, L_BORDER, LW_THIN))
     for r in rows:
-        canvas.add(Text(x + 1.0, y + 2.6, str(r.get("rev", ""))[:4], L_TEXT, 2.2, "start"))
+        canvas.add(Text(x + 1.0, y + 2.6, str(r.get("rev", ""))[:4], L_TEXT, T_DIM, "start"))
         canvas.add(Text(x + 12.0, y + 2.6, str(r.get("description", ""))[:52],
-                        L_TEXT, 2.2, "start"))
+                        L_TEXT, T_DIM, "start"))
         canvas.add(Text(x + tb.TB_W - 1.0, y + 2.6, str(r.get("date", ""))[:12],
-                        L_TEXT, 2.2, "end"))
+                        L_TEXT, T_DIM, "end"))
         y += line_h
 
 
@@ -237,7 +238,7 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
 
     if legend:
         if room(line_h * 2):
-            canvas.add(Text(x, y, "LEGEND", L_TEXT, 2.9, "start", bold=True))
+            canvas.add(Text(x, y, "LEGEND", L_TEXT, T_SECTION, "start", bold=True))
             y += line_h + 1.0
             dropped = 0
             for tag, desc in legend:
@@ -245,18 +246,18 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
                 if not room(line_h * len(parts)):
                     dropped += 1
                     continue
-                canvas.add(Text(x, y, f"{tag}.", L_TEXT, 2.4, "start", bold=True))
+                canvas.add(Text(x, y, f"{tag}.", L_TEXT, T_BODY, "start", bold=True))
                 for part in parts:
-                    canvas.add(Text(x + 7.0, y, part, L_TEXT, 2.4, "start"))
+                    canvas.add(Text(x + 7.0, y, part, L_TEXT, T_BODY, "start"))
                     y += line_h
             if dropped and room():
                 canvas.add(Text(x + 7.0, y, f"... and {dropped} more item(s)",
-                                L_TEXT, 2.3, "start"))
+                                L_TEXT, T_SMALL, "start"))
                 y += line_h
             y += 3.0
 
     if tbd and room(line_h * 2):
-        canvas.add(Text(x, y, f"TO BE DETERMINED ({len(tbd)})", L_TEXT, 2.9,
+        canvas.add(Text(x, y, f"TO BE DETERMINED ({len(tbd)})", L_TEXT, T_SECTION,
                         "start", bold=True))
         y += line_h + 1.0
         shown = 0
@@ -264,14 +265,14 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
             parts = _wrap(item, LEGEND_CHARS)
             if not room(line_h * len(parts)):
                 break
-            canvas.add(Text(x, y, "—", L_TEXT, 2.4, "start"))
+            canvas.add(Text(x, y, "—", L_TEXT, T_BODY, "start"))
             for part in parts:
-                canvas.add(Text(x + 5.0, y, part, L_TEXT, 2.4, "start"))
+                canvas.add(Text(x + 5.0, y, part, L_TEXT, T_BODY, "start"))
                 y += line_h
             shown += 1
         if shown < len(tbd) and room():
             canvas.add(Text(x + 5.0, y, f"... and {len(tbd) - shown} more",
-                            L_TEXT, 2.3, "start"))
+                            L_TEXT, T_SMALL, "start"))
             y += line_h
         y += 3.0
 
@@ -282,11 +283,11 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
     if notes:
         # Into the reserved strip: every standing note prints, always.
         y = max(y, bottom - notes_h)
-        canvas.add(Text(x, y, "NOTES", L_TEXT, 2.9, "start", bold=True))
+        canvas.add(Text(x, y, "NOTES", L_TEXT, T_SECTION, "start", bold=True))
         y += line_h + 1.0
         for i, note in enumerate(notes, 1):
-            canvas.add(Text(x, y, f"{i}.", L_TEXT, 2.3, "start"))
-            canvas.add(Text(x + 5.0, y, str(note)[:78], L_TEXT, 2.3, "start"))
+            canvas.add(Text(x, y, f"{i}.", L_TEXT, T_SMALL, "start"))
+            canvas.add(Text(x + 5.0, y, str(note)[:78], L_TEXT, T_SMALL, "start"))
             y += line_h
 
 
