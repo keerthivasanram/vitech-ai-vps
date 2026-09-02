@@ -26,7 +26,7 @@ from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_HATCH, LW_MED, LW_THICK,
                          Circle, Dim, Line, Rect, Text, hatch, poly)
 from . import components
 from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, DIM_LANE_MAJOR,
-                    T_VIEW_TITLE,
+                    SYMBOL_DETAIL, T_VIEW_TITLE,
                     LEADER_DOT_R,
                     LEADER_LINE, T_BODY, T_CAPTION, T_DIM, T_SMALL, T_TINY)
 
@@ -993,10 +993,13 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # left of the sheet is not free space (the views are centred, and a
         # symbol hung off the outline collided with the frame), and the right
         # carries the height dimension.
-        fr = min(pl_h * 0.34, w * 0.05)
-        fcx, fcy = x + w * 0.78, y + pl_h * 0.5
-        canvas.add(Circle(fcx, fcy, fr, L_COMPONENT, LW_MED))
-        canvas.add(Line(fcx - fr, fcy, x + w * 0.60, fcy, L_COMPONENT, LW_THIN))
+        # A real volute from the shared library. A bare circle was as true of a
+        # tank or an airlock as of a fan; moved inboard to 0.70w because the
+        # symbol spans about 3.1r with its discharge and ran into the outlet.
+        fr = min(pl_h * 0.30, w * 0.042)
+        fcx, fcy = x + w * 0.70, y + pl_h * 0.5
+        components.blower(canvas, fcx, fcy, fr, discharge="right", motor=False)
+        canvas.add(Line(fcx - fr, fcy, x + w * 0.58, fcy, *SYMBOL_DETAIL))
         # Only state what resolved: an empty type and HP printed a legend row
         # reading a bare "ID fan HP", which looks like a missing value on the
         # sheet — because it is one.
@@ -1052,7 +1055,9 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # file's header warns about). Direction only, never dimensioned.
         ch2 = hop_y - y - pl_h
         in_y = y + pl_h + ch2 * 0.20
-        canvas.add(Rect(x, in_y - h * 0.040, w * 0.14, h * 0.08, L_COMPONENT, LW_MED))
+        components.duct_run(canvas, x - w * 0.02, in_y, x + w * 0.14, in_y,
+                            h * 0.08, centre=False)
+        components.flange(canvas, x + w * 0.13, in_y, h * 0.08, vertical=False)
         airflow(canvas, [(x + w * 0.16, in_y), (x + w * 0.34, in_y)], "DIRTY AIR IN")
         # Balloon BELOW the stub: above it is the arrow's own caption.
         item(canvas, legend, x + w * 0.07, in_y + ch2 * 0.20,
