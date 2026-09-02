@@ -133,3 +133,22 @@ T_CAPTION = 2.1          # in-view captions (FLOOR LEVEL, CROSS DRAFT)
 # Balloon geometry, so every glyph draws the same circle.
 BALLOON_R = 3.2
 LEADER_DOT_R = 0.5
+
+
+# --- dimension hierarchy ----------------------------------------------------
+# Parallel dimension lines are allocated to LANES at fixed offsets from the
+# feature, so two dimensions on the same side of a view can never land on top
+# of each other. The ladder is the drafting convention: the overall dimension
+# sits closest to the object and each further level steps out.
+#
+#     OVERALL          -> lane 1, nearest the view
+#     MAJOR SETTING    -> lane 2
+#     COMPONENT        -> lane 3
+#
+# WHAT MAY OCCUPY A LANE IS AN ENGINEERING QUESTION, not a drafting one. Only a
+# dimension the spec engine actually resolved may be drawn; component POSITIONS
+# are indicative while Vitech supply no setting-out rules, so they get no
+# dimension at all rather than a plausible-looking one.
+DIM_LANE_OVERALL = 7.0
+DIM_LANE_MAJOR = 15.0
+DIM_LANE_COMPONENT = 23.0

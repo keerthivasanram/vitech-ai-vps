@@ -23,9 +23,11 @@ from typing import Callable, Optional
 from .. import values
 from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_HATCH, LW_MED, LW_THICK,
                          LW_THIN, L_COMPONENT, L_HIDDEN, L_OUTLINE, L_TEXT,
-                         Circle, Line, Rect, Text, hatch, poly)
+                         Circle, Dim, Line, Rect, Text, hatch, poly)
 from . import components
-from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, LEADER_DOT_R,
+from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, DIM_LANE_MAJOR,
+                    T_VIEW_TITLE,
+                    LEADER_DOT_R,
                     LEADER_LINE, T_BODY, T_CAPTION, T_DIM, T_SMALL, T_TINY)
 
 
@@ -261,8 +263,15 @@ PANEL_PITCH_MM = 750.0
 PANEL_COURSE_MM = 2500.0
 
 
-def _panel_joints(canvas, v) -> None:
-    """Panel and course joints on an elevation, at the real module."""
+def _panel_joints(canvas, v, dimension: bool = False) -> None:
+    """Panel and course joints on an elevation, at the real module.
+
+    With `dimension`, ONE bay is dimensioned at the MAJOR lane. That figure is
+    honest engineering: 750 mm is Vitech's own panel pitch, the module their
+    booth weight is costed from, so it is a resolved value and not a position
+    inferred from the drawing. Component POSITIONS still carry no dimension at
+    all — inventing one is the failure this whole engine is built to avoid.
+    """
     if not v.model_w or not v.model_h or v.model_w <= 0 or v.model_h <= 0:
         return
     per_mm_x = v.w / float(v.model_w)
@@ -274,6 +283,17 @@ def _panel_joints(canvas, v) -> None:
             jx = v.x + i * step_x
             if jx < v.x + v.w - 0.5:
                 canvas.add(Line(jx, v.y, jx, v.y + v.h, L_COMPONENT, LW_THIN))
+        # A single bay, one lane out from the overall dimension. COLLISION
+        # CHECK, not a hope: the view caption is centred under the view at this
+        # depth, so the bay dimension is drawn only when it ends clear of the
+        # caption's own half-width. On a view too narrow for both, the drawing
+        # simply does without it — a dimension printed over a title is worse
+        # than a dimension not printed.
+        title_half = len(v.label) * T_VIEW_TITLE * 0.30 + 2.0
+        clear = v.x + step_x < v.x + v.w / 2 - title_half
+        if dimension and n_joints >= 1 and step_x > 8.0 and clear:
+            canvas.add(Dim(v.x, v.y + v.h, v.x + step_x, v.y + v.h,
+                           f"{PANEL_PITCH_MM:g}", offset=DIM_LANE_MAJOR))
     step_y = PANEL_COURSE_MM * per_mm_y
     if step_y > 1.5:
         n_courses = int(float(v.model_h) // PANEL_COURSE_MM)
@@ -409,7 +429,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         x, y, w, h = front.x, front.y, front.w, front.h
         # Panel and course joints at Vitech's real 750 x 2500 module, so the
         # working face reads as the panelled enclosure it is rather than a box.
-        _panel_joints(canvas, front)
+        _panel_joints(canvas, front, dimension=True)
         # Extract face on the elevation, hatched as filter media. Which END it
         # sits on follows the draft direction, the same as the plan.
         _, _front_axis = _draft(rows)

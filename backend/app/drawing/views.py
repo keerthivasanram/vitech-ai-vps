@@ -22,7 +22,7 @@ from typing import NamedTuple, Optional
 
 from .primitives import (DASH_CENTRE, LW_MED, LW_THIN, L_CENTRE, L_DIM,
                          L_OUTLINE, L_TEXT, Dim, Line, Rect, Text)
-from .style import T_VIEW_TITLE
+from .style import DIM_LANE_COMPONENT, DIM_LANE_OVERALL, T_VIEW_TITLE
 
 # Preferred drafting scales, largest first. The engine picks the first that
 # fits — a real drawing office uses these, not an arbitrary ratio.
@@ -142,14 +142,22 @@ def draw_view(canvas, v: View, dim_labels: dict) -> None:
         Line(cx, v.y - 4, cx, v.y + v.h + 4, L_CENTRE, LW_THIN, DASH_CENTRE),
     )
 
-    # Width dimension below, height dimension to the right.
+    # OVERALL dimensions take the lane nearest the view; anything a glyph adds
+    # steps out to the next lane, so parallel dimensions cannot collide.
     canvas.add(Dim(v.x, v.y + v.h, v.x + v.w, v.y + v.h,
-                   dim_labels.get(v.w_axis, "TBD"), offset=7.0))
+                   dim_labels.get(v.w_axis, "TBD"), offset=DIM_LANE_OVERALL))
     canvas.add(Dim(v.x + v.w, v.y, v.x + v.w, v.y + v.h,
-                   dim_labels.get(v.h_axis, "TBD"), offset=7.0, vertical=True))
+                   dim_labels.get(v.h_axis, "TBD"), offset=DIM_LANE_OVERALL,
+                   vertical=True))
 
     # View title, underscored the way a drafted sheet does it: the rule is what
     # binds the caption to its view when three views share one field.
+    # The caption stays just under the OVERALL dimension. Pushing it below every
+    # lane instead put it 29 mm down, which is more than the 28 mm the layout
+    # leaves between the plan and the front elevation — the plan's title landed
+    # ON the elevation below it. A deeper lane is kept clear by not DRAWING a
+    # dimension that would collide (see `_panel_joints`), not by moving the
+    # caption the view stack is spaced around.
     ty = v.y + v.h + LABEL_DROP + 8.0
     canvas.add(Text(v.x + v.w / 2, ty, v.label, L_TEXT, T_VIEW_TITLE,
                     "middle", bold=True))
