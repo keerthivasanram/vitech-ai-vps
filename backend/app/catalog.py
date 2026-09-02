@@ -16,6 +16,15 @@ from .rules import compute_spec, compute_wet_scrubber
 from .schema import ComputedSpec, RuleResult, SpecValue
 
 
+# The customer's own process figures that the VOC/LEL safety check is decided
+# on (`release_gate._voc_safety`). Declared so a stated value is carried rather
+# than discarded as a field the category does not have, but deliberately NOT in
+# `required_inputs` / `optional_inputs` — that changes the studio form and the
+# drawing-catalog response, which is a UI decision, the same call already taken
+# for `face_velocity_ms`. Today they arrive from the requirement text.
+SOLVENT_SAFETY_INPUTS = ["paint_consumption_l_hr", "voc_percent", "density_kg_l"]
+
+
 def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
     # `face_velocity_ms` is the per-design override (DQ-2): absent, the booth
     # type's own design velocity governs. It is deliberately NOT in
@@ -96,6 +105,7 @@ def _paint_shop_profile(key: str, label: str, extra_template=()) -> dict[str, An
         "diff_unit": "floor area",
         "dimension_keys": ["length_m", "width_m", "height_m"],
         "process_keys": [],
+        "safety_inputs": SOLVENT_SAFETY_INPUTS,
         "required_inputs": [("length_m", "Length"), ("width_m", "Width"),
                             ("height_m", "Height")],
         "optional_inputs": [("draft_type", "Draft type"), ("qty", "Quantity")]
@@ -218,6 +228,7 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         "diff_unit": "floor area",
         "dimension_keys": ["length_m", "width_m", "height_m"],
         "process_keys": ["paint_type"],
+        "safety_inputs": SOLVENT_SAFETY_INPUTS,
         "required_inputs": [
             ("length_m", "Length"),
             ("width_m", "Width"),

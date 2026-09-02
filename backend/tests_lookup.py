@@ -257,6 +257,27 @@ _regex = _drop_undeclared({"blower_mounting": "pulse jet"},
 check("a value the regex itself read is never dropped",
       _regex.get("blower_mounting") == "pulse jet", _regex)
 
+# The VOC inputs are read by REGEX, not by the model, because the release gate
+# decides a safety verdict on them and a safety check must not rest on whether
+# an 8B model happened to pick the numbers out of the sentence.
+from app.understand import _fallback as _fb, _normalize_params as _np
+
+_voc_q = _np(_fb("paint booth 5m x 3m x 4m liquid, paint consumption 10 l/hr, "
+                 "60% voc, density 1.2 kg/l").parameters)
+check("the solvent safety inputs are read deterministically",
+      _voc_q.get("paint_consumption_l_hr") == 10.0
+      and _voc_q.get("voc_percent") == 60.0
+      and _voc_q.get("density_kg_l") == 1.2, _voc_q)
+_plain = _np(_fb("paint booth 5m x 3m x 4m liquid down draft").parameters)
+check("a booth that states no solvent figures gains none",
+      not any(k in _plain for k in ("paint_consumption_l_hr", "voc_percent",
+                                    "density_kg_l")), _plain)
+# ...and they survive the model-vocabulary filter, which would otherwise strip
+# them as fields the paint booth profile does not declare.
+check("the safety inputs are declared, so the LLM path keeps them",
+      _drop_undeclared({"paint_consumption_l_hr": 10.0}, {}, "paint_booth")
+      .get("paint_consumption_l_hr") == 10.0)
+
 print()
 if _fail:
     print(f"{_fail} LOOKUP TEST(S) FAILED")

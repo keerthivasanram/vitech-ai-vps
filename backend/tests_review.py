@@ -220,6 +220,51 @@ statuses = {assess({"technical_details": rows, "validation": v})["status"]
 check("Released Design" not in statuses,
       "the engine can never award itself Released Design")
 
+# --- VOC/LEL safety reaches the release verdict ----------------------------
+# `voc_service` could answer this since the workbooks landed and nothing asked
+# it, so an over-limit extraction could reach Customer Ready with nothing on the
+# document to show it had never been checked.
+_SOLVENT_ROWS = [{"label": "Paint process", "value": "liquid", "origin": "rule"},
+                 {"label": "Exhaust airflow", "value": "10000 m3/h", "origin": "rule"}]
+_SAFE = {"paint_consumption_l_hr": 10, "voc_percent": 60, "density_kg_l": 1.2}
+_UNSAFE = dict(_SAFE, paint_consumption_l_hr=100)
+
+
+def _gate(rows, params):
+    return assess({"technical_details": rows, "validation": [], "parameters": params})
+
+
+# The client's own worked example: 10 l/hr x 1.2 kg/l x 60% into 10,000 m3/h.
+_pass = _gate(_SOLVENT_ROWS, _SAFE)
+check(_pass["safety"]["verdict"] == "pass",
+      "the client's worked VOC example passes its own limit")
+check(_pass["safety"]["concentration_mg_m3"] == 720,
+      f"and reproduces their 720 mg/m3 exactly (got {_pass['safety'].get('concentration_mg_m3')})")
+check(_pass["status"] == STATUS_CUSTOMER_READY,
+      "a passing safety check does not hold the document back")
+
+_fail = _gate(_SOLVENT_ROWS, _UNSAFE)
+check(_fail["status"] == STATUS_ENGINEERING_DRAFT,
+      "an OVER-LIMIT solvent load blocks release, whatever the confidence")
+check(any("VOC safety" in b for b in _fail["blockers"]),
+      "and it is a BLOCKER, not a gap — customer sign-off cannot make it safe")
+check("72000" in _fail["safety"]["blocker"],
+      "the blocker says what airflow would fix it, not only that it failed")
+
+# An unanswered safety question is reported as unanswered, never as a pass.
+_unknown = _gate(_SOLVENT_ROWS, {})
+check(_unknown["safety"]["verdict"] is None,
+      "missing inputs yield NO verdict rather than a pass")
+check(any("VOC safety not verified" in q for q in _unknown["questions"]),
+      "an unverified solvent booth says so on the document")
+
+# A powder booth has no solvent to evaporate. A safety warning an engineer knows
+# is inapplicable is worse than no warning at all.
+_powder = _gate([{"label": "Paint process", "value": "powder", "origin": "rule"},
+                 _SOLVENT_ROWS[1]], {})
+check("safety" not in _powder and not _powder["questions"],
+      "a powder booth is not given a solvent safety check")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} REVIEW TEST FAIL")

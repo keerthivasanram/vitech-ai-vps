@@ -75,8 +75,8 @@
     "status": 200
   },
   "package.booth": {
-    "bytes": 74463,
-    "sha256": "6e3c758da221edf4a0893be39f1bf203bfcb48677bb9cd3a49ba2c15dd4be892",
+    "bytes": 75158,
+    "sha256": "fc1059ab2cc3a9ead5ba76cc433eabb0829acf972bb75f40d7e582faa933d592",
     "status": 200
   },
   "records": {
@@ -120,8 +120,8 @@
     "status": 200
   },
   "tools.spec.booth": {
-    "bytes": 24186,
-    "sha256": "1663552a98b91f69e8ed8f6ef3a03955a066b205e1427c909d1531989867560d",
+    "bytes": 24840,
+    "sha256": "a6459ad0724742fb808088224c8394281c3130b12f4c600b64afa83f0beda0fb",
     "status": 200
   },
   "tools.spec.dust": {

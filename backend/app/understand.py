@@ -32,6 +32,17 @@ _MM = re.compile(r"(\d+(?:\.\d+)?)\s*mm", re.I)
 _HP = re.compile(r"(\d+(?:\.\d+)?)\s*hp", re.I)
 _QTY = re.compile(r"(?:qty\s*[:\-]?\s*|(\d+)\s*(?:nos|no\.?|units?))", re.I)
 
+# The client's VOC workbook inputs. Read DETERMINISTICALLY, because the release
+# gate decides a SAFETY verdict on them — whether the extracted air stays under
+# the 1000 mg/m3 design limit — and a safety check must not rest on whether an
+# 8B model happened to pick the numbers out of the sentence.
+_PAINT_CONSUMPTION = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(?:l|lit|litre|liter)s?\s*(?:/|per\s*)\s*(?:hr|hour)", re.I)
+_VOC_PCT = re.compile(
+    r"(\d+(?:\.\d+)?)\s*%\s*(?:voc|solvent)|voc\D{0,12}?(\d+(?:\.\d+)?)\s*%", re.I)
+_DENSITY_KG_L = re.compile(
+    r"(\d+(?:\.\d+)?)\s*kg\s*(?:/|per\s*)\s*(?:l|lit|litre|liter)s?\b", re.I)
+
 
 def _dims_to_metres(dims: list[float], q: str, end: int) -> list[float]:
     """Normalise an L x W (x H) dimension group to metres.
@@ -299,6 +310,12 @@ def _fallback(question: str) -> QueryUnderstanding:
         params["painting_method"] = "automatic"
     if (t := _THROUGHPUT.search(q)):
         params["throughput"] = f"{t.group(1)} per {t.group(2).lower()}"
+    if (m := _PAINT_CONSUMPTION.search(q)):
+        params["paint_consumption_l_hr"] = float(m.group(1))
+    if (m := _VOC_PCT.search(q)):
+        params["voc_percent"] = float(m.group(1) or m.group(2))
+    if (m := _DENSITY_KG_L.search(q)):
+        params["density_kg_l"] = float(m.group(1))
     u.parameters = params
 
     # explicit "build me a spec" verbs, and question/conversion words
@@ -413,7 +430,7 @@ def _declared_keys(category: str | None) -> frozenset[str]:
     keys: set[str] = set()
     for field in ("required_inputs", "optional_inputs", "expected_inputs"):
         keys.update(key for key, _ in profile.get(field) or ())
-    for field in ("process_keys", "dimension_keys", "scalable"):
+    for field in ("process_keys", "dimension_keys", "scalable", "safety_inputs"):
         keys.update(profile.get(field) or ())
     keys.update((profile.get("from_given") or {}).keys())
     return frozenset(keys)

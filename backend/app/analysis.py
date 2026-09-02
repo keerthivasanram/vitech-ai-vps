@@ -146,7 +146,12 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         "validation": validation,             # engineering sanity checks {level,message}
         # Whether this may LEAVE the building, which confidence does not say:
         # a well-founded spec that contradicts itself is still an internal draft.
-        "release": assess_release({"technical_details": technical, "validation": validation}),
+        # `parameters` reaches the gate because the VOC safety check needs the
+        # customer's own paint consumption and VOC content, which are process
+        # figures rather than resolved spec rows.
+        "release": assess_release({"technical_details": technical,
+                                   "validation": validation,
+                                   "parameters": params}),
         "completeness": round(comp_score * 100),
         "completeness_missing": comp_missing,
         "assumptions": assumptions,           # missing inputs filled by historical consensus
