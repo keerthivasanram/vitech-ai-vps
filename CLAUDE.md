@@ -42,7 +42,64 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
-### ▶ 2026-09-01 — READ THIS FIRST. The branch note below was WRONG, and it matters on pull.
+### ▶ 2026-09-02 — THE POD IS ON `main` NOW. Two engine fixes; retrieval found to be non-reproducible.
+
+Container disk wiped again -> `bootstrap-pod.sh` (3 chatflows + 9 tools restored) then
+`start-all.sh`; **all six services 200**, all three agents reproducible from git
+(9953 / 5622 / 3102). **THE CHECKOUT MOVED FROM `fix/list-projects-category-filter` TO `main`**
+— that branch is now 0 ahead / 7 behind and main is the deployed line, the reverse of the
+warning below. The 7 commits are ARCHITECTURE.md + SHARING_GUIDE.md and no code.
+- **A FABRICATED FIELD WAS REACHING THE CUSTOMER-FACING SPEC.** A dust collector printed
+  `| Blower mounting | pulse jet |` among the CUSTOMER-GIVEN data. `blower_mounting` is a
+  **wet scrubber** field and pulse jet is a filter-cleaning system: llama3.1 slot-filled a word
+  from the requirement into the nearest field name it knew. The same slot-filling reads
+  **"8 ach" on a paint drying oven as `air_volume_cfm: 8`** — an airflow three orders of
+  magnitude too small, which is worse, because airflow sizes the blower.
+  **`understand._drop_undeclared` keeps a model-supplied parameter only where the resolved
+  category's profile declares it** (the profile declares the field set; the model only fills
+  it). The same `blower_mounting` is still accepted on a wet scrubber. **What the REGEX read is
+  never filtered** — this guards the model's contribution alone. The overall envelope survives
+  too, because a duty-specified category omits it on purpose while the drawing layer uses it.
+  **The category is now resolved BEFORE the parameters are merged.**
+- **HOW IT WAS FOUND, and the lesson: `tests_api_contract` is NOT environment-independent.**
+  It failed on a rebuilt pod with **no code change**, stably across runs. `tools.spec.dust` is
+  the one contract case whose requirement `_fallback` cannot classify, so **it alone takes the
+  LLM path** and its "fingerprint" was never deterministic. The fix restored the RECORDED bytes
+  exactly — 28/28 byte-identical with no re-recording, which is what proved nothing else moved.
+- **`booth_catalogue` IS WIRED IN** (it had been dead code since it was written). A booth now
+  names its **standard model**, REPORTED and never substituted: published 8,100 m3/h against
+  13,090 engineered on a 3.0 m machine is **DQ-10**, so both figures reach the engineer and the
+  basis says CONFIRM WHICH BASIS GOVERNS before the blower is ordered.
+  **`match_requirement` needs EVERY stated axis** — `select()` matches width alone, and a
+  5.0 x 3.0 x 4.0 m booth shares its width with VT/3.0/DTPB/OP, published **1.5 m deep and
+  2.425 m high**. Width-only matching would ship a booth 1.6 m too short. All three golden
+  booths are specials under full-envelope matching, which is why the goldens are byte-identical.
+  A **powder booth resolves to no model** — the published range is liquid booths.
+- **IT ADDS ONE ROW, AND THE FIRST ATTEMPT ADDED THREE.** Emitting the published duty and motor
+  as spec VALUES read fine on the specification and then **turned up as BOM lines** — a bill of
+  materials listing a 10 HP engineered motor beside a 5 HP published one. **Found by rendering
+  the drawing and reading its BOM, not by reading the source** (the standing lesson, again).
+  The published figures now ride in the basis trail, where they inform without being orderable.
+- **NEW OPEN ISSUE — `retrieve_knowledge` IS NOT REPRODUCIBLE ACROSS RESTARTS.** The same
+  question returns a **different document set** after a backend restart (stable within a
+  process, and `tools.retrieve` fingerprinted at 10081 / 10080 / 9140 bytes across restarts).
+  The swapping hits are closely scored (0.213 / 0.218 / 0.262), which is **ChromaDB's HNSW being
+  an APPROXIMATE index** — traversal depends on process state. It means the agent can cite
+  different sources for the same question depending on when it is asked. **`tools.retrieve` is
+  left FAILING rather than re-recorded** — re-recording would pin one arbitrary traversal.
+  Likely needs the roadmap D1 Qdrant move, or a deterministic over-fetch + exact re-scoring.
+  It carries no engineering numbers, so nothing computed is affected.
+- **THE TWO VERIFICATION ACCOUNTS WERE ROTATED** (21 stale sessions revoked) and kept, because
+  they are the only credential the two HTTP suites can run with. Still named `vt-verify` /
+  `vt-verify-eng`.
+- **STILL NOT DONE, and still LOCAL work needing no pod:** D1, conversational drawing state —
+  hold the requirement in the session and merge each follow-up as a delta.
+  **Also newly visible:** the dust collector profile has no `cleaning_system` input, so a
+  customer stating "pulse jet" now correctly drops it and the spec shows `Cleaning system: To be
+  determined`. The information was in the requirement — routing it properly is the next
+  increment there.
+
+### ▶ 2026-09-01 — the branch note below was WRONG in the other direction (see 2026-09-02).
 
 **THE DIVERGENCE IS NOT "3 DOC COMMITS". Measured 2026-09-01:**
 
