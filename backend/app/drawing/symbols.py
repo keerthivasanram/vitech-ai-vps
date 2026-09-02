@@ -28,13 +28,32 @@ from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_HATCH, LW_MED, LW_THICK,
 BALLOON_R = 3.2
 
 
-def balloon(canvas, x: float, y: float, tag: str) -> None:
-    """A numbered/lettered item balloon, as on a real GA."""
+def balloon(canvas, x: float, y: float, tag: str, to=None) -> None:
+    """A numbered item balloon, with a LEADER to the thing it names.
+
+    Without a leader a balloon is a number floating near several components and
+    the reader has to guess which one it belongs to — which on a sheet whose
+    whole purpose is to say what each item IS defeats the schedule. The leader
+    runs from the balloon's edge (not its centre, which would draw a line
+    through the digit) to the feature, and ends in a filled dot, the convention
+    for landing on a face rather than an edge.
+    """
     canvas.add(Circle(x, y, BALLOON_R, L_COMPONENT, LW_THIN),
                Text(x, y + 1.0, tag, L_COMPONENT, 2.3, "middle"))
+    if not to:
+        return
+    tx, ty = float(to[0]), float(to[1])
+    dx, dy = tx - x, ty - y
+    dist = math.hypot(dx, dy)
+    if dist <= BALLOON_R + 0.6:          # target inside the balloon: no leader
+        return
+    sx = x + dx / dist * BALLOON_R
+    sy = y + dy / dist * BALLOON_R
+    canvas.add(Line(sx, sy, tx, ty, L_COMPONENT, LW_THIN),
+               Circle(tx, ty, 0.5, L_COMPONENT, LW_THIN, fill="currentColor"))
 
 
-def item(canvas, legend: list, x: float, y: float, description: str) -> str:
+def item(canvas, legend: list, x: float, y: float, description: str, to=None) -> str:
     """Draw the next balloon and register its legend row in one go.
 
     Tags allocate themselves from the legend's length rather than being written
@@ -45,7 +64,7 @@ def item(canvas, legend: list, x: float, y: float, description: str) -> str:
     # Count only the numbered rows: lettered `note_item` rows share the legend
     # but not the numbering sequence.
     tag = str(sum(1 for t, _ in legend if t.isdigit()) + 1)
-    balloon(canvas, x, y, tag)
+    balloon(canvas, x, y, tag, to)
     legend.append((tag, description.replace("  ", " ").strip()))
     return tag
 
@@ -414,12 +433,14 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         my = dy + dh / 2
         canvas.add(Line(dx + dw * 0.18, my, dx + dw * 0.40, my, L_COMPONENT, LW_THIN),
                    Line(dx + dw * 0.60, my, dx + dw * 0.82, my, L_COMPONENT, LW_THIN))
-        item(canvas, legend, dx + dw / 2, dy - 5.0, "Manual sliding door, double leaf")
+        item(canvas, legend, dx + dw / 2, dy - 5.0, "Manual sliding door, double leaf",
+             to=(dx + dw / 2, dy + dh * 0.20))
 
         # View panels either side of the door.
         for sx in (x + w * 0.10, x + w * 0.78):
             canvas.add(Rect(sx, y + h * 0.26, w * 0.12, h * 0.18, L_COMPONENT, LW_THIN))
-        item(canvas, legend, x + w * 0.16, y + h * 0.20, "View glass panel")
+        item(canvas, legend, x + w * 0.16, y + h * 0.20, "View glass panel",
+             to=(x + w * 0.16, y + h * 0.35))
 
         if lights:
             for i in range(min(lights, 6)):
@@ -440,7 +461,8 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             py = y + h * 0.52
             canvas.add(Rect(px, py, pw, ph, L_COMPONENT, LW_MED))
             canvas.add(Line(px, py + ph * 0.3, px + pw, py + ph * 0.3, L_COMPONENT, LW_THIN))
-            item(canvas, legend, px - 6.0, py + ph * 0.5, _clip(f"Control panel {panel}"))
+            item(canvas, legend, px - 6.0, py + ph * 0.5, _clip(f"Control panel {panel}"),
+                 to=(px + pw * 0.5, py + ph * 0.5))
 
         # Floor, slab hatch and the base frame the enclosure stands on. The
         # front elevation had none of this and read as a box floating in space.
@@ -458,14 +480,16 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                       min(filters, 8) if filters else 4, vertical=True)
         item(canvas, legend, bx - 6.0, y + h * 0.30,
              f"Extract face - arresting filters ({filters} nos)" if filters
-             else "Extract face - arresting filters")
+             else "Extract face - arresting filters",
+             to=(bx + bank_w * 0.5, y + h * 0.30))
 
         # Exhaust duct off the extract end, drawn INSIDE the outline as a stub:
         # hung off the envelope it would cross the height dimension.
         if duct:
             canvas.add(Rect(x + w * 0.60, y, w * 0.14, h * 0.09, L_COMPONENT, LW_MED))
             airflow(canvas, [(x + w * 0.67, y + h * 0.14), (x + w * 0.67, y + h * 0.03)])
-            item(canvas, legend, x + w * 0.44, y + h * 0.05, _clip(f"Exhaust duct {duct}"))
+            item(canvas, legend, x + w * 0.44, y + h * 0.05, _clip(f"Exhaust duct {duct}"),
+                 to=(x + w * 0.67, y + h * 0.045))
 
         # Filtered-air inlet plenum on the opposite face, as hidden detail:
         # it sits behind the enclosure wall in this view.
@@ -476,7 +500,8 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                 py = y + h * (0.14 + 0.72 * i / 4)
                 canvas.add(Line(x, py, x + pw, py, L_HIDDEN, LW_THIN, DASH_HIDDEN))
             item(canvas, legend, x + pw + 6.0, y + h * 0.33,
-                 _clip(f"Air intake filter {intake}"))
+                 _clip(f"Air intake filter {intake}"),
+                 to=(x + pw * 0.5, y + h * 0.33))
 
         # Airflow through the booth, inlet plenum to extract face.
         airflow(canvas, [(x + w * 0.24, y + h * 0.50), (x + w * 0.66, y + h * 0.50)])
@@ -504,7 +529,8 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             _filter_cells(canvas, bx0, y, bank_w, h, shown_filters, vertical=True)
             if filters:
                 item(canvas, legend, bx0 - 6.0, y + h * 0.12,
-                     f"Paint arresting filter bank ({filters} nos)")
+                     f"Paint arresting filter bank ({filters} nos)",
+                     to=(bx0 + bank_w * 0.5, y + h * 0.12))
             # Blower sits ahead of the bank on the extract centre line.
             bw, bh = w * 0.13, h * 0.24
             bx = bx0 - bw - w * 0.03
@@ -515,7 +541,8 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             _filter_cells(canvas, x, by, w, bank_d, shown_filters, vertical=False)
             if filters:
                 item(canvas, legend, x + w * 0.16, by - 5.0,
-                     f"Paint arresting filter bank ({filters} nos)")
+                     f"Paint arresting filter bank ({filters} nos)",
+                     to=(x + w * 0.16, by + bank_d * 0.5))
             bw, bh = w * 0.16, bank_d * 1.4
             bx = x + (w - bw) / 2
             byy = by - bh - 2.0
@@ -539,7 +566,8 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                 cx, cy = x + w * 0.06, byy - bh * 0.9
             canvas.add(Rect(cx, cy, cw, ch, L_COMPONENT, LW_THIN))
             item(canvas, legend, cx - 6.0 if across else cx + cw + 5.5, cy + ch / 2,
-                 _clip(f"Activated carbon chamber {carbon}"))
+                 _clip(f"Activated carbon chamber {carbon}"),
+                 to=(cx + cw * 0.5, cy + ch * 0.5))
 
         # Filtered-air inlet on the face OPPOSITE the extract, as hidden detail.
         if across:
