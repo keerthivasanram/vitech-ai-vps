@@ -24,6 +24,7 @@ from app.engineering import scrubber_service as sc
 from app.engineering import material_service as mat
 from app.engineering import heat_load_service as hl
 from app.engineering.formula_service import compute_spec
+from app.engineering.formula_service import compute_wet_scrubber as fs_ws
 
 FAILS: list[str] = []
 
@@ -371,6 +372,25 @@ _special = compute_spec(5, 3, 4, "liquid")
 check(not any(v.label.startswith(("Standard model", "Published"))
               for v in _special.values),
       "a special booth carries no catalogue rows at all")
+
+# --- A scrubber sizes itself from its DUTY alone ---------------------------
+# `scrubber_service` reproduced the client's 1545 mm from 6,750 m3/h since the
+# workbooks landed, and NOTHING CALLED IT. A scrubber that stated only an
+# airflow had no diameter, so it had no footprint: the GA came back with no
+# envelope, no scale and ZERO VIEWS — a blank sheet for a machine we could size.
+_derived = fs_ws({"air_volume_cmh": 6750})
+check(round(_derived["tower_diameter_mm"]["value"]) == 1545,
+      "a scrubber derives the client's own 1545 mm tower bore from its duty alone")
+check(_derived["tower_diameter_mm"]["standard"] == std.CLIENT_SCRUBBER_DIAMETER_CALC,
+      "and cites the client's scrubber calculation as its basis")
+check("tower_height_m" in _derived,
+      "the height rule then runs off the derived diameter, completing the envelope")
+# A STATED diameter still wins: the derivation only fills a gap.
+_stated = fs_ws({"air_volume_cmh": 6750, "tower_diameter_mm": 750})
+check("tower_diameter_mm" not in _stated,
+      "a client-stated diameter is never overwritten by the derived one")
+check(abs(_stated["tower_height_m"]["value"] - 3.75) < 1e-9,
+      "and the height follows the STATED diameter, not the derived one")
 
 # --- DQ-9 + DQ-10, settled by the product owner 2026-09-02 -----------------
 # The open face is the OPEN FRONT (the dimension Vitech write FIRST) x a fixed

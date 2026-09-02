@@ -10,8 +10,8 @@
     "status": 200
   },
   "drawing.catalog": {
-    "bytes": 10147,
-    "sha256": "9d74b696d999d6a841a2010d7001fbdffe12f3d95e96580072e067331db6a785",
+    "bytes": 10148,
+    "sha256": "34cdc49cf5ba1ca40f8ce0b2b9d8c2b2bff0b52614f745d6b31406779bdc56e1",
     "status": 200
   },
   "drawing.render": {
@@ -131,7 +131,7 @@
   },
   "tools.spec.scrub": {
     "bytes": 14189,
-    "sha256": "fcba21f577ee077ae72b14553cdfc50219c4f299c210e64f0436306f31c4cae1",
+    "sha256": "fd0919225f1c4e72ff8d12aeef60ca16f34fdb6bc982911640c7a30343a22734",
     "status": 200
   },
   "uploads.list": {

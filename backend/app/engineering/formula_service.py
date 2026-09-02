@@ -17,6 +17,7 @@ from ..schema import ComputedSpec, RuleResult, SpecValue
 from . import standards_service as std
 from . import design_standards as ds
 from . import booth_catalogue as bc
+from . import scrubber_service as sc
 from .blower_service import select_booth_blower_set
 from .calculation_engine import count_ceil, count_round, round_to_step
 from .material_service import select_paint_process
@@ -331,6 +332,26 @@ def compute_wet_scrubber(params: dict) -> dict[str, dict]:
     }
 
     d_mm = params.get("tower_diameter_mm")
+    if not isinstance(d_mm, (int, float)):
+        # DERIVED from the duty on the client's own basis (1.0 m/s across the
+        # tower). Until this ran, a scrubber that stated ONLY an airflow had no
+        # diameter, so it had no footprint either: `geometry_service` fell
+        # through to the baffle path and the GA came back with no envelope, no
+        # scale and ZERO VIEWS — a blank sheet for a machine we could size.
+        #
+        # A CLIENT-STATED DIAMETER STILL WINS: this only runs when none was
+        # given, and it is emitted as its own row so the reader can see it was
+        # calculated rather than quoted. The standard-size rounding is NOT
+        # applied — Vitech's diameter ladder is still outstanding (DQ-3) — so
+        # the value is the true bore, not a snapped one.
+        bore = sc.tower_diameter(q_cmh)
+        if bore is not None:
+            d_mm = bore.diameter_mm
+            out["tower_diameter_mm"] = {
+                "value": round(d_mm),
+                "formula": bore.trail[0][2] if bore.trail else "tower bore at 1.0 m/s",
+                "standard": std.CLIENT_SCRUBBER_DIAMETER_CALC,
+            }
     if isinstance(d_mm, (int, float)):
         h = max(WS_MIN_HEIGHT_M, WS_HEIGHT_PER_DIA * d_mm / 1000.0)
         out["tower_height_m"] = {

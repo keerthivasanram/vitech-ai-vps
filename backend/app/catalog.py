@@ -176,12 +176,19 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         "dimension_keys": ["tower_diameter_mm"],
         "process_keys": ["operating_temp", "blower_mounting"],
         # required = needed to size; optional = refines the design (assumed if absent)
+        # The tower diameter is NO LONGER REQUIRED: it follows from the duty at
+        # 1.0 m/s across the tower (`scrubber_service`), so a requirement that
+        # states only an airflow is now complete enough to engineer. While it
+        # was required, such a requirement failed `essential_present`, the
+        # router fell back to knowledge mode, the rule engine never ran, and the
+        # GA came back with no envelope and ZERO VIEWS. A stated diameter still
+        # wins over the derived one.
         "required_inputs": [
             ("air_volume_cfm", "Air volume"),
-            ("tower_diameter_mm", "Tower / blower diameter"),
             ("qty", "Quantity"),
         ],
         "optional_inputs": [
+            ("tower_diameter_mm", "Tower / blower diameter"),
             ("operating_temp", "Operating temperature"),
             ("operating_pressure", "Operating pressure"),
         ],
@@ -204,8 +211,13 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         # field-level engineering rules (formulas) applied within case-based mode:
         # these fields are computed from physics, the rest are reused from the offer.
         "field_rules": compute_wet_scrubber,
+        # `tower_diameter_mm` is here as well as in `from_given` because it can
+        # now arrive EITHER way: the client states it, or the rule derives it
+        # from the duty at 1.0 m/s. Without it declared, a derived diameter was
+        # dropped by the planner and the scrubber drew a sheet with no envelope.
         "rule_covers": ["spray_nozzle_nos", "pump_capacity_hp",
-                        "tank_capacity_litre", "tower_height_m"],
+                        "tank_capacity_litre", "tower_height_m",
+                        "tower_diameter_mm"],
         "field_labels": {
             "tower_diameter_mm": "Tower diameter (mm)",
             "tower_height_m": "Tower height (m)",
