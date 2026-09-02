@@ -86,6 +86,11 @@ CASES: list[tuple[str, str, str, dict | None]] = [
     ("tools.retrieve", "POST", "/api/tools/retrieve", {"question": "face velocity"}),
     ("tools.drawing.booth", "POST", "/api/tools/drawing", {"question": BOOTH}),
     ("tools.drawing.dust", "POST", "/api/tools/drawing", {"question": DUST}),
+    # The wet scrubber GA had NO fingerprint, so its glyph — the richest in the
+    # codebase — could be changed or broken with every suite still green. It is
+    # also the second sheet rendered by hand at every drafting change, which is
+    # exactly the one that should be pinned.
+    ("tools.drawing.scrub", "POST", "/api/tools/drawing", {"question": SCRUB}),
     ("bom.booth", "POST", "/api/bom", {"question": BOOTH}),
     ("drawing.render", "POST", "/api/drawing/render",
      {"category": "paint_booth",

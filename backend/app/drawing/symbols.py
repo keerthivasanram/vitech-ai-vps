@@ -646,12 +646,22 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # --- outlet duct + blower over the scrubber ------------------------
         # The spec's own scrubber type says the blower is mounted over the unit,
         # so this is the machine's arrangement rather than a chosen position.
+        # Outlet duct into the blower, both from the shared library. A wet
+        # scrubber view is NARROW — a 750 mm tower is about 30 mm of sheet at
+        # 1:25 — so the volute is sized off the view width and its motor is
+        # placed inboard, or the symbol walks off the right-hand edge.
+        # Gas leaves UPWARD through the blower, so the duct runs from inside the
+        # vessel up to the volute and the volute discharges out of the top. The
+        # first version ran the duct DOWN from the blower into the vessel and
+        # stacked the balloon, the volute, its motor and the gas-out arrow on
+        # the same 10 mm of sheet — an unreadable knot at print size.
         duct_w = w * 0.16
-        ox = x + w * 0.74
-        canvas.add(Rect(ox, y, duct_w, h * 0.10, L_COMPONENT, LW_MED))
-        br = min(duct_w * 0.42, h * 0.045)
-        canvas.add(Circle(ox + duct_w / 2, y + h * 0.05, br, L_COMPONENT, LW_MED))
-        item(canvas, legend, x + w * 0.50, y + h * 0.06,
+        _cx = x + w * 0.60
+        _br = min(w * 0.13, h * 0.042)
+        _bcy = y + h * 0.085
+        components.duct_run(canvas, _cx, y + h * 0.20, _cx, _bcy + _br, duct_w)
+        components.blower(canvas, _cx, _bcy, _br, discharge="up")
+        item(canvas, legend, x + w * 0.16, y + h * 0.05,
              " ".join(t for t in ("Outlet duct + blower", str(blower).strip(),
                                   f"{blower_hp} HP" if str(blower_hp).strip() else "") if t))
 
@@ -694,7 +704,9 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
         # --- inlet duct ------------------------------------------------------
         in_y = y + h * 0.66
-        canvas.add(Rect(x, in_y - h * 0.045, w * 0.14, h * 0.09, L_COMPONENT, LW_MED))
+        components.duct_run(canvas, x - w * 0.02, in_y, x + w * 0.14, in_y,
+                            h * 0.09, centre=False)
+        components.flange(canvas, x + w * 0.13, in_y, h * 0.09, vertical=False)
         # ABOVE the stub: below it the balloon crossed the sump's top edge.
         item(canvas, legend, x + w * 0.42, in_y + h * 0.04, "Inlet duct (gas entry)")
 
@@ -711,10 +723,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
         # MS base / supports — stated by the spec's own tank row, so the legs are
         # a resolved value rather than an assumed detail.
-        canvas.add(Rect(x, y + h - base_h, w, base_h, L_COMPONENT, LW_MED))
-        for i in range(1, 4):
-            lx = x + w * i / 4
-            canvas.add(Line(lx, y + h - base_h, lx, y + h, L_COMPONENT, LW_THIN))
+        components.structural_base(canvas, x, y + h, w, base_h)
         # ABOVE the base band: centred on it the balloon dipped below the
         # envelope's bottom outline.
         item(canvas, legend, x + w * 0.22, y + h - base_h - 4.5,
@@ -752,7 +761,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Arrow to the LEFT of the blower and unlabelled: drawn through it the
         # arrowhead read as part of the fan, and the caption straddled the
         # envelope's top edge. The balloon and legend already name the outlet.
-        airflow(canvas, [(x + w * 0.66, y + h * 0.15), (x + w * 0.66, y + h * 0.05)])
+        airflow(canvas, [(_cx, y + h * 0.20), (_cx, y + h * 0.145)])
 
     if side:
         # The side elevation was an EMPTY BOX — a third of the sheet showing
