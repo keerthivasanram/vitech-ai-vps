@@ -25,6 +25,7 @@ different plane in each design. That mapping is `_FACE_AREA`, below.
 from typing import NamedTuple, Optional
 
 from . import standards_service as std
+from .calculation_engine import count_ceil
 from .unit_converter import CFM_TO_CMH
 
 # Face velocity across the open working face, m/s. NO LONGER A CONFIRMATION
@@ -134,6 +135,62 @@ def enclosure_surface_area(length_m: float, width_m: float, height_m: float) -> 
 def sheet_weight_kg(area_m2: float, thickness_mm: float = SHEET_THICKNESS_MM) -> float:
     """Mild-steel sheet weight for a given surface area."""
     return area_m2 * (thickness_mm / 1000.0) * STEEL_DENSITY_KG_M3
+
+
+# --- The booth's enclosure, built the way Vitech actually build it ---------
+# From their costed booth sheet of 24.07.2026 (docs/client-calculation-sheets.md
+# section 5a). A booth is NOT a continuous skin: it is an assembly of standard
+# 900 x 2500 x 1.2 mm MS panels weighing 23 kg each, so its weight steps with the
+# PANEL COUNT rather than rising smoothly with surface area.
+#
+# THIS SETTLES A THREE-WAY DISAGREEMENT the platform has carried since
+# 2026-08-01: the engine computed 1,240 kg from a 5-side surface area, the
+# pricing model seeded 3,645 kg from 180 kg/m2, and the client's own BOM says
+# 621 kg. Both of ours were wrong, and neither was wrong by a factor anyone
+# would have noticed as an error rather than a difference of opinion.
+PANEL_SHEET_KG = 23.0            # one 900 x 2500 x 1.2 mm MS panel
+PANEL_MODULE_MM = 750.0          # panel pitch across a face
+PANEL_COURSE_MM = 2500.0         # panel pitch up a face
+PANEL_FILTER_FRAME_NOS = 4       # filter frame, top and bottom
+PANEL_SERVICE_DOOR_NOS = 2
+# The enclosure is larger than the working space: the depth gains most, for the
+# filter plenum behind the working face.
+_OUT_LENGTH_MM, _OUT_WIDTH_MM, _OUT_HEIGHT_MM = 100.0, 750.0, 150.0
+
+
+def booth_panel_count(length_m: float, width_m: float, height_m: float) -> dict:
+    """Vitech's panel count for a booth, and the outer envelope it is built on.
+
+    `length_m` is the OPEN FRONT and `width_m` the depth, the same reading the
+    airflow uses (DQ-9). Reproduces their worked booth exactly: a
+    3000 x 2250 x 2400 booth is 4+4+4+4+5+4+2 = 27 panels.
+    """
+    length_mm, width_mm, height_mm = length_m * 1000.0, width_m * 1000.0, height_m * 1000.0
+    out_l = length_mm + _OUT_LENGTH_MM
+    out_w = width_mm + _OUT_WIDTH_MM
+    out_h = height_mm + _OUT_HEIGHT_MM
+
+    def courses(across_mm: float, up_mm: float) -> int:
+        return count_ceil((across_mm / PANEL_MODULE_MM) * (up_mm / PANEL_COURSE_MM))
+
+    back = courses(out_l, height_mm)
+    right = courses(out_w, height_mm)
+    top = courses(out_l, out_w)
+    panels = (back * 2 + right * 2 + top
+              + PANEL_FILTER_FRAME_NOS + PANEL_SERVICE_DOOR_NOS)
+    return {
+        "panels": panels,
+        "back": back, "front": back, "right": right, "left": right, "top": top,
+        "filter_frame": PANEL_FILTER_FRAME_NOS,
+        "service_door": PANEL_SERVICE_DOOR_NOS,
+        "outer_mm": {"length": round(out_l), "width": round(out_w), "height": round(out_h)},
+        "weight_kg": panels * PANEL_SHEET_KG,
+    }
+
+
+def booth_panel_weight_kg(length_m: float, width_m: float, height_m: float) -> float:
+    """Enclosure sheet weight from the panel count, per Vitech's own build."""
+    return booth_panel_count(length_m, width_m, height_m)["weight_kg"]
 
 
 def oven_heat_load(length_m: float, width_m: float, height_m: float) -> tuple[float, float]:

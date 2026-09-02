@@ -21,7 +21,9 @@ from . import scrubber_service as sc
 from .blower_service import select_booth_blower_set
 from .calculation_engine import count_ceil, count_round, round_to_step
 from .material_service import select_paint_process
-from .paint_shop_service import (INLET_LESS_10, enclosure_surface_area,
+from .paint_shop_service import PANEL_SHEET_KG as ps_PANEL_KG
+from .paint_shop_service import (INLET_LESS_10, booth_panel_count,
+                                 enclosure_surface_area,
                                  normalise_draft, sheet_weight_kg)
 from .unit_converter import CFM_TO_CMH, air_cmh
 
@@ -69,6 +71,20 @@ WS_TANK_RETENTION_MIN = 2.5   # recirculation tank retention time, minutes
 WS_HEIGHT_PER_DIA = 5.0       # spray-tower height / diameter (gas-liquid contact)
 WS_MIN_HEIGHT_M = 3.0
 _G = 9.81                     # m/s^2
+
+
+def _blower_duty(blower, duty_cfm: float) -> str:
+    """The blower's RATED capacity beside the duty it was selected for.
+
+    A reviewer reading "21,600 m3/h" beside a bare "14,500 CFM" sees two numbers
+    that disagree by 14% and no reason for it. They do not disagree: a blower is
+    picked from a PUBLISHED range, nothing is built at the exact duty, and the
+    selection takes the next size up. That is engineering, but it has to be
+    stated or it reads as an inconsistency in the document.
+    """
+    margin = (blower.cfm / duty_cfm - 1.0) * 100.0 if duty_cfm else 0.0
+    return (f"{blower.cfm} rated for a {round(duty_cfm)} CFM duty "
+            f"(+{margin:.0f}% to the next catalogue size)")
 
 
 def compute_spec(length_m: Optional[float], width_m: Optional[float],
@@ -130,7 +146,12 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     # fume cannot escape the enclosure.
     inlet = airflow * INLET_LESS_10
     surface_area = enclosure_surface_area(length_m, width_m, height)
-    sheet_kg = sheet_weight_kg(surface_area)
+    # Vitech build a booth from standard 23 kg panels, so its weight steps with
+    # the PANEL COUNT rather than rising smoothly with surface area. Their own
+    # costed booth is 27 panels / 621 kg where the surface-area rule gave 1,240
+    # and the pricing model seeded 3,645 — this settles that three-way split.
+    panels = booth_panel_count(length_m, width_m, height)
+    sheet_kg = panels["weight_kg"]
 
     # Component selection from the client's standards package. These fields were
     # previously either a seeded ratio (filters), copied verbatim from a
@@ -168,8 +189,11 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
         RuleResult(name="Fire extinguishing system", value=fire_sel.value,
                    formula=fire_sel.formula, standard=std.CLIENT_FIRE_STANDARD),
         RuleResult(name="Enclosure sheet weight", value=f"{round(sheet_kg)} kg",
-                   formula=(f"5-side surface area {surface_area:.1f} m2 (floor excluded) "
-                            f"x 2 mm MS sheet"),
+                   formula=(f"{panels['panels']} standard MS panels x "
+                            f"{ps_PANEL_KG:g} kg (back {panels['back']}, front "
+                            f"{panels['front']}, sides {panels['right']}+{panels['left']}, "
+                            f"top {panels['top']}, filter frame {panels['filter_frame']}, "
+                            f"doors {panels['service_door']})"),
                    standard=std.MS_SHEET_BASIS),
     ]
 
@@ -212,8 +236,12 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
         spec.rules += [
             RuleResult(name="Exhaust blower", value=blower.model, formula=pick,
                        standard=std.BLOWER_CHART_SELECTION),
-            RuleResult(name="Blower airflow (CFM)", value=str(blower.cfm),
-                       formula=f"{blower.model} rated air volume", standard=std.BLOWER_CHART_SELECTION),
+            RuleResult(name="Blower airflow (CFM)", value=_blower_duty(blower, airflow_cfm),
+                       formula=(f"{blower.model} rated air volume {blower.cfm} CFM against a "
+                                f"{round(airflow_cfm)} CFM design duty — the next size UP in the "
+                                f"CLP-4 series, because a blower is selected from a published "
+                                f"range and no machine is built at the exact duty"),
+                       standard=std.BLOWER_CHART_SELECTION),
             RuleResult(name="Exhaust blower (nos)", value=str(blower_qty),
                        formula=f"{blower_qty} x {blower.model} to cover {round(airflow_cfm)} CFM",
                        standard=std.BLOWER_CHART_SELECTION),
@@ -225,7 +253,8 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
         ]
         spec.values += [
             SpecValue(label="Exhaust blower", value=blower.model, origin="rule"),
-            SpecValue(label="Blower airflow (CFM)", value=str(blower.cfm), origin="rule"),
+            SpecValue(label="Blower airflow (CFM)",
+                      value=_blower_duty(blower, airflow_cfm), origin="rule"),
             SpecValue(label="Exhaust blower (nos)", value=str(blower_qty), origin="rule"),
             SpecValue(label="Exhaust blower motor (HP)", value=f"{blower.motor_hp:g}", origin="rule"),
             SpecValue(label="Blower drive", value=blower.drive, origin="rule"),

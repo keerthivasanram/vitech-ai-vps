@@ -184,6 +184,23 @@ def _count_in(rows, *needles) -> int:
 # contents: a lit enclosure with a door, an extract face and a fan. These
 # helpers keep that shared vocabulary in one place so each glyph below only
 # expresses what actually differs.
+def _luminaire_label(rows) -> str:
+    """The luminaire description the SPEC resolved, never a hardcoded one.
+
+    Every booth glyph printed "Flame-proof LED luminaire" while the
+    specification, on the same sheet, said "40 W weatherproof LED". Those are
+    different fittings at different prices, and flame-proof is a HAZARDOUS-AREA
+    classification — so the drawing was making a safety claim the engineering
+    had never made. A drawing must not re-decide what the resolver resolved.
+    """
+    text = _find(rows, "illumination")
+    if not text:
+        return "LED luminaire"
+    # Drop a leading count so the legend does not print the quantity twice.
+    cleaned = re.sub(r"^\s*\d+\s*(?:nos?|no\.?|sets?)\s*", "", str(text), flags=re.I)
+    return cleaned.strip() or "LED luminaire"
+
+
 def _lights(canvas, v, count: int, legend: list, label: str) -> None:
     """A row of luminaires along the roof of an elevation."""
     if not count:
@@ -302,7 +319,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                                 L_COMPONENT, LW_THIN))
             # Offset from the door balloon below it, which sits at dy - 5 mm.
             item(canvas, legend, x + w * 0.36, y + h * 0.135,
-                 f"Flame-proof LED luminaire ({lights} nos)")
+                 f"{_luminaire_label(rows)} ({lights} nos)")
 
         # Control panel against the side wall — a resolved rating, so the panel
         # is a real item rather than assumed switchgear.
@@ -1145,7 +1162,7 @@ def cleaning_room(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
     if front:
         _door(canvas, front, legend, "Personnel / component door, double leaf")
-        _lights(canvas, front, lights, legend, "Luminaire")
+        _lights(canvas, front, lights, legend, _luminaire_label(rows))
         # Ceiling inlet plenum: a room is supplied from above and extracted low.
         canvas.add(Rect(front.x, front.y, front.w, front.h * 0.05, L_COMPONENT, LW_THIN))
         canvas.add(Text(front.x + front.w * 0.5, front.y + front.h * 0.28,
@@ -1176,7 +1193,7 @@ def buffing_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Text(front.x + front.w * 0.5, oy + front.h * 0.36,
                         "OPEN WORKING FACE", L_TEXT, 2.3, "middle"))
         item(canvas, legend, front.x + front.w * 0.16, oy + front.h * 0.10, "Open working face (operator side)")
-        _lights(canvas, front, lights, legend, "Luminaire")
+        _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
         depth = _filter_bank(canvas, plan, filters, legend, "Dust arresting filter bank")
         _fan(canvas, plan, depth, legend, _blower_label(rows))
@@ -1202,7 +1219,7 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Rect(front.x + front.w * 0.20, front.y, front.w * 0.60,
                         front.h * 0.10, L_COMPONENT, LW_MED))
         item(canvas, legend, front.x + front.w * 0.5, front.y + front.h * 0.16, f"Roof extract plenum - {_blower_label(rows)}".strip(" -"))
-        _lights(canvas, front, lights, legend, "Luminaire")
+        _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
         cy = plan.y + plan.h / 2
         canvas.add(Line(plan.x, cy, plan.x + plan.w, cy, L_COMPONENT, LW_THIN, DASH_CENTRE))
@@ -1246,7 +1263,7 @@ def paint_drying_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                    Line(sx + w * 0.03, y + t, sx + w * 0.03, y + h * 0.30,
                         L_COMPONENT, LW_MED))
         item(canvas, legend, sx + w * 0.09, y + h * 0.22, "Exhaust stack")
-        _lights(canvas, front, lights, legend, "Luminaire")
+        _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
         t = min(plan.w, plan.h) * 0.05
         canvas.add(Rect(plan.x + t, plan.y + t, plan.w - 2 * t, plan.h - 2 * t,
@@ -1279,7 +1296,7 @@ def blast_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         item(canvas, legend, x + w * 0.16, hy + hop_h * 0.30, f"Media recovery hopper {recovery}".strip())
 
         _door(canvas, front, legend, "Blast enclosure door", frac=0.28)
-        _lights(canvas, front, lights, legend, "Flame-proof luminaire")
+        _lights(canvas, front, lights, legend, _luminaire_label(rows))
         canvas.add(Text(x + w * 0.5, y + h * 0.30,
                         f"BLAST MEDIA: {str(media).upper()[:24]}" if media else "BLAST ENCLOSURE",
                         L_TEXT, 2.3, "middle"))
