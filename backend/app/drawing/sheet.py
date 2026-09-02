@@ -87,6 +87,17 @@ def _wrap(text: str, limit: int, max_lines: int = 2) -> list[str]:
     return lines or [""]
 
 
+def column_divider(canvas, w: float, h: float) -> None:
+    """The rule separating the drawing area from the tables.
+
+    Without it the sheet is one undifferentiated field and the eye has nothing
+    telling it where the DRAWING stops and the SCHEDULES begin — which is the
+    single clearest signal that a sheet was composed rather than filled.
+    """
+    x = w - MARGIN - NOTE_W - 7.0
+    canvas.add(Line(x, MARGIN + 10.0, x, h - MARGIN, L_BORDER, LW_MED))
+
+
 def frame(canvas, w: float, h: float) -> None:
     """Sheet edge and drawing frame."""
     canvas.add(Rect(0, 0, w, h, L_BORDER, LW_THIN))
@@ -130,8 +141,12 @@ def _item_table(canvas, x: float, y: float, bom: list,
     y += line_h + 1.0
     canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
     shown = 0
+    # One line is RESERVED for the "... and N more" notice. Without it a full
+    # column dropped rows AND the notice that said so, which reads as a
+    # complete schedule that happens to be short — the worst of both.
+    body_limit = limit_y - line_h
     for i, row in enumerate(bom, 1):
-        if y + line_h > limit_y:
+        if y + line_h > body_limit and shown < len(bom):
             break
         canvas.add(Text(x, y, str(i), L_TEXT, T_SMALL, "start"))
         canvas.add(Text(x + 6.0, y, _fit(row.get("item"), 42), L_TEXT, T_SMALL, "start"))
@@ -167,8 +182,9 @@ def _kv_block(canvas, x: float, y: float, heading: str, data: list,
     y += line_h + 1.0
     canvas.add(Line(x, y - 2.6, x + NOTE_W, y - 2.6, L_BORDER, LW_THIN))
     shown = 0
+    body_limit = limit_y - line_h
     for row in data:
-        if y + line_h > limit_y:
+        if y + line_h > body_limit and shown < len(data):
             break
         canvas.add(Text(x, y, _fit(row.get("label"), 34), L_TEXT, T_SMALL, "start"))
         canvas.add(Text(x + 60.0, y, _fit(row.get("value"), 56), L_TEXT, T_SMALL, "start"))

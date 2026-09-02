@@ -208,6 +208,7 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
     label = spec.get("category_label") or category.replace("_", " ").title() or "Equipment"
 
     sheet.frame(canvas, sw, sh)
+    sheet.column_divider(canvas, sw, sh)
     sheet.header(canvas, sw, f"{label} - General Arrangement",
                  "Deterministic drawing generated from the engineering specification")
 
@@ -244,7 +245,9 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
     # still invents nothing — an unstated field simply keeps its default.
     info = {
         "title": f"{label} - GA",
-        "client": client or "(to be completed)",
+        # Never invented: an unknown client is stated as unknown, in the
+        # wording a real title block uses.
+        "client": client or "TO BE CONFIRMED",
         "ref": ref or f"VT/GA/{date.today():%y%m%d}/DRAFT",
         "scale": f"1:{scale}" if placed else "NTS",
         "size": size,

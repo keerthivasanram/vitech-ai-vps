@@ -14,7 +14,7 @@ from .primitives import (LW_MED, LW_THICK, LW_THIN, L_TITLE, Line, Rect, Text)
 from .style import T_BODY, T_DIM, T_TINY, T_TITLE_MAIN, T_VIEW_TITLE
 
 TB_W = 148.0        # title block width, mm
-TB_H = 42.0         # title block height, mm
+TB_H = 45.0         # title block height, mm (3 sign-off rows)
 
 _ROW = 7.0
 
@@ -70,14 +70,24 @@ def draw(canvas, sheet_w: float, sheet_h: float, margin: float, info: dict) -> N
         canvas.add(Text(cxx + 2.0, y + 32.6, label, L_TITLE, T_TINY, "start"))
         canvas.add(Text(cxx + 2.0, y + 37.4, str(value), L_TITLE, T_BODY, "start", bold=True))
 
-    # --- drawn / checked / revision ---------------------------------------
-    canvas.add(Line(x + 88.0, y + 35.0, x + TB_W, y + 35.0, L_TITLE, LW_THIN))
+    # --- sign-off block: drawn / checked / approved, with rev and sheet ----
+    # APPROVED is a real field on an industrial title block and its absence was
+    # conspicuous. It is never filled in by this engine: approval is a person's
+    # signature, the same reason `Released Design` is unreachable from code.
     canvas.add(Line(x + 122.0, y + 29.0, x + 122.0, y + TB_H, L_TITLE, LW_THIN))
-    canvas.add(Text(x + 91.0, y + 32.6, "DRAWN", L_TITLE, T_TINY, "start"))
-    canvas.add(Text(x + 105.0, y + 32.6, str(info.get("drawn", "")), L_TITLE, T_DIM, "start"))
-    canvas.add(Text(x + 125.0, y + 32.6, "REV", L_TITLE, T_TINY, "start"))
-    canvas.add(Text(x + 136.0, y + 32.6, str(info.get("rev", "0")), L_TITLE, T_DIM, "start"))
-    canvas.add(Text(x + 91.0, y + 39.4, "CHECKED", L_TITLE, T_TINY, "start"))
-    canvas.add(Text(x + 110.0, y + 39.4, str(info.get("checked", "")), L_TITLE, T_DIM, "start"))
-    canvas.add(Text(x + 125.0, y + 39.4, str(info.get("status", "DRAFT")),
-                    L_TITLE, T_BODY, "start", bold=True))
+    rows = [
+        ("DRAWN", info.get("drawn", ""), "REV", info.get("rev", "0"), False),
+        ("CHECKED", info.get("checked", "") or "DRAFT",
+         "STATUS", info.get("status", "DRAFT"), True),
+        ("APPROVED", info.get("approved", "") or "\u2014",
+         "SHEET", info.get("sheet", "1 OF 1"), False),
+    ]
+    row_h = (TB_H - 29.0) / len(rows)
+    for i, (lab, val, rlab, rval, bold) in enumerate(rows):
+        ry = y + 29.0 + i * row_h
+        if i:
+            canvas.add(Line(x + 88.0, ry, x + TB_W, ry, L_TITLE, LW_THIN))
+        canvas.add(Text(x + 91.0, ry + 2.6, lab, L_TITLE, T_TINY, "start"))
+        canvas.add(Text(x + 110.0, ry + 2.6, str(val), L_TITLE, T_DIM, "start"))
+        canvas.add(Text(x + 125.0, ry + 2.6, rlab, L_TITLE, T_TINY, "start"))
+        canvas.add(Text(x + 138.0, ry + 2.6, str(rval), L_TITLE, T_DIM, "start", bold=bold))

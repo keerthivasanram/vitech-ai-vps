@@ -148,5 +148,11 @@ def draw_view(canvas, v: View, dim_labels: dict) -> None:
     canvas.add(Dim(v.x + v.w, v.y, v.x + v.w, v.y + v.h,
                    dim_labels.get(v.h_axis, "TBD"), offset=7.0, vertical=True))
 
-    canvas.add(Text(v.x + v.w / 2, v.y + v.h + LABEL_DROP + 8.0, v.label,
-                    L_TEXT, T_VIEW_TITLE, "middle", bold=True))
+    # View title, underscored the way a drafted sheet does it: the rule is what
+    # binds the caption to its view when three views share one field.
+    ty = v.y + v.h + LABEL_DROP + 8.0
+    canvas.add(Text(v.x + v.w / 2, ty, v.label, L_TEXT, T_VIEW_TITLE,
+                    "middle", bold=True))
+    half = max(len(v.label) * T_VIEW_TITLE * 0.30, v.w * 0.18)
+    canvas.add(Line(v.x + v.w / 2 - half, ty + 1.6,
+                    v.x + v.w / 2 + half, ty + 1.6, L_TEXT, LW_MED))
