@@ -21,8 +21,9 @@ import re
 from typing import Callable, Optional
 
 from .. import values
-from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_MED, LW_THIN, L_COMPONENT,
-                         L_HIDDEN, L_TEXT, Circle, Line, Rect, Text, poly)
+from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_HATCH, LW_MED, LW_THICK,
+                         LW_THIN, L_COMPONENT, L_HIDDEN, L_OUTLINE, L_TEXT,
+                         Circle, Line, Rect, Text, hatch, poly)
 
 BALLOON_R = 3.2
 
@@ -226,6 +227,77 @@ def _draft(rows) -> tuple[str, str]:
     return "AIRFLOW", "down"
 
 
+# Vitech's own panel module (`paint_shop_service`): a booth is an assembly of
+# 900 x 2500 mm sheets on a 750 mm pitch, which is what its weight is costed
+# from. Drawing the joints at that REAL pitch is detail the sheet already knows,
+# not a spacing invented to make an elevation look busy — the view carries the
+# model mm it represents, so the joints land where they actually fall.
+PANEL_PITCH_MM = 750.0
+PANEL_COURSE_MM = 2500.0
+
+
+def _panel_joints(canvas, v) -> None:
+    """Panel and course joints on an elevation, at the real module."""
+    if not v.model_w or not v.model_h or v.model_w <= 0 or v.model_h <= 0:
+        return
+    per_mm_x = v.w / float(v.model_w)
+    per_mm_y = v.h / float(v.model_h)
+    step_x = PANEL_PITCH_MM * per_mm_x
+    if step_x > 1.5:                       # below this the joints read as noise
+        n_joints = int(float(v.model_w) // PANEL_PITCH_MM)
+        for i in range(1, min(n_joints, 24) + 1):
+            jx = v.x + i * step_x
+            if jx < v.x + v.w - 0.5:
+                canvas.add(Line(jx, v.y, jx, v.y + v.h, L_COMPONENT, LW_THIN))
+    step_y = PANEL_COURSE_MM * per_mm_y
+    if step_y > 1.5:
+        n_courses = int(float(v.model_h) // PANEL_COURSE_MM)
+        for i in range(1, min(n_courses, 8) + 1):
+            jy = v.y + v.h - i * step_y
+            if jy > v.y + 0.5:
+                canvas.add(Line(v.x, jy, v.x + v.w, jy, L_COMPONENT, LW_THIN))
+
+
+def _floor(canvas, v, legend: list = None, label: bool = True) -> float:
+    """Floor level with a hatched slab band beneath it, and the base frame.
+
+    Returns the y of the floor line. The elevations used to show a bare line
+    labelled FLOOR LEVEL floating in an empty box; a hatched slab is what says
+    which side of it is ground.
+    """
+    fy = v.y + v.h * 0.94
+    canvas.add(Line(v.x, fy, v.x + v.w, fy, L_OUTLINE, LW_THICK))
+    # Base frame: the structural channel the enclosure stands on.
+    canvas.add(Rect(v.x, fy - v.h * 0.035, v.w, v.h * 0.035, L_COMPONENT, LW_MED))
+    canvas.add(hatch(v.x, fy, v.w, v.h * 0.06, spacing=2.0, slope=-1,
+                        layer=L_COMPONENT, width=LW_HATCH))
+    if label:
+        canvas.add(Text(v.x + v.w * 0.30, fy - v.h * 0.05, "FLOOR LEVEL",
+                        L_TEXT, 2.0, "middle"))
+    return fy
+
+
+def _filter_cells(canvas, x: float, y: float, w: float, h: float,
+                  count: int, vertical: bool = True) -> None:
+    """A filter bank drawn as hatched media between its frames.
+
+    The bank was an empty grid of rectangles, which reads as glazing rather than
+    as filter media. Hatching is what distinguishes a material from a void on a
+    drawing, and it is the cheapest signal that this is the extract face.
+    """
+    canvas.add(Rect(x, y, w, h, L_COMPONENT, LW_MED))
+    shown = max(1, min(count or 1, 12))
+    for i in range(1, shown):
+        if vertical:
+            cy = y + h * i / shown
+            canvas.add(Line(x, cy, x + w, cy, L_COMPONENT, LW_THIN))
+        else:
+            cx = x + w * i / shown
+            canvas.add(Line(cx, y, cx, y + h, L_COMPONENT, LW_THIN))
+    canvas.add(hatch(x, y, w, h, spacing=1.6, slope=1,
+                        layer=L_COMPONENT, width=LW_HATCH))
+
+
 def _lights(canvas, v, count: int, legend: list, label: str) -> None:
     """A row of luminaires along the roof of an elevation."""
     if not count:
@@ -320,6 +392,18 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
+        # Panel and course joints at Vitech's real 750 x 2500 module, so the
+        # working face reads as the panelled enclosure it is rather than a box.
+        _panel_joints(canvas, front)
+        # Extract face on the elevation, hatched as filter media. Which END it
+        # sits on follows the draft direction, the same as the plan.
+        _, _front_axis = _draft(rows)
+        fb_w = w * 0.09 if filters else 0.0
+        _bank_right = _front_axis == "across"
+        if filters:
+            fb_x = x + w - fb_w if _bank_right else x
+            _filter_cells(canvas, fb_x, y + h * 0.10, fb_w, h * 0.78,
+                          min(filters, 8), vertical=True)
         # Door opening: a double-leaf sliding door across the working face.
         dw = w * 0.44
         dx = x + (w - dw) / 2
@@ -350,23 +434,28 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # is a real item rather than assumed switchgear.
         if panel:
             pw, ph = w * 0.07, h * 0.22
-            px, py = x + w * 0.905, y + h * 0.52
+            # Clear of the extract bank: at 0.905w the panel was drawn straight
+            # over it, two components occupying the same 20 mm of sheet.
+            px = (x + w - fb_w - pw - w * 0.02) if _bank_right else x + w * 0.905
+            py = y + h * 0.52
             canvas.add(Rect(px, py, pw, ph, L_COMPONENT, LW_MED))
             canvas.add(Line(px, py + ph * 0.3, px + pw, py + ph * 0.3, L_COMPONENT, LW_THIN))
             item(canvas, legend, px - 6.0, py + ph * 0.5, _clip(f"Control panel {panel}"))
+
+        # Floor, slab hatch and the base frame the enclosure stands on. The
+        # front elevation had none of this and read as a box floating in space.
+        _floor(canvas, front, label=False)
 
     if side:
         # The side elevation was an EMPTY BOX. It carries the extract face: the
         # filter bank, the duct off the roof, a luminaire and the floor line, so
         # the two elevations read as the same booth.
         x, y, w, h = side.x, side.y, side.w, side.h
+        _panel_joints(canvas, side)
         bank_w = w * 0.16
         bx = x + w - bank_w
-        canvas.add(Rect(bx, y + h * 0.12, bank_w, h * 0.76, L_COMPONENT, LW_MED))
-        shown = min(filters, 8) if filters else 4
-        for i in range(1, shown):
-            fy = y + h * (0.12 + 0.76 * i / shown)
-            canvas.add(Line(bx, fy, bx + bank_w, fy, L_COMPONENT, LW_THIN))
+        _filter_cells(canvas, bx, y + h * 0.12, bank_w, h * 0.76,
+                      min(filters, 8) if filters else 4, vertical=True)
         item(canvas, legend, bx - 6.0, y + h * 0.30,
              f"Extract face - arresting filters ({filters} nos)" if filters
              else "Extract face - arresting filters")
@@ -378,14 +467,21 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             airflow(canvas, [(x + w * 0.67, y + h * 0.14), (x + w * 0.67, y + h * 0.03)])
             item(canvas, legend, x + w * 0.44, y + h * 0.05, _clip(f"Exhaust duct {duct}"))
 
-        # Filtered air inlet on the opposite face.
+        # Filtered-air inlet plenum on the opposite face, as hidden detail:
+        # it sits behind the enclosure wall in this view.
         if intake:
-            canvas.add(Rect(x, y + h * 0.18, w * 0.08, h * 0.30, L_HIDDEN, LW_THIN, DASH_HIDDEN))
-            item(canvas, legend, x + w * 0.16, y + h * 0.33, _clip(f"Air intake filter {intake}"))
+            pw = w * 0.10
+            canvas.add(Rect(x, y + h * 0.14, pw, h * 0.72, L_HIDDEN, LW_THIN, DASH_HIDDEN))
+            for i in range(1, 4):
+                py = y + h * (0.14 + 0.72 * i / 4)
+                canvas.add(Line(x, py, x + pw, py, L_HIDDEN, LW_THIN, DASH_HIDDEN))
+            item(canvas, legend, x + pw + 6.0, y + h * 0.33,
+                 _clip(f"Air intake filter {intake}"))
 
-        # Floor / working level, and the supporting structure the spec names.
-        canvas.add(Line(x, y + h * 0.94, x + w, y + h * 0.94, L_COMPONENT, LW_THIN))
-        canvas.add(Text(x + w * 0.30, y + h * 0.91, "FLOOR LEVEL", L_TEXT, 2.0, "middle"))
+        # Airflow through the booth, inlet plenum to extract face.
+        airflow(canvas, [(x + w * 0.24, y + h * 0.50), (x + w * 0.66, y + h * 0.50)])
+
+        _floor(canvas, side)
         if construction:
             item(canvas, legend, x + w * 0.30, y + h * 0.72,
                  _clip(f"Enclosure {construction}"))
@@ -405,10 +501,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         if across:
             bank_w = w * 0.09
             bx0 = x + w - bank_w
-            canvas.add(Rect(bx0, y, bank_w, h, L_COMPONENT, LW_MED))
-            for i in range(1, shown_filters):
-                fy = y + h * i / shown_filters
-                canvas.add(Line(bx0, fy, bx0 + bank_w, fy, L_COMPONENT, LW_THIN))
+            _filter_cells(canvas, bx0, y, bank_w, h, shown_filters, vertical=True)
             if filters:
                 item(canvas, legend, bx0 - 6.0, y + h * 0.12,
                      f"Paint arresting filter bank ({filters} nos)")
@@ -419,10 +512,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         else:
             bank_d = h * 0.14
             by = y + h - bank_d
-            canvas.add(Rect(x, by, w, bank_d, L_COMPONENT, LW_MED))
-            for i in range(1, shown_filters):
-                fx = x + w * i / shown_filters
-                canvas.add(Line(fx, by, fx, by + bank_d, L_COMPONENT, LW_THIN))
+            _filter_cells(canvas, x, by, w, bank_d, shown_filters, vertical=False)
             if filters:
                 item(canvas, legend, x + w * 0.16, by - 5.0,
                      f"Paint arresting filter bank ({filters} nos)")

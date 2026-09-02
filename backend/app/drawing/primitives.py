@@ -34,13 +34,21 @@ LAYER_LABELS = {
 }
 
 # Line weights (mm) and dash patterns per drafting convention.
-LW_THICK = 0.5      # visible outlines
-LW_THIN = 0.18      # dimensions, hatching
-LW_MED = 0.35       # components, borders
+#
+# ISO 128 works on a ratio, not on absolute widths: a reader tells a cut edge
+# from a component from a dimension by their RELATIVE weight. The first set ran
+# 0.5 / 0.35 / 0.18, and at sheet scale the top two are barely a pixel apart, so
+# every render came out visually flat — the outline never read as the outline.
+# Widening the ratio to roughly 4 : 2 : 1 : 0.7 is what gives the sheet depth.
+LW_THICK = 0.60     # visible outlines, cut edges — the heaviest line on the sheet
+LW_MED = 0.30       # components and borders
+LW_THIN = 0.15      # dimensions, hidden and centre lines
+LW_HATCH = 0.10     # section hatching, lighter than anything it sits behind
 DASH_HIDDEN = "2,1.5"
 DASH_CENTRE = "6,1.5,1.5,1.5"
 
 ARROW = 2.2         # dimension arrowhead length, mm
+EXT_GAP = 1.0       # gap between a feature and its extension line (ISO 129)
 TEXT_H = 2.5        # default annotation text height, mm
 
 
@@ -141,6 +149,50 @@ def poly(points, layer: str = L_COMPONENT, width: float = LW_MED,
     return Path(d, layer, width, fill, pts, closed)
 
 
+def hatch(x: float, y: float, w: float, h: float, spacing: float = 2.5,
+          slope: int = 1, layer: str = L_COMPONENT,
+          width: float = LW_HATCH) -> list:
+    """Section hatch over a rectangle, as REAL LINE SEGMENTS at 45 degrees.
+
+    Deliberately not an SVG `<pattern>` fill. The DXF and PDF exporters consume
+    coordinates, not markup, so a pattern would render on screen and then vanish
+    from both — the same drift the `Path.pts` comment above exists to prevent.
+    Drafting hatch is line work anyway.
+
+    `slope` is +1 for lines running down-right and -1 for down-left, so two
+    adjacent materials can be told apart the way a section drawing does it.
+    """
+    if w <= 0 or h <= 0 or spacing <= 0:
+        return []
+    # A 45-degree line is y = slope*x + c; sweep c across the rectangle's corners.
+    corners = [slope * cx for cx in (x, x + w)]
+    lo = min(y - max(corners), y - min(corners))
+    hi = max(y + h - max(corners), y + h - min(corners))
+    out: list = []
+    c = lo
+    while c <= hi:
+        pts = []
+        for ex in (x, x + w):                       # left / right edges
+            ey = slope * ex + c
+            if y - 1e-9 <= ey <= y + h + 1e-9:
+                pts.append((ex, ey))
+        for ey in (y, y + h):                       # top / bottom edges
+            ex = (ey - c) / slope
+            if x - 1e-9 <= ex <= x + w + 1e-9:
+                pts.append((ex, ey))
+        # De-duplicate: a line through a corner meets two edges at one point.
+        uniq: list = []
+        for p in pts:
+            if not any(abs(p[0] - q[0]) < 1e-7 and abs(p[1] - q[1]) < 1e-7 for q in uniq):
+                uniq.append(p)
+        if len(uniq) >= 2:
+            (x0, y0), (x1, y1) = uniq[0], uniq[1]
+            if abs(x1 - x0) > 1e-6 or abs(y1 - y0) > 1e-6:
+                out.append(Line(x0, y0, x1, y1, layer, width))
+        c += spacing
+    return out
+
+
 class Text(NamedTuple):
     x: float
     y: float
@@ -187,12 +239,17 @@ class Dim:
 
     def shapes(self) -> list:
         out: list = []
+        # ISO 129: an extension line does NOT touch the feature it measures —
+        # it starts a short gap away and runs a little PAST the dimension line.
+        # Drawn hard against the outline, it read as part of the machine.
+        gap = EXT_GAP
         if self.vertical:
             dx = self.offset
             ax, ay = self.x1 + dx, self.y1
             bx, by = self.x2 + dx, self.y2
-            out += [Line(self.x1, self.y1, ax + 1.5, ay, L_DIM, LW_THIN),
-                    Line(self.x2, self.y2, bx + 1.5, by, L_DIM, LW_THIN),
+            g = gap if dx > 0 else -gap
+            out += [Line(self.x1 + g, self.y1, ax + 1.5, ay, L_DIM, LW_THIN),
+                    Line(self.x2 + g, self.y2, bx + 1.5, by, L_DIM, LW_THIN),
                     Line(ax, ay, bx, by, L_DIM, LW_THIN)]
             u = 1.0 if by > ay else -1.0
             out += [_arrowhead(ax, ay, 0, -u), _arrowhead(bx, by, 0, u)]
@@ -202,8 +259,9 @@ class Dim:
             dy = self.offset
             ax, ay = self.x1, self.y1 + dy
             bx, by = self.x2, self.y2 + dy
-            out += [Line(self.x1, self.y1, ax, ay + 1.5, L_DIM, LW_THIN),
-                    Line(self.x2, self.y2, bx, by + 1.5, L_DIM, LW_THIN),
+            g = gap if dy > 0 else -gap
+            out += [Line(self.x1, self.y1 + g, ax, ay + 1.5, L_DIM, LW_THIN),
+                    Line(self.x2, self.y2 + g, bx, by + 1.5, L_DIM, LW_THIN),
                     Line(ax, ay, bx, by, L_DIM, LW_THIN)]
             u = 1.0 if bx > ax else -1.0
             out += [_arrowhead(ax, ay, -u, 0), _arrowhead(bx, by, u, 0)]
@@ -244,8 +302,17 @@ class Canvas:
         out = [
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{n(self.w)}mm" '
             f'height="{n(self.h)}mm" viewBox="0 0 {n(self.w)} {n(self.h)}" '
+            # NO `text-rendering` hint here. "geometricPrecision" looked like a
+            # free crispness win and rendered every label as an illegible
+            # outlined blob — caught only by rasterising the sheet and looking
+            # at it, which is the standing rule for this engine.
             f'font-family="Helvetica, Arial, sans-serif">',
-            '<g stroke="currentColor" fill="none" stroke-linecap="round" '
+            # BUTT caps, not round. A round cap adds half a line width at every
+            # end, which on 0.10 mm hatching bulges each stroke into a blob and
+            # makes a dimension line overshoot its own arrowhead. Drafting lines
+            # stop where they are told to stop. Joins stay round so a rectangle
+            # corner does not spike.
+            '<g stroke="currentColor" fill="none" stroke-linecap="butt" '
             'stroke-linejoin="round" vector-effect="non-scaling-stroke">',
         ]
         for layer in self.layers_present():

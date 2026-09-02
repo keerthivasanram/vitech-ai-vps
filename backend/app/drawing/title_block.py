@@ -10,7 +10,7 @@ explicitly because every output of this platform is an engineer-reviewed draft
 (golden rule #3).
 """
 from ..vitech_letterhead import COMPANY, HEADER_ADDR
-from .primitives import (LW_MED, LW_THIN, L_TITLE, Line, Rect, Text)
+from .primitives import (LW_MED, LW_THICK, LW_THIN, L_TITLE, Line, Rect, Text)
 
 TB_W = 148.0        # title block width, mm
 TB_H = 42.0         # title block height, mm
@@ -27,7 +27,7 @@ def draw(canvas, sheet_w: float, sheet_h: float, margin: float, info: dict) -> N
     x = sheet_w - margin - TB_W
     y = sheet_h - margin - TB_H
 
-    canvas.add(Rect(x, y, TB_W, TB_H, L_TITLE, LW_MED))
+    canvas.add(Rect(x, y, TB_W, TB_H, L_TITLE, LW_THICK))
 
     # --- identity strip ---------------------------------------------------
     canvas.add(Line(x, y + 12.0, x + TB_W, y + 12.0, L_TITLE, LW_MED))
