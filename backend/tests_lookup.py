@@ -207,6 +207,56 @@ check(len(_recs) == len(_offers),
       f"offer_records returns exactly the type=offer rows "
       f"({len(_recs)} of {len(_metas)} stored)")
 
+# --- A model-supplied field the category does not have is not given data ----
+# llama3.1 slot-fills: asked for "dust collector 6000 cmh PULSE JET ..." it
+# returned `blower_mounting: "pulse jet"` — a WET SCRUBBER field holding a
+# filter-cleaning system — and the specification printed "Blower mounting |
+# pulse jet" among the CUSTOMER-GIVEN data, which the customer never stated.
+# Asked for an oven with "8 ach" it returned `air_volume_cfm: 8`, reading air
+# changes per hour as an airflow three orders of magnitude too small.
+# `_drop_undeclared` is tested directly because the LLM path does not run
+# offline, so a test through `understand()` would pass without exercising it.
+from app.understand import _drop_undeclared
+
+_kept = _drop_undeclared({"air_volume_cmh": 6000, "blower_mounting": "pulse jet"},
+                         {"air_volume_cmh": 6000}, "dust_collector")
+check("a wet-scrubber field is refused on a dust collector",
+      "blower_mounting" not in _kept, _kept)
+check("and the field the category DOES declare survives",
+      _kept.get("air_volume_cmh") == 6000, _kept)
+
+_oven = _drop_undeclared({"length_m": 6.0, "air_volume_cfm": 8},
+                         {"length_m": 6.0}, "paint_drying_oven")
+check("'8 ach' misread as an airflow is refused on a paint drying oven",
+      "air_volume_cfm" not in _oven, _oven)
+
+# The filter is category-aware, not a blanket ban: the SAME field is legitimate
+# on the machine whose profile declares it.
+_scrub = _drop_undeclared({"air_volume_cfm": 800, "blower_mounting": "direct drive"},
+                          {"air_volume_cfm": 800}, "wet_scrubber")
+check("the same field is kept on a wet scrubber, which declares it",
+      _scrub.get("blower_mounting") == "direct drive", _scrub)
+
+# A genuine extraction the regex missed must still get through.
+_temp = _drop_undeclared({"length_m": 4.0, "operating_temp": 200},
+                         {"length_m": 4.0}, "hot_air_oven")
+check("a declared value the regex missed is still accepted",
+      _temp.get("operating_temp") == 200, _temp)
+
+# The overall envelope is kept even where the profile omits it on purpose —
+# ducting is duty-specified, but the drawing layer still accepts an overall size.
+_duct = _drop_undeclared({"air_volume_cmh": 8000, "length_m": 12},
+                         {"air_volume_cmh": 8000}, "ducting")
+check("the overall envelope survives on a duty-specified category",
+      _duct.get("length_m") == 12, _duct)
+
+# What the DETERMINISTIC parser read is never filtered — this guards the model's
+# contribution alone, never the customer's own words.
+_regex = _drop_undeclared({"blower_mounting": "pulse jet"},
+                          {"blower_mounting": "pulse jet"}, "dust_collector")
+check("a value the regex itself read is never dropped",
+      _regex.get("blower_mounting") == "pulse jet", _regex)
+
 print()
 if _fail:
     print(f"{_fail} LOOKUP TEST(S) FAILED")

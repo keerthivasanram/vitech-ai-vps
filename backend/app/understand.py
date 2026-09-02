@@ -11,7 +11,7 @@ import re
 import httpx
 
 from . import config
-from .catalog import known_categories
+from .catalog import get_profile, known_categories
 from .classify import CONFIDENT, classify_equipment
 from .schema import QueryUnderstanding
 
@@ -398,6 +398,50 @@ def _llm_understand(question: str) -> QueryUnderstanding | None:
 # trustworthy as a set, because its meaning is positional.
 _DIM_AXES = ("length_m", "width_m", "height_m")
 
+# Keys any category may legitimately carry even when its own profile does not
+# declare them: the overall envelope, which a duty-specified category (ducting,
+# dust collector, conveyor) leaves out on purpose but the drawing layer still
+# accepts, and the unit count.
+_GENERIC_KEYS = frozenset(_DIM_AXES) | {"qty"}
+
+
+def _declared_keys(category: str | None) -> frozenset[str]:
+    """Every parameter key the category's catalog profile actually declares."""
+    profile = get_profile(category)
+    if not profile:
+        return frozenset()
+    keys: set[str] = set()
+    for field in ("required_inputs", "optional_inputs", "expected_inputs"):
+        keys.update(key for key, _ in profile.get(field) or ())
+    for field in ("process_keys", "dimension_keys", "scalable"):
+        keys.update(profile.get(field) or ())
+    keys.update((profile.get("from_given") or {}).keys())
+    return frozenset(keys)
+
+
+def _drop_undeclared(params: dict, fb_params: dict, category: str | None) -> dict:
+    """Discard a MODEL-supplied parameter the resolved category does not have.
+
+    The profile declares the field set; the model only fills it. Without this,
+    llama3.1 answers "dust collector 6000 cmh pulse jet ..." with
+    `blower_mounting: "pulse jet"` — but `blower_mounting` is a WET SCRUBBER
+    field and pulse jet is a filter-cleaning system, so the specification
+    printed "Blower mounting | pulse jet" among the CUSTOMER-GIVEN data. The
+    customer never said it and the machine has no such attribute.
+
+    The same slot-filling reads "8 ach" on a paint drying oven as
+    `air_volume_cfm: 8` — air changes per hour taken as an airflow three orders
+    of magnitude too small, on a field the oven does not declare either.
+
+    Anything the REGEX read is kept: this filters the model's contribution
+    alone, never the customer's own words as the deterministic parser read them.
+    """
+    declared = _declared_keys(category)
+    if not declared:                    # unknown category: nothing to check against
+        return params
+    return {key: value for key, value in params.items()
+            if key in fb_params or key in declared or key in _GENERIC_KEYS}
+
 
 def understand(question: str) -> QueryUnderstanding:
     fb = _fallback(question)
@@ -414,6 +458,8 @@ def understand(question: str) -> QueryUnderstanding:
     # Deterministic equipment classification is AUTHORITATIVE when confident —
     # never let the model treat a scrubber as a booth. Falls back to a weak
     # signal or the model's guess only when classification is uncertain.
+    # Resolved BEFORE the parameters are merged, because which fields the
+    # machine can even have is a property of the category.
     cat, score = classify_equipment(question)
     if score >= CONFIDENT:
         u.category = cat
@@ -423,6 +469,8 @@ def understand(question: str) -> QueryUnderstanding:
     # regex backfill: fill any given-data fields the LLM missed (LLM values win)
     if u.source == "llm":
         fb_params = _normalize_params(fb.parameters)
+        # ...but a field this category does not have is not given data at all.
+        params = _drop_undeclared(params, fb_params, u.category)
         for k, v in fb_params.items():
             params.setdefault(k, v)
         # ...EXCEPT the dimension triple, where the REGEX is authoritative when
