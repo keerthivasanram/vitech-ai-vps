@@ -42,6 +42,61 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-03 (later) — THREE DRAWING STATES. A blank sheet is now a PRELIMINARY GA.
+
+Asked for after a real oven sheet came back nearly empty. **`app/drawing/states.py` and
+`app/drawing/schematic.py` are NEW**, and they are CATEGORY-AGNOSTIC — the oven exposed the gap,
+but a conveyor, a duct run and a pretreatment line hit it identically, so all fourteen inherit it.
+- **THE THREE STATES, decided from the resolved envelope alone.** `FULL` (every axis) draws a
+  normal GA, unchanged. `PARTIAL` draws what is known, marks the rest TBD, and — the part that
+  prevents the worst misreading — **DECLARES the views it could not draw** ("View(s) omitted for
+  want of a dimension: plan, side"), so nobody assumes the machine has no such aspect.
+  `SCHEMATIC` draws a preliminary sheet instead of the old "NO DIMENSIONED VIEWS" in an empty box.
+- **WHY THE SCHEMATIC IS NOT A GOLDEN-RULE-#2 BREACH**, which is the first question it deserves.
+  A dimensioned view ASSERTS a size; this asserts none. Every extent is captioned TBD, the sheet
+  prints **NTS**, the title block reads **PRELIM**, and "PRELIMINARY SCHEMATIC - NOT FOR
+  FABRICATION" sits across the top. The nominal 3:2:2 proportions are never read from, or written
+  to, any engineering value. **A test asserts no dimension layer is emitted AT ALL** on a
+  schematic — stronger than scanning text, because it cannot be satisfied by a dimension that
+  merely looks odd. A **zero or a string is not a dimension** either (both pinned).
+- **THE ELEGANT BIT, worth keeping:** the schematic's views carry `model_w`/`model_h` of **None**,
+  and every glyph routine that needs true millimetres already guards on them. So the equipment
+  SYMBOL draws (which we genuinely know) and the setting-out does not (which we do not) —
+  **without any glyph knowing `schematic.py` exists**.
+- **THE MISSING INPUTS ARE THE CONTENT of such a sheet**, so they are a real bordered table in the
+  drawing area — PARAMETER / STATUS / **REQUIRED ACTION** — not a truncated list in a fixed-height
+  column. The side column's shorter copy is suppressed there rather than saying it twice.
+  **An engineering output must never be sent to the customer to answer**: a bare "capacity" in the
+  ownership match was routing "Heating capacity (kcal/hr)" to the client. Fixed and pinned.
+- **THE SIDE ELEVATION WAS EMPTY ON NINE OF FOURTEEN GLYPHS** — measured, not guessed. That is
+  worse than sparse: the outline and dimensions are real, so the emptiness reads as an engineering
+  statement rather than an unfinished glyph, and **it was the main reason a sheet looked like a
+  prototype**. `_side_enclosure` gives nine of them a real end view in one helper; four others got
+  a bespoke one (blast hopper, fume header end-on, pretreatment tank in section, powder plant).
+  **Conveyor and ducting are LEFT thin on purpose** — end-on they ARE a track section and a bore.
+  **It draws NO balloons**: every component is already scheduled from plan or front, and a GA
+  balloons an item once.
+- **THE TITLE BLOCK OVERFLOWED, and the fix took three goes** — worth remembering. "PRELIMINARY"
+  printed through the right border; right-aligning it pushed it into its own STATUS label; the
+  cell is ~13 mm and a fixed box. **The character-width ratios were then MEASURED by rasterising
+  the face (0.69/char bold, 0.63-0.67 regular)** — the first guess of 0.62/0.55 was low by a tenth
+  and still overflowed. The cell now takes the ordinary drafting abbreviation **PRELIM**; the
+  unabbreviated claim is on the sheet face and in the payload's `state`.
+- **A legend was printing "Insulated panel lining To be determined"** — `_find` now treats an
+  admitted gap as ABSENT, so a caption names the part and the gap stays in the schedule where it
+  already was. This reaches every glyph that composes a caption from a spec value.
+- **VERIFIED AS PDFs, not just SVG** — the PDF export is a separate rendering path. All three
+  cases exported and inspected: the schematic's banner, TBD dimensions, full 10-row table, NTS and
+  PRELIM all survive the export byte for byte.
+- **Fingerprints:** 5 re-recorded BY HAND across the two commits (drawing.render, package.booth,
+  tools.drawing.booth/dust/scrub), each traced and proven stable across two runs. The side-
+  elevation work moved NONE, because the three glyphs the contract covers already had side views.
+  **Never use `--record`** — it rewrites the whole baseline and would pin `tools.retrieve`.
+- **STILL OPEN and UNCHANGED:** the studio rebuild ("edit as inputs, re-resolve") is not started;
+  D1 conversational drawing state is not started; the **isometric** is a product decision; and
+  **component SETTING-OUT RULES from Vitech remain the only thing between this and a
+  fabrication-grade GA**. Positions stay indicative and the sheet keeps saying so.
+
 ### ▶ 2026-09-03 — THE GLYPH MIGRATION IS FINISHED. All fourteen are on the standard.
 
 Container disk wiped again -> `bootstrap-pod.sh` then `start-all.sh`; **all six services 200**,
