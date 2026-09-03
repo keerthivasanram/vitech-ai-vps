@@ -5,14 +5,33 @@ Run:  backend/.venv/Scripts/python.exe docs/generate_information_request.py
 NOTE ON LETTERHEAD: this document is FROM the platform team TO Vitech, so it
 deliberately does NOT use `app/vitech_letterhead.py`. That letterhead belongs on
 documents Vitech issues to ITS customers; putting it here would misattribute
-authorship. Set SENDER below to your own company details.
+authorship.
+
+WHO IT IS FROM comes from `docs/sender.json`, NOT from this file. It is the one
+piece of content the author has to supply, it is not engineering, and requiring
+a code edit to set it is how a document goes out with "[Your Company Name]" in
+the footer of all nine pages. The file is gitignored, because a company's own
+contact details do not belong in the repository.
+
+    docs/sender.json
+    {"company": "...", "line1": "...", "line2": "...",
+     "contact": "Name  |  email  |  phone"}
+
+With no such file the placeholders are used AND the build prints a loud warning
+naming every field still unfilled, so an unsendable draft cannot be mistaken for
+a finished one.
 
 fpdf2 core fonts are latin-1 only, so `_t()` folds the usual typographic
 characters down to ASCII. Keep new text plain.
 """
+import json
+import os
 from datetime import date
 
 from fpdf import FPDF
+
+_SENDER_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "sender.json")
 
 SENDER = {
     "company": "[Your Company Name]",
@@ -20,6 +39,22 @@ SENDER = {
     "line2": "[City, PIN]",
     "contact": "[Contact name]  |  [email]  |  [phone]",
 }
+
+
+def _load_sender() -> list:
+    """Overlay docs/sender.json; return the names of the fields still unfilled."""
+    try:
+        with open(_SENDER_FILE, encoding="utf-8") as fh:
+            supplied = json.load(fh)
+    except FileNotFoundError:
+        supplied = {}
+    except (OSError, ValueError) as exc:
+        print(f"  ! {_SENDER_FILE} could not be read ({exc}); using placeholders")
+        supplied = {}
+    for key, value in supplied.items():
+        if key in SENDER and str(value).strip():
+            SENDER[key] = str(value).strip()
+    return [k for k, v in SENDER.items() if v.strip().startswith("[")]
 RECIPIENT = {
     "company": "Vitech Enviro Systems Pvt. Ltd.",
     "attn": "Engineering / Applications Team",
@@ -397,7 +432,46 @@ def part2(p: Doc):
             "blocking an identified feature, so these are the highest-value items in this "
             "document. Several are small.")
 
-    h2(p, "B1. Engineering calculations for the two remaining categories")
+    h2(p, "Closed since the last request - with thanks")
+    body(p, "Three items previously on this list have been answered by the workbooks and cost "
+            "sheet already supplied, and are no longer being asked for:")
+    bullet(p, "Face velocity. Standard Booth.xlsx states 0.5 m/s and builds its whole table from "
+              "it. The platform now uses 0.5 m/s for the face-based dry booth types, and the "
+              "value is overridable per design.")
+    bullet(p, "The cropped row on the paint booth cost sheet. It reconciles: MS 18 SWG sheet, "
+              "621 kg, material Rs 52,785 + labour Rs 27,945 = Rs 80,730. Added to the visible "
+              "Rs 5,68,534 this gives Rs 6,49,264 - your stated total, exactly. The booth cost "
+              "model can now be validated against your own figure.")
+    bullet(p, "Booth panel weight. 27 panels x 23 kg = 621 kg on your worked booth, reproduced "
+              "exactly, which settled a three-way disagreement in our own model.")
+
+    band(p, "One item below - B1, component setting-out - is now the single largest gap between "
+            "what the platform produces and a drawing Vitech could issue. Everything else in the "
+            "drawing is finished.")
+
+    h2(p, "B1. Component setting-out rules  [HIGHEST PRIORITY]")
+    body(p, "Where components sit INSIDE the machine: filter bank offset from the rear wall, "
+            "blower centre-line position, luminaire spacing and mounting height, door and access "
+            "positions, duct take-off points, nozzle heights, pump position, hopper and airlock "
+            "centres.")
+    note(p, "Effect today: this is the ONLY thing between the current output and an "
+            "issue-quality general arrangement. Overall envelopes are dimensioned correctly from "
+            "your own formulas; component COUNTS and MODELS are real and come from the resolved "
+            "specification; the sheets carry sections, hatching, datums and a full item list. "
+            "But component POSITIONS are drawn indicatively and left undimensioned, and every "
+            "sheet carries a note saying so, because we will not print a setting-out dimension "
+            "nobody engineered.")
+    body(p, "We do not need a document. A marked-up print of one existing GA per equipment type "
+            "would answer it - or simply the rules an engineer applies from memory. An answer "
+            "can be as short as this:")
+    band(p, "\"Filter bank sits 150 mm off the rear wall. Blower centre-line is on the booth "
+            "centre-line, 600 mm above finished floor. Luminaires at 1200 mm centres starting "
+            "600 mm from each end wall, mounted at door head height.\"",
+         fill=(238, 244, 238))
+    body(p, "Three or four lines of that kind per equipment type converts every component on the "
+            "drawing from indicative to dimensioned.")
+
+    h2(p, "B2. Engineering calculations for the two remaining categories")
     body(p, "The calculation document supplied covers the Paint Shop Plant, and has been "
             "implemented in full. That document states that Powder Coating Plant and Pollution "
             "Control Equipment calculations will follow. Those two are still outstanding.")
@@ -405,18 +479,12 @@ def part2(p: Doc):
             "design instead of calculating, so a size the archive does not cover is answered "
             "less accurately.")
 
-    h2(p, "B2. Two constants the calculation document does not state")
-    bullet(p, "Face velocity. The platform currently uses 0.45 m/s from NFPA 33. Please confirm "
-              "this, or give the value Vitech uses per booth type.")
-    bullet(p, "Air changes per hour for a drying room or oven. No default exists, so oven "
-              "exhaust volume is reported as 'To be determined' on every oven specification.")
-
-    h2(p, "B3. The complete costed BOM for the paint spray booth")
-    body(p, "The cost sheet supplied has its first row cut off in the image. The visible lines "
-            "total Rs 5,68,534 against a stated total of Rs 6,49,264, leaving Rs 80,730 "
-            "unaccounted for.")
-    note(p, "Effect today: a cost model cannot be validated against your real total, so no "
-            "build-up figure can be trusted. A clean copy of this one sheet unblocks it.")
+    h2(p, "B3. Air changes per hour for a drying room or oven")
+    body(p, "The calculation document does not state one, and unlike face velocity there is no "
+            "figure elsewhere in the workbooks to take it from.")
+    note(p, "Effect today: oven exhaust volume is reported as 'To be determined' on every oven "
+            "specification. Heat load itself is calculated and correct - it follows from mass "
+            "and temperature rise and needs no ACH - so this single number completes the oven.")
 
     h2(p, "B4. A quotation as actually issued to a customer")
     body(p, "The three documents received are enquiry and input data sheets, not offers. They "
@@ -431,22 +499,14 @@ def part2(p: Doc):
     note(p, "This is a single rule and it is the only thing blocking that equipment type from "
             "drawing.")
 
-    h2(p, "B6. Component setting-out rules")
-    body(p, "Where components sit within an enclosure: nozzle heights, pump position, filter "
-            "bank offsets, luminaire spacing, door and access positions, duct take-off points.")
-    note(p, "Effect today: components are drawn schematically and without dimensions, and the "
-            "drawing carries a note saying so. Overall envelope dimensions are correct; internal "
-            "positions are indicative. This is the main gap between the current output and an "
-            "issue-quality general arrangement.")
-
-    h2(p, "B7. Reference documents for the knowledge base")
+    h2(p, "B6. Reference documents for the knowledge base")
     body(p, "Standards, vendor catalogues, design guides, technical literature and training "
             "material - in any format.")
     note(p, "Effect today: the platform's knowledge search has no documents to search and "
             "returns nothing. Technical questions are answered from general engineering "
             "knowledge rather than from Vitech's own references.")
 
-    h2(p, "B8. Thin areas in the historical archive")
+    h2(p, "B7. Thin areas in the historical archive")
     body(p, "Thirty-three historical offers are held. Some equipment types are represented by "
             "very few records, which limits how well a new requirement can be matched:")
     w = [avail(p) * 0.44, avail(p) * 0.18, avail(p) * 0.38]
@@ -463,7 +523,7 @@ def part2(p: Doc):
     body(p, "Additional offers in these areas would improve results immediately, with no "
             "software change required.")
 
-    h2(p, "B9. Rate card and commercial policy")
+    h2(p, "B8. Rate card and commercial policy")
     body(p, "Material rates, fabrication rates, motor and bought-out prices have been supplied "
             "and implemented. Still needed: the standard margin policy, and how bought-out items "
             "are marked up - bought-out items dominate the cost of a booth, so this is the "
@@ -580,17 +640,15 @@ def appendix(p: Doc):
 
     h2(p, "Part 2 - Specific open items")
     checklist(p, [
-        "B1. Powder Coating Plant calculations",
-        "B1. Pollution Control Equipment calculations",
-        "B2. Face velocity - confirm 0.45 m/s or supply Vitech's value per booth type",
-        "B2. Air changes per hour for drying room / oven",
-        "B3. Complete costed BOM for the paint spray booth (uncropped)",
+        "B1. Component setting-out rules - HIGHEST PRIORITY, see the worked example",
+        "B2. Powder Coating Plant calculations",
+        "B2. Pollution Control Equipment calculations",
+        "B3. Air changes per hour for drying room / oven",
         "B4. One quotation as actually issued to a customer",
         "B5. Height rule for horizontal baffle wet scrubbers",
-        "B6. Component setting-out rules",
-        "B7. Reference documents for the knowledge base",
-        "B8. Additional offers: water-wash booths, powder coating plants, ovens (incl. LPG)",
-        "B9. Margin policy and bought-out mark-up",
+        "B6. Reference documents for the knowledge base",
+        "B7. Additional offers: water-wash booths, powder coating plants, ovens (incl. LPG)",
+        "B8. Margin policy and bought-out mark-up",
     ])
 
     h2(p, "Part 3 - Readiness questions")
@@ -647,6 +705,7 @@ def appendix(p: Doc):
 
 
 def build(path: str = "docs/Vitech_Engineering_Knowledge_Request.pdf"):
+    unfilled = _load_sender()
     p = Doc(orientation="P", unit="mm", format="A4")
     p.set_auto_page_break(auto=True, margin=18)
     p.set_margins(18, 22, 18)
@@ -660,9 +719,22 @@ def build(path: str = "docs/Vitech_Engineering_Knowledge_Request.pdf"):
     part4(p)
     appendix(p)
     p.output(path)
-    return path, p.page_no()
+    return path, p.page_no(), unfilled
 
 
 if __name__ == "__main__":
-    out, pages = build()
+    out, pages, unfilled = build()
     print(f"wrote {out}  ({pages} pages)")
+    if unfilled:
+        # LOUD, and non-zero, because the failure mode this guards against is a
+        # nine-page document going to a client with "[Your Company Name]" in
+        # every footer. A warning that scrolls past is not a guard.
+        print()
+        print("  !! NOT SENDABLE - the sender block is still placeholder text.")
+        for field in unfilled:
+            print(f"     unfilled: {field:8} = {SENDER[field]}")
+        print(f"     Fill {_SENDER_FILE} and re-run:")
+        print('     {"company": "...", "line1": "...", "line2": "...",')
+        print('      "contact": "Name  |  email  |  phone"}')
+        raise SystemExit(1)
+    print(f"  sender: {SENDER['company']} - ready to send")

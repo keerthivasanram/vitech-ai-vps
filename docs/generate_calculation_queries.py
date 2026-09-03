@@ -14,7 +14,8 @@ document family, same look, one place to change it.
 from datetime import date
 
 from generate_information_request import (ACCENT, BAND, CRIT, Doc, INK, MUTED,
-                                          RECIPIENT, RULE, SENDER, _t, avail,
+                                          RECIPIENT, RULE, SENDER, _load_sender,
+                                          _t, avail,
                                           band, body, bullet, h1, h2, note,
                                           table)
 
@@ -323,6 +324,10 @@ def closing(p: Doc):
 
 
 def build(path: str = "docs/Vitech_Calculation_Workbook_Queries.pdf"):
+    # The SAME sender block as the knowledge request, from the same file. This
+    # document imports SENDER, so without loading it here it would silently
+    # keep the placeholders while its sibling was correctly filled.
+    unfilled = _load_sender()
     p = QueryDoc(orientation="P", unit="mm", format="A4")
     p.set_auto_page_break(auto=True, margin=18)
     p.set_margins(18, 22, 18)
@@ -334,9 +339,17 @@ def build(path: str = "docs/Vitech_Calculation_Workbook_Queries.pdf"):
     resolved(p)
     closing(p)
     p.output(path)
-    return path, p.page_no()
+    return path, p.page_no(), unfilled
 
 
 if __name__ == "__main__":
-    out, pages = build()
+    out, pages, unfilled = build()
     print(f"wrote {out}  ({pages} pages)")
+    if unfilled:
+        print()
+        print("  !! NOT SENDABLE - the sender block is still placeholder text.")
+        for field in unfilled:
+            print(f"     unfilled: {field:8} = {SENDER[field]}")
+        print("     Fill docs/sender.json and re-run.")
+        raise SystemExit(1)
+    print(f"  sender: {SENDER['company']} - ready to send")

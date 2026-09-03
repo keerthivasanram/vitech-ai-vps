@@ -39,3 +39,7 @@ backend/data/ops.db
 backend/data/ops.db-*
 backend/data/jobs/
 backend/logs/
+
+# The author's own contact block for the Vitech knowledge request. Not
+# engineering, and a company's contact details do not belong in the repo.
+docs/sender.json
