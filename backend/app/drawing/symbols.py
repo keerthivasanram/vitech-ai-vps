@@ -404,6 +404,53 @@ def _fan(canvas, v, depth: float, legend: list, label: str) -> None:
          to=(cx + r * 1.475, cy))
 
 
+def _side_enclosure(canvas, v, extract: bool = True, roof_plant: bool = False,
+                    lining: bool = False, opening: bool = False) -> None:
+    """The enclosure seen from the side: floor, base, panel courses, extract face.
+
+    WHY THIS EXISTS. Nine of the fourteen glyphs drew NOTHING in the side
+    elevation — an empty rectangle with two centre lines, on a three-view sheet.
+    A reader takes that as "this machine has no side", which is worse than a
+    sparse view: the outline and its dimensions are real, so the emptiness reads
+    as an engineering statement rather than an unwritten glyph.
+
+    IT DRAWS GEOMETRY AND NO BALLOONS, deliberately. Every component here is
+    already scheduled from the plan or the front, and a GA balloons an item
+    ONCE — a second balloon on the same filter bank would put two numbers in the
+    legend for one thing and make the item list disagree with itself.
+
+    Everything drawn is the same INDICATIVE arrangement the sheet's standing
+    note already covers; no new dimension is implied and none is added.
+    """
+    _floor(canvas, v, None, label=False)
+    _panel_joints(canvas, v)
+
+    if lining:
+        t = min(v.w, v.h) * 0.05
+        canvas.add(Rect(v.x + t, v.y + t, v.w - 2 * t, v.h - 2 * t, *PANEL_SEAM))
+
+    if extract:
+        # The extract face seen edge-on: a shallow band down the rear edge.
+        # Rear is the RIGHT-hand edge here, which is where the plan's rear face
+        # projects to in third angle.
+        depth = v.w * 0.10
+        bx = v.x + v.w - depth
+        components.filter_bank(canvas, bx, v.y + v.h * 0.06, depth,
+                               v.h * 0.82, 4, across=False)
+
+    if roof_plant:
+        # The plant deck across the roof, shown as the band it occupies.
+        canvas.add(Rect(v.x + v.w * 0.16, v.y + v.h * 0.02, v.w * 0.62,
+                        v.h * 0.06, *SECONDARY_OUTLINE))
+
+    if opening:
+        # A through-machine opening reads on the side as the clear height of
+        # the aperture, drawn as an OPENING (a void, not hidden geometry).
+        oh = v.h * 0.46
+        canvas.add(Rect(v.x + v.w * 0.24, v.y + v.h - oh - v.h * 0.06,
+                        v.w * 0.52, oh, *OPENING))
+
+
 def _door(canvas, v, legend: list, label: str, frac: float = 0.34) -> None:
     """A double-leaf door on the working face of an elevation."""
     dw = v.w * frac
@@ -961,6 +1008,11 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             canvas.add(Text(x + w * 0.5, cy - 2.0, "CONVEYOR CENTRE LINE",
                             L_TEXT, T_CAPTION, "middle"))
             item(canvas, legend, x + w * 0.16, cy + 5.5, f"Conveyor opening - {conveyor}"[:70])
+    if views.get("side"):
+        # The oven end: insulated lining, roof-mounted recirculation plant, and
+        # the conveyor aperture when the spec states one.
+        _side_enclosure(canvas, views["side"], extract=False, roof_plant=True,
+                        lining=True, opening=bool(conveyor))
     return legend
 
 
@@ -1324,6 +1376,12 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
                          ("Material handling", handling)):
         if _resolved(value):
             note_item(legend, f"{label}: {value}")
+    if views.get("side"):
+        # The end view of a plant is its tallest station's enclosure, with the
+        # conveyor aperture through it. The envelope here is the MAXIMUM
+        # COMPONENT envelope, not a plant footprint, and the front view already
+        # says so — this adds no new claim, only the shape of that component.
+        _side_enclosure(canvas, views["side"], roof_plant=True, opening=True)
     return legend
 
 
@@ -1447,6 +1505,8 @@ def cleaning_room(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                         plan.y + plan.h * 0.10, *HIDDEN_LINE))
         canvas.add(Text(plan.x + plan.w * 0.5, plan.y + plan.h * 0.075,
                         "FILTERED AIR INLET SIDE", L_TEXT, T_CAPTION, "middle"))
+    if views.get("side"):
+        _side_enclosure(canvas, views["side"], roof_plant=True)
     return legend
 
 
@@ -1470,6 +1530,8 @@ def buffing_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     if plan:
         depth = _filter_bank(canvas, plan, filters, legend, "Dust arresting filter bank")
         _fan(canvas, plan, depth, legend, _blower_label(rows))
+    if views.get("side"):
+        _side_enclosure(canvas, views["side"], opening=True)
     return legend
 
 
@@ -1507,6 +1569,9 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         item(canvas, legend, plan.x + plan.w * 0.16, cy + 5.5,
              "Conveyor / trolley line through zone",
              to=(plan.x + plan.w * 0.16, cy))
+    if views.get("side"):
+        _side_enclosure(canvas, views["side"], extract=False,
+                        roof_plant=True, opening=True)
     return legend
 
 
@@ -1557,6 +1622,9 @@ def paint_drying_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                         *CENTRE_LINE))
         canvas.add(Text(plan.x + plan.w * 0.5, cy - 2.0, "CONVEYOR CENTRE LINE",
                         L_TEXT, T_CAPTION, "middle"))
+    if views.get("side"):
+        _side_enclosure(canvas, views["side"], extract=False, roof_plant=True,
+                        lining=True, opening=True)
     return legend
 
 
@@ -1592,6 +1660,17 @@ def blast_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         depth = _filter_bank(canvas, plan, 0, legend, "Dust take-off face")
         _fan(canvas, plan, depth, legend,
              _blower_label(rows) or "Dust collector connection")
+    if views.get("side"):
+        sv = views["side"]
+        _side_enclosure(canvas, sv)
+        # The recovery hopper is the defining feature, so it reads on the side
+        # too: the floor falls to a centre trough.
+        hop_h = sv.h * 0.20
+        hy = sv.y + sv.h - hop_h
+        canvas.add(poly([(sv.x, hy), (sv.x + sv.w, hy),
+                         (sv.x + sv.w * 0.58, sv.y + sv.h),
+                         (sv.x + sv.w * 0.42, sv.y + sv.h)],
+                        EQUIPMENT.layer, EQUIPMENT.width))
     return legend
 
 
@@ -1641,6 +1720,20 @@ def pretreatment_plant(canvas, views: dict, rows: list) -> list[tuple[str, str]]
         item(canvas, legend, x + w * 0.10, y + h * 0.24,
              f"Tank working level {tank_size}".strip(),
              to=(x + w * 0.10, y + h * 0.34))
+    if views.get("side"):
+        sv = views["side"]
+        # An end view of a tank line is ONE tank in section: shell, liquid
+        # level, and the hoist rail over it.
+        ty = sv.y + sv.h * 0.34
+        canvas.add(Rect(sv.x + sv.w * 0.10, ty, sv.w * 0.80, sv.h * 0.56,
+                        *EQUIPMENT))
+        canvas.add(Line(sv.x + sv.w * 0.10, ty + sv.h * 0.10,
+                        sv.x + sv.w * 0.90, ty + sv.h * 0.10, *HIDDEN_LINE))
+        canvas.add(Line(sv.x + sv.w * 0.5, sv.y + sv.h * 0.06,
+                        sv.x + sv.w * 0.5, ty, *CENTRE_LINE))
+        canvas.add(Line(sv.x + sv.w * 0.24, sv.y + sv.h * 0.06,
+                        sv.x + sv.w * 0.76, sv.y + sv.h * 0.06, *EQUIPMENT))
+        _floor(canvas, sv, None, label=False)
     return legend
 
 
@@ -1678,6 +1771,19 @@ def fume_extraction(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     if plan:
         depth = _filter_bank(canvas, plan, 0, legend, "Plant / collector connection")
         _fan(canvas, plan, depth, legend, _blower_label(rows))
+    if views.get("side"):
+        sv = views["side"]
+        # A header run seen end-on is its bore, with one hood below it.
+        hy = sv.y + sv.h * 0.16
+        components.duct_run(canvas, sv.x + sv.w * 0.5, hy,
+                            sv.x + sv.w * 0.5, sv.y + sv.h * 0.44,
+                            sv.w * 0.16)
+        canvas.add(poly([(sv.x + sv.w * 0.30, sv.y + sv.h * 0.60),
+                         (sv.x + sv.w * 0.70, sv.y + sv.h * 0.60),
+                         (sv.x + sv.w * 0.56, sv.y + sv.h * 0.44),
+                         (sv.x + sv.w * 0.44, sv.y + sv.h * 0.44)],
+                        EQUIPMENT.layer, EQUIPMENT.width))
+        _floor(canvas, sv, None, label=False)
     return legend
 
 
