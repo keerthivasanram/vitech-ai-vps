@@ -339,11 +339,16 @@ def _lights(canvas, v, count: int, legend: list, label: str) -> None:
     if not count:
         return
     shown = min(count, 6)
+    xs = []
     for i in range(shown):
         lx = v.x + v.w * (0.14 + 0.72 * (i / max(1, shown - 1)))
+        xs.append(lx)
         canvas.add(Rect(lx - v.w * 0.035, v.y + v.h * 0.06, v.w * 0.07,
                         v.h * 0.04, *SYMBOL_DETAIL))
-    item(canvas, legend, v.x + v.w * 0.5, v.y + v.h * 0.16, f"{label} ({count} nos)")
+    # The leader lands on a REAL fitting. Aimed at the view's mid-point it fell
+    # in the gap between two of an even-numbered row, pointing at nothing.
+    item(canvas, legend, v.x + v.w * 0.5, v.y + v.h * 0.16,
+         f"{label} ({count} nos)", to=(xs[len(xs) // 2], v.y + v.h * 0.08))
 
 
 def _filter_bank(canvas, v, count: int, legend: list, label: str) -> float:
@@ -357,7 +362,8 @@ def _filter_bank(canvas, v, count: int, legend: list, label: str) -> float:
     by = v.y + v.h - depth
     components.filter_bank(canvas, v.x, by, v.w, depth, count or 1, across=True)
     item(canvas, legend, v.x + v.w * 0.14, by - 5.0,
-         f"{label}" + (f" ({count} nos)" if count else ""))
+         f"{label}" + (f" ({count} nos)" if count else ""),
+         to=(v.x + v.w * 0.14, by + depth * 0.5))
     return depth
 
 
@@ -384,7 +390,8 @@ def _fan(canvas, v, depth: float, legend: list, label: str) -> None:
     # it is. `blower` puts the throat's far face at 1.55r from the centre.
     cy = v.y + v.h - depth - r * 1.55 - 1.0
     components.blower(canvas, cx, cy, r, discharge="down", motor=True)
-    item(canvas, legend, cx + r * 2.0 + 4.0, cy, label)
+    item(canvas, legend, cx + r * 2.0 + 4.0, cy, label,
+         to=(cx + r * 1.475, cy))
 
 
 def _door(canvas, v, legend: list, label: str, frac: float = 0.34) -> None:
@@ -1322,7 +1329,9 @@ def conveyor(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         ty = y + h * 0.12
         canvas.add(Line(x, ty, x + w, ty, *EQUIPMENT))
         canvas.add(Line(x, ty + 1.6, x + w, ty + 1.6, *SYMBOL_DETAIL))
-        item(canvas, legend, x + w * 0.08, ty - 5.0, f"Track - {ctype or 'overhead conveyor'} {moc}".strip())
+        item(canvas, legend, x + w * 0.08, ty - 5.0,
+             f"Track - {ctype or 'overhead conveyor'} {moc}".strip(),
+             to=(x + w * 0.08, ty))
 
         # Carriers at an indicative pitch (no engineered pitch is given).
         for i in range(8):
@@ -1330,12 +1339,16 @@ def conveyor(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             canvas.add(Line(cx, ty + 1.6, cx, y + h * 0.55, *SYMBOL_DETAIL))
             canvas.add(Line(cx - w * 0.012, y + h * 0.55, cx + w * 0.012, y + h * 0.55,
                             *SYMBOL_DETAIL))
-        item(canvas, legend, x + w * 0.5, y + h * 0.62, "Carrier / hanger - pitch indicative")
+        item(canvas, legend, x + w * 0.5, y + h * 0.62,
+             "Carrier / hanger - pitch indicative",
+             to=(x + w * 0.4375, y + h * 0.55))
 
         # Drive unit at the far end.
         dwid, dhei = w * 0.06, h * 0.10
         components.motor_box(canvas, x + w - dwid, ty - dhei, dwid, dhei)
-        item(canvas, legend, x + w - dwid - 5.5, ty - dhei * 0.5, f"Drive unit - {operation or 'drive'}".strip())
+        item(canvas, legend, x + w - dwid - 5.5, ty - dhei * 0.5,
+             f"Drive unit - {operation or 'drive'}".strip(),
+             to=(x + w - dwid, ty - dhei * 0.5))
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
@@ -1387,7 +1400,8 @@ def ducting(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         x, y, w, h = side.x, side.y, side.w, side.h
         canvas.add(Circle(x + w / 2, y + h / 2, min(w, h) * 0.42,
                           DUCT.layer, DUCT.width))
-        item(canvas, legend, x + w * 0.5, y + h * 0.5, f"Duct section {duct}".strip())
+        item(canvas, legend, x + w * 0.5, y + h * 0.5, f"Duct section {duct}".strip(),
+             to=(x + w / 2 + min(w, h) * 0.42, y + h / 2))
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
@@ -1457,11 +1471,14 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         oy = front.y + front.h - oh
         for ox in (front.x, front.x + front.w - ow):
             canvas.add(Rect(ox, oy, ow, oh, *OPENING))
-        item(canvas, legend, front.x + ow * 0.5, oy - 5.0, "Component entry / exit opening")
+        item(canvas, legend, front.x + ow * 0.5, oy - 5.0,
+             "Component entry / exit opening", to=(front.x + ow * 0.5, oy))
         # Roof extract plenum.
         canvas.add(Rect(front.x + front.w * 0.20, front.y, front.w * 0.60,
                         front.h * 0.10, *EQUIPMENT))
-        item(canvas, legend, front.x + front.w * 0.5, front.y + front.h * 0.16, f"Roof extract plenum - {_blower_label(rows)}".strip(" -"))
+        item(canvas, legend, front.x + front.w * 0.5, front.y + front.h * 0.16,
+             f"Roof extract plenum - {_blower_label(rows)}".strip(" -"),
+             to=(front.x + front.w * 0.5, front.y + front.h * 0.10))
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
         cy = plan.y + plan.h / 2
@@ -1471,7 +1488,9 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                         SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width, "currentColor"))
         canvas.add(Text(plan.x + plan.w * 0.5, cy - 2.2, "DIRECTION OF TRAVEL",
                         L_TEXT, T_CAPTION, "middle"))
-        item(canvas, legend, plan.x + plan.w * 0.16, cy + 5.5, "Conveyor / trolley line through zone")
+        item(canvas, legend, plan.x + plan.w * 0.16, cy + 5.5,
+             "Conveyor / trolley line through zone",
+             to=(plan.x + plan.w * 0.16, cy))
     return legend
 
 
@@ -1499,14 +1518,17 @@ def paint_drying_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Circle(x + t + w * 0.03 + hb_w / 2, y + h - t - hb_h / 2,
                           min(hb_w, hb_h) * 0.26,
                           INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
-        item(canvas, legend, x + t + w * 0.03 + hb_w + 6.0, y + h - t - hb_h * 0.5, f"Heating / recirculation unit {heating}".strip())
+        item(canvas, legend, x + t + w * 0.03 + hb_w + 6.0, y + h - t - hb_h * 0.5,
+             f"Heating / recirculation unit {heating}".strip(),
+             to=(x + t + w * 0.03 + hb_w, y + h - t - hb_h * 0.5))
 
         # Exhaust stack rising off the roof, drawn inside the sheet.
         sx = x + w * 0.72
         canvas.add(Line(sx, y + t, sx, y + h * 0.30, *DUCT),
                    Line(sx + w * 0.03, y + t, sx + w * 0.03, y + h * 0.30,
                         *DUCT))
-        item(canvas, legend, sx + w * 0.09, y + h * 0.22, "Exhaust stack")
+        item(canvas, legend, sx + w * 0.09, y + h * 0.22, "Exhaust stack",
+             to=(sx + w * 0.03, y + h * 0.22))
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
         t = min(plan.w, plan.h) * 0.05
@@ -1537,7 +1559,8 @@ def blast_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         hy = y + h - hop_h
         canvas.add(poly([(x, hy), (x + w, hy), (x + w * 0.56, y + h),
                          (x + w * 0.44, y + h)], EQUIPMENT.layer, EQUIPMENT.width))
-        item(canvas, legend, x + w * 0.16, hy + hop_h * 0.30, f"Media recovery hopper {recovery}".strip())
+        item(canvas, legend, x + w * 0.16, hy + hop_h * 0.30,
+             f"Media recovery hopper {recovery}".strip(), to=(x + w * 0.16, hy))
 
         _door(canvas, front, legend, "Blast enclosure door", frac=0.28)
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
@@ -1576,7 +1599,9 @@ def pretreatment_plant(canvas, views: dict, rows: list) -> list[tuple[str, str]]
                 canvas.add(Rect(tx + w * 0.01 / stages, y + h * 0.16,
                                 w / stages - w * 0.02 / stages, h * 0.68,
                                 *EQUIPMENT))
-            item(canvas, legend, x + w * 0.5, y + h * 0.08, f"Process tank ({stages} stages) {tank_moc}".strip())
+            item(canvas, legend, x + w * 0.5, y + h * 0.08,
+                 f"Process tank ({stages} stages) {tank_moc}".strip(),
+                 to=(x + w * 0.5, y + h * 0.16))
         else:
             canvas.add(Text(x + w * 0.5, y + h * 0.5,
                             "PROCESS TANK LINE - STAGE COUNT TBD",
@@ -1595,7 +1620,9 @@ def pretreatment_plant(canvas, views: dict, rows: list) -> list[tuple[str, str]]
             for i in range(1, stages):
                 sx = x + w * i / stages
                 canvas.add(Line(sx, y + h * 0.34, sx, y + h, *PANEL_SEAM))
-        item(canvas, legend, x + w * 0.10, y + h * 0.24, f"Tank working level {tank_size}".strip())
+        item(canvas, legend, x + w * 0.10, y + h * 0.24,
+             f"Tank working level {tank_size}".strip(),
+             to=(x + w * 0.10, y + h * 0.34))
     return legend
 
 
@@ -1617,7 +1644,8 @@ def fume_extraction(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         hy = y + h * 0.16
         canvas.add(Line(x, hy, x + w, hy, *DUCT),
                    Line(x, hy + 2.0, x + w, hy + 2.0, *SYMBOL_DETAIL))
-        item(canvas, legend, x + w * 0.08, hy - 5.0, f"Extract header {duct}".strip())
+        item(canvas, legend, x + w * 0.08, hy - 5.0, f"Extract header {duct}".strip(),
+             to=(x + w * 0.08, hy))
 
         if points:
             shown = min(points, 8)
@@ -1627,7 +1655,8 @@ def fume_extraction(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                 canvas.add(poly([(hx - w * 0.03, y + h * 0.66), (hx + w * 0.03, y + h * 0.66),
                                  (hx + w * 0.008, y + h * 0.52), (hx - w * 0.008, y + h * 0.52)],
                                 EQUIPMENT.layer, EQUIPMENT.width))
-            item(canvas, legend, x + w * 0.5, y + h * 0.76, f"Capture hood ({points} nos)")
+            item(canvas, legend, x + w * 0.5, y + h * 0.76, f"Capture hood ({points} nos)",
+                 to=(x + w * (shown // 2 + 0.5) / shown, y + h * 0.66))
     if plan:
         depth = _filter_bank(canvas, plan, 0, legend, "Plant / collector connection")
         _fan(canvas, plan, depth, legend, _blower_label(rows))
