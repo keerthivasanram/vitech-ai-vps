@@ -19,7 +19,7 @@
   --grad-green-dim: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
 
   /* ---- Surfaces ---- */
-  --bg:             #fafbfc;
+  --bg:             #f7f8fa;
   --sidebar-bg:     #ffffff;
   --card:           #ffffff;
   --card-sunken:    #f7f9fa;
@@ -45,13 +45,13 @@
   --violet:         #7c3aed;
 
   /* ---- Elevation (minimal, modern SaaS) ---- */
-  --shadow-xs:      0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm:      0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow:         0 10px 30px rgba(0, 0, 0, 0.06);
-  --shadow-hover:   0 20px 50px rgba(0, 0, 0, 0.10);
-  --shadow-lg:      0 16px 40px rgba(0, 0, 0, 0.08);
-  --shadow-green:   0 18px 40px rgba(var(--secondary-rgb), 0.28);
-  --shadow-green-lg: 0 24px 52px rgba(var(--secondary-rgb), 0.36);
+  --shadow-xs:      0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-sm:      0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow:         0 2px 6px rgba(15, 23, 42, 0.05);
+  --shadow-hover:   0 6px 18px rgba(15, 23, 42, 0.09);
+  --shadow-lg:      0 12px 32px rgba(15, 23, 42, 0.10);
+  --shadow-green:   0 2px 8px rgba(var(--primary-rgb), 0.22);
+  --shadow-green-lg: 0 6px 18px rgba(var(--primary-rgb), 0.28);
 
   /* ---- Glass surfaces (sidebar, floating panels, inputs) ---- */
   --glass-top:          rgba(255, 255, 255, 0.92);
@@ -65,44 +65,46 @@
   /* Sidebar reads as a true floating glass panel: flat translucent white
      (not a top/bottom gradient), a near-white hairline border for the glass
      "edge highlight", a big soft shadow for the lift. */
-  --sidebar-glass-bg:     rgba(255, 255, 255, 0.82);
-  --sidebar-glass-border: rgba(255, 255, 255, 0.7);
-  --shadow-sidebar:       0 25px 60px rgba(0, 0, 0, 0.08);
+  --sidebar-glass-bg:     rgba(255, 255, 255, 0.86);
+  --sidebar-glass-border: rgba(15, 23, 42, 0.06);
+  --shadow-sidebar:       0 1px 3px rgba(15, 23, 42, 0.05);
 
   /* ---- Radius ---- */
-  --r-btn:          14px;
-  --r-card:         20px;
-  --r-hero:         28px;
-  --r-input:        20px;
-  --r-composer:     22px;
-  --r-side-btn:     16px;
-  --r-newchat:      18px;
-  --r-history:      14px;
-  --r-sm:           10px;
+  --r-btn:          9px;
+  --r-card:         12px;
+  --r-hero:         14px;
+  --r-input:        9px;
+  --r-composer:     14px;
+  --r-side-btn:     9px;
+  --r-newchat:      9px;
+  --r-history:      9px;
+  --r-sm:           8px;
   --r-pill:         999px;
+  --r-rail:         14px;
 
   /* ---- Layout ---- */
-  --sidebar-w:      290px;
-  --rightbar-w:     370px;
+  --sidebar-w:      264px;
+  --sidebar-rail-w: 68px;
+  --rightbar-w:     330px;
   --shell-max:      1920px;
-  --gap:            24px;
-  --pad:            24px;
-  --header-h:       72px;
+  --gap:            20px;
+  --pad:            22px;
+  --viewbar-h:      48px;
 
   /* ---- Type ---- */
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
           Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
 
-  --fs-hero:   clamp(22px, 1.9vw, 32px);
-  --fs-section: 30px;
-  --fs-card:   18px;
-  --fs-body:   15px;
+  --fs-hero:   clamp(21px, 1.6vw, 27px);
+  --fs-section: 21px;
+  --fs-card:   15.5px;
+  --fs-body:   14.5px;
   --fs-sm:     13px;
   --fs-xs:     11.5px;
 
-  --lsp-tight: -0.02em;
-  --lsp-hero:  -0.03em;
+  --lsp-tight: -0.011em;
+  --lsp-hero:  -0.021em;
 
   /* ---- Motion ---- */
   --ease-premium: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -136,11 +138,11 @@
   --hover-green:    rgba(34, 197, 94, 0.12);
   --hover-neutral:  rgba(255, 255, 255, 0.04);
 
-  --shadow-xs:      0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm:      0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow:         0 10px 30px rgba(0, 0, 0, 0.45);
-  --shadow-hover:   0 20px 50px rgba(0, 0, 0, 0.55);
-  --shadow-lg:      0 16px 40px rgba(0, 0, 0, 0.5);
+  --shadow-xs:      0 1px 1px rgba(0, 0, 0, 0.3);
+  --shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow:         0 2px 6px rgba(0, 0, 0, 0.36);
+  --shadow-hover:   0 6px 18px rgba(0, 0, 0, 0.44);
+  --shadow-lg:      0 12px 32px rgba(0, 0, 0, 0.5);
 
   --glass-top:       rgba(19, 26, 32, 0.86);
   --glass-bottom:    rgba(11, 15, 20, 0.9);
@@ -149,9 +151,9 @@
   --blueprint-line:  rgba(var(--accent-rgb), 0.07);
   --blueprint-tile:  url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27240%27%20height%3D%27240%27%20viewBox%3D%270%200%20240%20240%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%234ADE80%27%20stroke-width%3D%271.1%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M0%2060H240M0%20180H240M60%200V240M180%200V240%27%20stroke-width%3D%270.9%27%2F%3E%3Cpath%20d%3D%27M20%2044H66Q78%2044%2078%2056V96Q78%20108%2090%20108H140%27%2F%3E%3Cpath%20d%3D%27M186%2028V64Q186%2076%20174%2076H128Q116%2076%20116%2088V108%27%2F%3E%3Ccircle%20cx%3D%27140%27%20cy%3D%27108%27%20r%3D%274.5%27%2F%3E%3Ccircle%20cx%3D%2720%27%20cy%3D%2744%27%20r%3D%273%27%2F%3E%3Ccircle%20cx%3D%27186%27%20cy%3D%2728%27%20r%3D%273%27%2F%3E%3Ccircle%20cx%3D%27116%27%20cy%3D%27108%27%20r%3D%273%27%2F%3E%3Crect%20x%3D%27133%27%20y%3D%27101%27%20width%3D%2714%27%20height%3D%2714%27%20rx%3D%273.5%27%2F%3E%3Cpath%20d%3D%27M198%20162L208%20157L218%20162V174L208%20179L198%20174Z%27%2F%3E%3Ccircle%20cx%3D%27208%27%20cy%3D%27168%27%20r%3D%272.5%27%2F%3E%3Ccircle%20cx%3D%2750%27%20cy%3D%27192%27%20r%3D%2710%27%2F%3E%3Cpath%20d%3D%27M50%20180V204M38%20192H62%27%2F%3E%3Cpath%20d%3D%27M0%20120H36Q46%20120%2046%20130V150%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
 
-  --sidebar-glass-bg:     rgba(15, 20, 26, 0.82);
-  --sidebar-glass-border: rgba(255, 255, 255, 0.09);
-  --shadow-sidebar:       0 25px 60px rgba(0, 0, 0, 0.45);
+  --sidebar-glass-bg:     rgba(15, 20, 26, 0.86);
+  --sidebar-glass-border: rgba(255, 255, 255, 0.07);
+  --shadow-sidebar:       0 1px 3px rgba(0, 0, 0, 0.4);
 
   color-scheme: dark;
 }
@@ -175,10 +177,8 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background:
-    radial-gradient(58rem 32rem at 12% -6%,  rgba(var(--accent-rgb), 0.13) 0%, transparent 60%),
-    radial-gradient(45rem 30rem at 96% 8%,   rgba(var(--secondary-rgb), 0.09) 0%, transparent 62%),
-    radial-gradient(52rem 34rem at 78% 104%, rgba(var(--accent-rgb), 0.11) 0%, transparent 60%),
-    radial-gradient(38rem 26rem at 4% 92%,   rgba(var(--secondary-rgb), 0.07) 0%, transparent 62%),
+    radial-gradient(58rem 32rem at 12% -6%,  rgba(var(--accent-rgb), 0.05) 0%, transparent 62%),
+    radial-gradient(52rem 34rem at 82% 104%, rgba(var(--accent-rgb), 0.04) 0%, transparent 62%),
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
@@ -194,8 +194,8 @@ body {
 /* Dark already carries its own depth; a green wash there turns it murky. */
 :root[data-theme="dark"] body {
   background:
-    radial-gradient(50rem 30rem at 10% -8%, rgba(var(--primary-rgb), 0.1) 0%, transparent 60%),
-    radial-gradient(46rem 30rem at 92% 100%, rgba(var(--primary-rgb), 0.08) 0%, transparent 62%),
+    radial-gradient(50rem 30rem at 10% -8%, rgba(var(--primary-rgb), 0.06) 0%, transparent 62%),
+    radial-gradient(46rem 30rem at 92% 100%, rgba(var(--primary-rgb), 0.05) 0%, transparent 62%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -218,14 +218,14 @@ body::before {
   background-image: var(--blueprint-tile);
   background-size: 240px 240px;
   background-repeat: repeat;
-  opacity: 0.13;
+  opacity: 0.05;
   /* Fades toward the middle so it never sits behind reading content, but the
      transparent hole is kept small so the pattern is clearly legible across
      the margins, header band and rails. */
   -webkit-mask-image: radial-gradient(120% 108% at 50% 40%, transparent 0, transparent 150px, #000 540px);
   mask-image: radial-gradient(120% 108% at 50% 40%, transparent 0, transparent 150px, #000 540px);
 }
-:root[data-theme="dark"] body::before { opacity: 0.32; }
+:root[data-theme="dark"] body::before { opacity: 0.13; }
 
 h1, h2, h3, h4, p, figure { margin: 0; }
 button, input, textarea, select { font: inherit; letter-spacing: inherit; color: inherit; }

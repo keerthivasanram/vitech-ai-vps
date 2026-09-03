@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Shell, ShellMain, Workspace, WorkspaceMain, Scrim } from "./common/Layout";
 import { Sidebar } from "./components/Sidebar";
-import { TopHeader } from "./components/TopHeader";
+import { ViewControls } from "./components/ViewControls";
 import { ChatWindow } from "./components/ChatWindow";
 import { RightSidebar } from "./components/RightSidebar";
 import { Dashboard } from "./pages/Dashboard";
@@ -27,6 +27,7 @@ import { SESSION_EXPIRED } from "./lib/api";
 import { AGENT_UI, COLLECTION_KEYS, VIEW_TITLES, isChatView } from "./lib/constants";
 
 const PANEL_KEY = "vitech_panel";
+const NAV_KEY = "vitech_nav";
 
 /* The rail is maximized by default on a roomy screen and minimized on a narrow
    one, but an explicit choice always wins and is remembered. */
@@ -37,10 +38,20 @@ const initialPanel = () => {
   return window.innerWidth > 1024;
 };
 
+/* The navigation rail collapses to an icon strip. Same contract as the panel:
+   a remembered explicit choice wins, otherwise it follows the screen. */
+const initialNav = () => {
+  const saved = localStorage.getItem(NAV_KEY);
+  if (saved === "1") return true;
+  if (saved === "0") return false;
+  return window.innerWidth < 1280;
+};
+
 export default function App() {
   const [view, setView] = useState("engineering");
   const [navOpen, setNavOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(initialPanel);
+  const [navCollapsed, setNavCollapsed] = useState(initialNav);
 
   const { user, ready, login, logout, changePassword } = useAuth();
   // Set when a session ends mid-use, so the login screen can explain itself
@@ -104,6 +115,16 @@ export default function App() {
     setPanelOpen(false);
   }, []);
 
+  /* One control, two meanings by breakpoint: on a phone the rail is a drawer,
+     so this opens it; on a desktop it collapses the rail to an icon strip. */
+  const toggleNav = useCallback(() => {
+    if (isMobile) { setNavOpen((v) => !v); return; }
+    setNavCollapsed((v) => {
+      localStorage.setItem(NAV_KEY, v ? "0" : "1");
+      return !v;
+    });
+  }, [isMobile]);
+
   /* Esc closes whichever drawer is open. */
   useEffect(() => {
     if (!navOpen && !panelOpen) return;
@@ -115,6 +136,29 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [navOpen, panelOpen]);
+
+  /* [ and ] hide/show the two rails. Ignored while typing, so they never eat a
+     bracket the user meant for the composer or a studio field. */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "[" && e.key !== "]") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target;
+      const tag = el?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      e.preventDefault();
+      if (e.key === "[") toggleNav();
+      else togglePanel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleNav, togglePanel]);
+
+  /* The header used to name the view on screen; the browser tab does it now. */
+  useEffect(() => {
+    const name = VIEW_TITLES[view];
+    document.title = name ? `${name} \u2014 Vitech AI` : "Vitech AI";
+  }, [view]);
 
   /* Leaving mobile closes the nav drawer; entering the drawer breakpoint closes
      the rail so it never covers the chat unasked. */
@@ -229,21 +273,20 @@ export default function App() {
         onNewChat={startNewChat}
         user={user}
         open={navOpen}
+        collapsed={!isMobile && navCollapsed}
+        online={health ? health.status === "ok" : false}
         isDark={isDark}
       />
 
       <ShellMain>
-        <TopHeader
-          title={VIEW_TITLES[view] || "Vitech AI"}
-          online={health ? health.status === "ok" : false}
-          notifications={3}
+        <ViewControls
           isDark={isDark}
           onToggleTheme={toggleTheme}
-          onToggleSidebar={() => setNavOpen((v) => !v)}
+          onToggleNav={toggleNav}
+          navHidden={isMobile ? !navOpen : navCollapsed}
           onTogglePanel={togglePanel}
           showPanelToggle={chatView}
           panelOpen={panelOpen}
-          flat={chatView}
         />
 
         <Workspace chat={chatView}>

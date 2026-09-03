@@ -721,6 +721,46 @@ for _q in ("paint booth 5m x 3m x 4m",
               f"{_size}: every standing note survives a full column ({_q[:26]})")
 
 
+# --- drafting detailing: sections, datums, real-thickness material --------
+from app.drawing.symbols import SECTION_VIEWS, _mm_on_sheet, view_caption
+
+_sec = build_drawing(BOOTH)
+check("SECTION A-A" in _sec["svg"],
+      "a view that shows internals is captioned as a section")
+check("FRONT ELEVATION" not in _sec["svg"],
+      "and is NOT also called an elevation")
+# The mark and the view must agree: a cutting plane pointing at a view that
+# shows nothing inside would tell the reader a drawing is missing.
+for _cat in SECTION_VIEWS:
+    check(_cat in SYMBOLS, f"{_cat} declares a section and has a glyph")
+check(view_caption("conveyor", "front", "FRONT ELEVATION") == "FRONT ELEVATION",
+      "a category with no declared section keeps its elevation caption")
+
+# Levels are a reading convention over values already on the sheet, so they may
+# only appear where a real height was resolved.
+check("FFL 0.000" in _sec["svg"] and "+4.000" in _sec["svg"],
+      "floor and height datums are marked on a dimensioned elevation")
+check("FFL 0.000" not in nd["svg"],
+      "a SCHEMATIC carries no level marker -- it would be the one number on it")
+
+# Real-thickness material is drawn only when the spec states a thickness.
+class _V:
+    def __init__(s, w, h, mw, mh): s.w, s.h, s.model_w, s.model_h = w, h, mw, mh
+_v = _V(120.0, 80.0, 6000, 4000)          # 1:50
+check(abs((_mm_on_sheet("100 mm rockwool", _v) or 0) - 2.0) < 0.01,
+      "a stated 100 mm reads as 2 mm of sheet at 1:50")
+check(_mm_on_sheet("rockwool", _v) is None,
+      "a value stating no thickness gets no drawn thickness")
+check(_mm_on_sheet("50", _v) is None,
+      "a bare number is not read as a thickness")
+check(_mm_on_sheet("10 mm", _v) is None,
+      "a thickness too thin to print legibly is refused, not smudged")
+check(_mm_on_sheet("3000 mm", _v) is None,
+      "an implausible thickness cannot swallow the view")
+check(_mm_on_sheet("100 mm", _V(120.0, 80.0, None, None)) is None,
+      "no model dimension means no real-thickness conversion")
+
+
 # --- the three drawing states ---------------------------------------------
 # One classifier decides all fourteen categories, so these are asserted on the
 # state machine itself as well as through a rendered sheet.

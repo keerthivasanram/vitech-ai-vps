@@ -126,7 +126,7 @@ def layout(env: dict, ox: float, oy: float, avail_w: float, avail_h: float,
     return views
 
 
-def draw_view(canvas, v: View, dim_labels: dict) -> None:
+def draw_view(canvas, v: View, dim_labels: dict, caption: str = "") -> None:
     """Outline + centre lines + dimensions + caption for one view.
 
     `dim_labels` maps an envelope axis to the text to print, so a resolved axis
@@ -159,8 +159,9 @@ def draw_view(canvas, v: View, dim_labels: dict) -> None:
     # dimension that would collide (see `_panel_joints`), not by moving the
     # caption the view stack is spaced around.
     ty = v.y + v.h + LABEL_DROP + 8.0
-    canvas.add(Text(v.x + v.w / 2, ty, v.label, L_TEXT, T_VIEW_TITLE,
+    text = caption or v.label
+    canvas.add(Text(v.x + v.w / 2, ty, text, L_TEXT, T_VIEW_TITLE,
                     "middle", bold=True))
-    half = max(len(v.label) * T_VIEW_TITLE * 0.30, v.w * 0.18)
+    half = max(len(text) * T_VIEW_TITLE * 0.30, v.w * 0.18)
     canvas.add(Line(v.x + v.w / 2 - half, ty + 1.6,
                     v.x + v.w / 2 + half, ty + 1.6, L_TEXT, LW_MED))

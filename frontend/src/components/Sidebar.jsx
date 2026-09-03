@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { SidebarGroup, SidebarItem } from "./SidebarItem";
-import { Logo, CircuitDeco } from "./Logo";
+import { Logo, LogoMark, CircuitDeco } from "./Logo";
 import { Avatar } from "../common/Avatar";
 import { AGENT_VIEWS, navForRole } from "../lib/constants";
 import { useRipple } from "../hooks/useRipple";
@@ -9,9 +9,11 @@ import { useRipple } from "../hooks/useRipple";
 /**
  * Left rail: logo, New Chat, grouped nav, user card.
  * `open` only matters below 768px, where the rail is a drawer.
+ * `collapsed` is the desktop icon-strip state — every destination stays
+ * reachable, so hiding the labels never hides a route.
  */
 export const Sidebar = memo(function Sidebar({
-  view, onSelect, onNewChat, user, open, isDark,
+  view, onSelect, onNewChat, user, open, collapsed = false, online = false, isDark,
 }) {
   // The rail is built from the ROLE the server returned at sign-in, so an
   // engineer is never shown an administrator link. This is presentation only —
@@ -51,11 +53,19 @@ export const Sidebar = memo(function Sidebar({
   }, [role]);
 
   return (
-    <aside className={`sidebar${open ? " is-open" : ""}`} aria-label="Main navigation">
+    <aside
+      className={`sidebar${open ? " is-open" : ""}${collapsed ? " is-collapsed" : ""}`}
+      aria-label="Main navigation"
+    >
       <CircuitDeco />
 
       <div className="side-brand">
-        <Logo height={44} isDark={isDark} />
+        {collapsed ? <LogoMark /> : <Logo height={40} isDark={isDark} />}
+        <span
+          className={`side-live${online ? " is-on" : ""}`}
+          title={online ? "Platform online" : "Platform unreachable"}
+          aria-label={online ? "Platform online" : "Platform unreachable"}
+        />
       </div>
 
       <button
@@ -63,12 +73,12 @@ export const Sidebar = memo(function Sidebar({
         className={`side-newchat${justClicked ? " is-success" : ""}`}
         onClick={handleNewChat}
         onPointerDown={onPointerDown}
+        title={collapsed ? "New chat" : undefined}
       >
         <span className="side-newchat-ic">
           <Plus size={18} strokeWidth={2.2} aria-hidden="true" />
         </span>
-        New Chat
-        <span className="side-newchat-hover-shimmer" aria-hidden="true" />
+        <span className="side-newchat-label">New Chat</span>
         {ripples.map((r) => (
           <span key={r.id} className="ripple" style={{ left: r.x, top: r.y }} aria-hidden="true" />
         ))}
@@ -85,9 +95,10 @@ export const Sidebar = memo(function Sidebar({
                     key={item.id}
                     item={item}
                     view={view}
-                    open={agentsOpen}
+                    open={agentsOpen && !collapsed}
                     onToggle={() => setAgentsOpen((v) => !v)}
                     onSelect={onSelect}
+                    collapsed={collapsed}
                   />
                 ) : (
                   <SidebarItem
@@ -95,6 +106,7 @@ export const Sidebar = memo(function Sidebar({
                     item={item}
                     active={view === item.id}
                     onSelect={onSelect}
+                    collapsed={collapsed}
                   />
                 )
               )}
@@ -107,9 +119,10 @@ export const Sidebar = memo(function Sidebar({
         type="button"
         className={`side-user${view === "profile" ? " is-active" : ""}`}
         onClick={() => onSelect("profile")}
-        aria-label={`Signed in as ${user.name} — open profile`}
+        aria-label={`Signed in as ${user.name} \u2014 open profile`}
+        title={collapsed ? user.name : undefined}
       >
-        <Avatar name={user.name} size={38} />
+        <Avatar name={user.name} size={collapsed ? 34 : 36} />
         <span className="side-user-t">
           <span className="side-user-name">{user.name}</span>
           <span className="side-user-role">{user.role}</span>

@@ -26,6 +26,36 @@ export const Logo = memo(function Logo({ height = 44, isDark = false }) {
 });
 
 /**
+ * The compact Vitech mark — the same V the favicon carries, so the collapsed
+ * rail is still unmistakably this product. The wordmark cannot shrink to a
+ * 44px rail and stay legible, which is why this exists rather than a scaled
+ * <Logo>.
+ */
+export const LogoMark = memo(function LogoMark({ size = 32 }) {
+  return (
+    <svg
+      className="logo-mark"
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      role="img"
+      aria-label="Vitech"
+    >
+      <defs>
+        <linearGradient id="vt-mark" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#4ade80" />
+          <stop offset="55%" stopColor="#22c55e" />
+          <stop offset="100%" stopColor="#15803d" />
+        </linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="15" fill="#0b3f22" />
+      <path d="M10 14 h11 l8 22 l8 -22 h11 l-15 34 h-8 Z" fill="url(#vt-mark)" />
+      <path d="M40 12 h11 l-5 11 h-9 Z" fill="#4ade80" opacity="0.85" />
+    </svg>
+  );
+});
+
+/**
  * Circuit-trace decoration for the sidebar's bottom-left corner.
  * Purely decorative — rendered at ~6% opacity behind the nav.
  */

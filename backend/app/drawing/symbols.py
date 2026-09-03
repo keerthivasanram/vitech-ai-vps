@@ -23,7 +23,7 @@ from typing import Callable, Optional
 from .. import values
 from .primitives import (L_COMPONENT, L_TEXT,
                          Circle, Dim, Line, Rect, Text, hatch, poly)
-from . import components
+from . import components, detailing
 from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, CENTRE_LINE,
                     DIM_LANE_MAJOR, DOOR, DUCT, EQUIPMENT, FLOOR_LINE,
                     HATCH_LINE, HIDDEN_LINE, INTERNAL_DETAIL, LEADER_DOT_R,
@@ -139,6 +139,37 @@ def _nos(value, default: int = 0) -> int:
     See `values.stated_count` for why a bare number is refused.
     """
     return values.stated_count(value, default)
+
+
+# "100 mm rockwool" / "50mm PUF" / "insulation 75 mm" -> the millimetres.
+# A bare number is deliberately NOT matched: on an insulation row it is as
+# likely to be a grade or a density as a thickness.
+_MM_RE = re.compile(r"(\d+(?:\.\d+)?)\s*mm\b", re.I)
+
+
+def _mm_on_sheet(text, v, cap_frac: float = 0.12):
+    """A stated millimetre thickness converted to SHEET mm for this view.
+
+    Returns None when the value states no thickness, when the view carries no
+    model dimension to scale against, or when the result would be too thin to
+    read — below about a third of a millimetre a hatched band prints as a
+    smudge, and a smudge that claims to be 100 mm of rockwool is worse than an
+    honest symbolic line.
+
+    Capped at a fraction of the view so an implausible parse (a "2000 mm"
+    read out of some other phrase) can never swallow the machine.
+    """
+    if not text or not v or not v.model_w or not v.model_h:
+        return None
+    m = _MM_RE.search(str(text))
+    if not m:
+        return None
+    mm = float(m.group(1))
+    per_mm = min(v.w / float(v.model_w), v.h / float(v.model_h))
+    t = mm * per_mm
+    if t < 0.35 or t > min(v.w, v.h) * cap_frac:
+        return None
+    return t
 
 
 def _resolved(value) -> bool:
@@ -312,6 +343,67 @@ def _panel_joints(canvas, v, dimension: bool = False) -> None:
             jy = v.y + v.h - i * step_y
             if jy > v.y + 0.5:
                 canvas.add(Line(v.x, jy, v.x + v.w, jy, *PANEL_SEAM))
+
+
+# Which views are genuinely SECTIONS rather than outside elevations, per
+# category. A glyph that draws the filter bank, the blower and the heater inside
+# the casing is not showing the outside of the machine — it is showing a cut
+# through it, and calling that "FRONT ELEVATION" is simply the wrong caption.
+# Naming it correctly costs no geometry and is the single clearest signal that
+# a sheet was drafted rather than generated.
+#
+# ONLY listed where the glyph really does draw internals. A section mark
+# pointing at a view that shows nothing inside would be worse than no mark.
+SECTION_VIEWS = {
+    "paint_booth": {"front": "A"},
+    "wet_scrubber": {"front": "A"},
+    "dust_collector": {"front": "A"},
+    "hot_air_oven": {"front": "A"},
+    "paint_drying_oven": {"front": "A"},
+    "blast_booth": {"front": "A"},
+    "pretreatment_plant": {"front": "A"},
+}
+
+
+def view_caption(category: str, key: str, default: str) -> str:
+    """The caption a view carries, allowing a glyph's section to say so."""
+    tag = (SECTION_VIEWS.get(category) or {}).get(key)
+    return f"SECTION {tag}-{tag}" if tag else default
+
+
+def _section_mark(canvas, plan, category: str) -> None:
+    """Put the cutting plane on the PLAN for whichever view is a section.
+
+    Drawn along the machine's long axis at mid-width, which is the cut the
+    front view actually shows. It is a drawing statement, not an engineering
+    one: it says where the view was taken, and every component inside it is
+    still governed by the sheet's indicative-position note.
+    """
+    tag = (SECTION_VIEWS.get(category) or {}).get("front")
+    if not tag or plan is None:
+        return
+    cy = plan.y + plan.h / 2
+    # Stops SHORT of the overall-width dimension lane on the right. A cutting
+    # plane conventionally projects beyond the view, but the lane nearest the
+    # view is already spoken for, and a mark drawn over a dimension is worse
+    # than one drawn a little shorter.
+    detailing.section_marker(canvas, plan.x - 5.0, cy, plan.x + plan.w + 2.5, cy,
+                             tag=tag)
+
+
+def _levels(canvas, v, top_label: str = "") -> None:
+    """Datum marks on an elevation: finished floor, and the top of the machine.
+
+    BOTH LEVELS ARE ALREADY ON THE SHEET as engineering — the floor line the
+    view stands on, and the overall height the envelope states — so this adds a
+    reading convention, not a value. When the height is not resolved the top
+    marker is simply not drawn; there is no such thing as an approximate level.
+    """
+    fy = v.y + v.h * 0.94
+    detailing.level_marker(canvas, v.x + v.w + 3.0, fy, "FFL 0.000")
+    if v.model_h and v.h_axis == "height":
+        detailing.level_marker(canvas, v.x + v.w + 3.0, v.y,
+                               top_label or f"+{float(v.model_h) / 1000.0:.3f}")
 
 
 def _floor(canvas, v, legend: list = None, label: bool = True) -> float:
@@ -809,6 +901,12 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # --- sump, water level, base -----------------------------------------
         canvas.add(Rect(x, ty, w, tank_h, *EQUIPMENT))
         wl = ty + tank_h * 0.42
+        # The scrubbing liquor below its working level, in the horizontal hatch
+        # a section uses for a liquid. This view already CUTS the sump — it
+        # shows the level inside it — so hatching the contents is what the view
+        # was always claiming, drawn properly.
+        detailing.material_hatch(canvas, x, wl, w, ty + tank_h - wl,
+                                 detailing.LIQUID)
         canvas.add(Line(x, wl, x + w, wl, *HIDDEN_LINE))
         # Right-anchored just inside the wall. Centred, it was overprinted by the
         # pump balloon on a NARROW view (a 750 mm tower is only ~30 mm of sheet at
@@ -945,11 +1043,23 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
-        # Insulated lining, drawn as an inner outline. The panel build-up is a
-        # schematic thickness — the client has given no wall section — so it is
-        # never dimensioned, only labelled with the insulation the spec states.
-        t = min(w, h) * 0.05
+        # THE LINING IS DRAWN AT ITS REAL THICKNESS WHENEVER THE SPEC STATES
+        # ONE. "100 mm rockwool" at 1:50 is 2 mm of sheet — perfectly drawable —
+        # and a wall drawn to its stated thickness, hatched as lagging, is a
+        # real engineering statement rather than a symbolic band. When no
+        # thickness is stated it falls back to the schematic band it always
+        # was: indicative, unhatched, and never dimensioned.
+        t_real = _mm_on_sheet(insulation, front)
+        t = t_real or min(w, h) * 0.05
         canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
+        if t_real:
+            # Only the cut jambs and head/sill are hatched — that is what this
+            # view passes through.
+            for hx, hy, hw, hh in ((x, y, w, t), (x, y + h - t, w, t),
+                                   (x, y + t, t, h - 2 * t),
+                                   (x + w - t, y + t, t, h - 2 * t)):
+                detailing.material_hatch(canvas, hx, hy, hw, hh,
+                                         detailing.INSULATION)
         # Dropped clear of the blower balloon, which sits in the roof band at
         # 0.20h; on a short view the two circles overlapped. A leader is what
         # lets it move without losing which feature it names.
@@ -1813,5 +1923,21 @@ SYMBOLS: dict[str, Callable] = {
 
 
 def draw_components(canvas, category: str, views: dict, rows: list) -> list[tuple[str, str]]:
-    """Draw the category's component glyphs; returns the legend rows."""
-    return SYMBOLS.get(category, generic)(canvas, views, rows)
+    """Draw the category's component glyphs; returns the legend rows.
+
+    The DRAFTING furniture that is true of every category — the cutting plane
+    for whichever view is a section, and the floor/height datums — is applied
+    here rather than repeated in fourteen glyphs. Both are drawn from values the
+    sheet already carries, so neither adds an engineering claim.
+    """
+    legend = SYMBOLS.get(category, generic)(canvas, views, rows)
+
+    _section_mark(canvas, views.get("plan"), category)
+    for key in ("front", "side"):
+        v = views.get(key)
+        # Only on a view drawn to a real height. A schematic's views carry no
+        # model dimensions, and a level marker there would be the one thing on
+        # that sheet claiming a number.
+        if v is not None and v.model_h:
+            _levels(canvas, v)
+    return legend

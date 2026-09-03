@@ -259,7 +259,11 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
     if placed:
         labels = _dim_labels(env, str(geom.get("equipment_type") or ""))
         for v in placed:
-            views.draw_view(canvas, v, labels)
+            # A view that shows the machine's insides is a SECTION, and saying
+            # so is more correct than calling it an elevation — the caption
+            # comes from the glyph's own declaration, never from a guess here.
+            views.draw_view(canvas, v, labels,
+                            caption=symbols.view_caption(category, v.key, v.label))
         legend = symbols.draw_components(canvas, category,
                                          {v.key: v for v in placed}, rows)
         if gstate.state == states.PARTIAL:

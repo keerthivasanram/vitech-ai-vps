@@ -450,7 +450,7 @@
    Expanded (focus) mode — the studio owns the window
    -------------------------------------------------------------------------- */
 body.studio-focus .sidebar,
-body.studio-focus .topheader { display: none !important; }
+body.studio-focus .viewbar { display: none !important; }
 body.studio-focus .shell { max-width: none; padding: 0; }
 body.studio-focus .workspace { padding: 0; gap: 0; }
 body.studio-focus .ds { min-height: 100vh; height: 100vh; padding: 10px; }

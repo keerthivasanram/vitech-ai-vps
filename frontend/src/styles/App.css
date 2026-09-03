@@ -75,20 +75,50 @@
      the sidebar doesn't need its own copy of the pattern any more) plus a
      green breath at the foot of the rail behind the circuit art. */
   background:
-    radial-gradient(26rem 20rem at -10% 108%, rgba(var(--accent-rgb), 0.14) 0%, transparent 68%),
+    radial-gradient(24rem 18rem at -10% 108%, rgba(var(--accent-rgb), 0.06) 0%, transparent 68%),
     var(--sidebar-glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.08);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.08);
   border: 1px solid var(--sidebar-glass-border);
-  border-radius: 22px;
+  border-radius: var(--r-rail);
   box-shadow: var(--shadow-sidebar);
   display: flex;
   flex-direction: column;
-  padding: 22px 16px 16px;
+  padding: 16px 12px 12px;
   position: relative;
   overflow: hidden;
-  transition: background var(--t-slow), border-color var(--t-slow), box-shadow var(--t-slow);
+  transition: width var(--t-slow), flex-basis var(--t-slow),
+              background var(--t-slow), border-color var(--t-slow);
 }
+
+/* --------------------------------------------------------------------------
+   Collapsed rail. Width is the only thing that changes structurally; every
+   row keeps its markup, so no destination is lost — the labels move into the
+   native tooltip and the agent group flattens to its children (SidebarItem.jsx).
+   -------------------------------------------------------------------------- */
+.sidebar.is-collapsed {
+  width: var(--sidebar-rail-w);
+  flex-basis: var(--sidebar-rail-w);
+  padding: 16px 10px 12px;
+  align-items: center;
+}
+.sidebar.is-collapsed .side-brand { justify-content: center; padding: 0; margin-bottom: 14px; }
+.sidebar.is-collapsed .side-live { display: none; }
+.sidebar.is-collapsed .side-newchat { width: 44px; padding: 0; }
+.sidebar.is-collapsed .side-newchat-label { display: none; }
+.sidebar.is-collapsed .side-group-label { display: none; }
+.sidebar.is-collapsed .side-nav { width: 100%; margin-top: 12px; gap: 4px; }
+.sidebar.is-collapsed .side-item { justify-content: center; padding: 0; height: 42px; gap: 0; }
+.sidebar.is-collapsed .side-item-label { display: none; }
+.sidebar.is-collapsed .side-item-dot { position: absolute; top: 8px; right: 10px; }
+.sidebar.is-collapsed .side-user {
+  width: 44px;
+  padding: 5px;
+  justify-content: center;
+}
+.sidebar.is-collapsed .side-user-t,
+.sidebar.is-collapsed .side-user-chev { display: none; }
+.sidebar.is-collapsed .sidebar-deco { display: none; }
 
 /* Lift the real content above the decoration. The :not() is load-bearing —
    without it this rule outranks .sidebar-deco's `position: absolute` (equal
@@ -114,8 +144,25 @@
 .side-brand {
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  margin-bottom: 22px;
+  gap: 10px;
+  padding: 0 6px;
+  margin-bottom: 16px;
+}
+
+/* Platform health. The header's status pill said the same thing in more
+   words; this keeps the signal and gives back the whole strip it lived on. */
+.side-live {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--bad);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+}
+.side-live.is-on {
+  background: var(--secondary);
+  box-shadow: 0 0 0 3px rgba(var(--secondary-rgb), 0.16);
 }
 
 /* The breathing/hover treatment (transform + filter, incl. the drop-shadow)
@@ -131,20 +178,15 @@
 /* Idle: a 10s breathing loop (scale + brightness + shadow). Hover: pause the
    loop for a slight lift, a brighter green tint and a subtle glow — no
    rotation, this one stays calm. */
+/* Static. A wordmark that pulses on its own for the whole session is the
+   single loudest thing in the shell and says nothing — the brand does not
+   need to move to be seen. */
 .logo-shell {
   display: inline-flex;
-  border-radius: 12px;
-  animation: logo-breathe 10s ease-in-out infinite;
-  transition: transform var(--t-logo), filter var(--t-logo);
+  border-radius: 8px;
   transform-origin: center left;
 }
-.logo-shell:hover {
-  animation-play-state: paused;
-  transform: translateY(-2px);
-  filter: brightness(1.05) saturate(1.12)
-          drop-shadow(0 8px 18px rgba(var(--secondary-rgb), 0.32));
-}
-.logo-shell:active { transform: translateY(-1px) scale(0.985); }
+.logo-mark { display: block; border-radius: 8px; }
 
 .side-newchat {
   position: relative;
@@ -152,75 +194,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
-  height: 58px;
+  height: 40px;
   border: none;
   border-radius: var(--r-newchat);
-  background: var(--grad-green);
+  background: var(--primary);
   color: var(--text-on-green);
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 600;
   box-shadow: var(--shadow-green);
-  transition: transform var(--t-card), box-shadow var(--t-card), filter var(--t-card);
+  transition: background var(--t), box-shadow var(--t);
 }
-.side-newchat-ic {
-  display: grid;
-  place-items: center;
-  transition: transform var(--t-slow) var(--ease-premium);
-}
-.side-newchat:hover {
-  transform: translateY(-4px);
-  filter: brightness(1.08);
-  box-shadow: var(--shadow-green-lg);
-}
-.side-newchat:hover .side-newchat-ic { transform: rotate(90deg); }
-.side-newchat:active {
-  transform: translateY(-1px) scale(0.96);
-  transition-duration: var(--t-fast);
-}
+.side-newchat-ic { display: grid; place-items: center; }
+.side-newchat:hover { background: var(--primary-hover); box-shadow: var(--shadow-green-lg); }
+.side-newchat:active { transform: translateY(0.5px); }
 
-/* Idle ambient shimmer: the hero CTA is never quite still — a very faint
-   sweep passes every 12s even without interaction. Parked off-canvas for
-   most of the cycle, so it's a glint, not a loop you consciously notice. */
-.side-newchat::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.32) 50%, transparent 58%);
-  background-size: 220% 100%;
-  background-position: 150% 0;
-  animation: newchat-idle-shimmer 12s ease-in-out infinite;
-  pointer-events: none;
-}
-/* Hover shimmer: a brighter, quicker sweep on top of the idle one. */
-.side-newchat-hover-shimmer {
-  position: absolute;
-  inset: 0;
-  width: 50%;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  transform: translateX(-160%) skewX(-15deg);
-  pointer-events: none;
-}
-.side-newchat:hover .side-newchat-hover-shimmer { animation: btn-shimmer 700ms ease-in-out; }
-
-/* Success bloom: a soft white flash confirming the click, timed from React
-   (see Sidebar.jsx) so it always completes even on a very quick click. */
-.side-newchat.is-success::after {
-  content: "";
-  position: absolute;
-  inset: -30%;
-  border-radius: inherit;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, transparent 68%);
-  animation: success-flash 500ms var(--ease-premium);
-  pointer-events: none;
-}
+/* The idle shimmer, the hover sweep and the success bloom are gone on
+   purpose: three decorations stacked on one button, two of them running
+   whether or not anyone was looking at it. The ripple already confirms the
+   click. */
 
 .side-nav {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  margin-top: 22px;
+  margin-top: 16px;
   padding-right: 2px;
   display: flex;
   flex-direction: column;
@@ -235,7 +234,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
-  padding: 14px 14px 6px;
+  padding: 14px 10px 5px;
 }
 .side-group-label:first-child { padding-top: 2px; }
 
@@ -245,88 +244,49 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 11px;
   width: 100%;
-  height: 52px;
-  padding: 0 14px;
+  height: 38px;
+  padding: 0 10px;
   border: none;
   border-radius: var(--r-btn);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 500;
   text-align: left;
-  transition: background var(--t), color var(--t), box-shadow var(--t);
+  transition: background var(--t), color var(--t);
 }
-/* Soft green glass on hover — icon scales up and drifts 4px right with the
-   label beneath it. */
-.side-item:hover {
-  background: linear-gradient(135deg, rgba(var(--secondary-rgb), 0.1), rgba(var(--secondary-rgb), 0.03));
-  color: var(--text);
-  box-shadow: 0 4px 14px rgba(var(--secondary-rgb), 0.1);
-}
-.side-item:hover .side-item-ic { transform: translateX(4px) scale(1.08); }
-.side-item:hover .side-item-label { transform: translateX(4px); }
+/* Hover is a neutral wash, not a green one: on a rail where the CURRENT page
+   is the green thing, tinting hover green too made the two read alike. */
+.side-item:hover { background: var(--hover-neutral); color: var(--text); }
 
-/* Active: a light-green glass card with a glowing left bar + floating dot. */
+/* Active: a flat green tint and a solid left marker. No glow, no pulsing
+   dot, no drifting highlight — the nav does not need to animate to say which
+   page you are on, and three perpetual loops per row is what made a rail of
+   nine rows feel restless. */
 .side-item.is-active {
-  background: linear-gradient(135deg, rgba(var(--secondary-rgb), 0.16) 0%, rgba(var(--secondary-rgb), 0.05) 100%);
+  background: var(--hover-green);
   color: var(--primary);
   font-weight: 600;
-  box-shadow: inset 0 0 0 1px rgba(var(--secondary-rgb), 0.22), 0 6px 18px rgba(var(--secondary-rgb), 0.16);
 }
-
-/* Glowing left indicator, breathing gently. */
 .side-item.is-active::before {
   content: "";
   position: absolute;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 26px;
-  border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, var(--accent), var(--primary));
-  animation: side-indicator-glow 2.4s ease-in-out infinite;
+  width: 2.5px;
+  height: 18px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
 }
-/* Tiny floating presence dot, top-right of the active card. */
-.side-item.is-active::after {
-  content: "";
-  position: absolute;
-  top: 9px;
-  right: 12px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--secondary);
-  box-shadow: 0 0 6px rgba(var(--secondary-rgb), 0.8);
-  animation: nav-dot-pulse 2.4s ease-in-out infinite;
-}
-/* Too cramped in the indented agent sub-list — the left bar alone reads fine. */
-.side-subitem.is-active::after { display: none; }
-
-/* Tiny moving highlight: a soft light streak drifting through the active
-   pill — a real element (not ::before/::after, both spoken for above) so it
-   layers under the label/icon rather than over them. */
-.side-item-highlight {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
-  background-size: 250% 100%;
-  animation: nav-highlight-sweep 5s ease-in-out infinite;
-}
-:root[data-theme="dark"] .side-item-highlight {
-  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.12) 50%, transparent 70%);
-  background-size: 250% 100%;
-}
-
 .side-item-ic {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
   color: var(--text-muted);
-  transition: color var(--t-card), transform var(--t-card);
+  transition: color var(--t);
 }
 .side-item:hover .side-item-ic { color: var(--text-secondary); }
 .side-item.is-active .side-item-ic { color: var(--primary); }
@@ -337,7 +297,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: transform var(--t-card);
 }
 
 /* "soon" marker for roadmap pages */
@@ -360,7 +319,7 @@
 
 .side-sub {
   margin: 2px 0 4px;
-  padding: 0 0 0 16px;
+  padding: 0 0 0 13px;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -372,36 +331,36 @@
 .side-sub::before {
   content: "";
   position: absolute;
-  left: 20px;
+  left: 17px;
   top: 4px;
   bottom: 4px;
-  width: 1.5px;
+  width: 1px;
   border-radius: 2px;
   background: var(--border);
 }
 
 .side-subitem {
-  height: 44px;
-  padding-left: 20px;
-  font-size: 13.5px;
+  height: 34px;
+  padding-left: 16px;
+  font-size: 13px;
 }
-.side-subitem.is-active::before { left: 16px; height: 20px; }
+.side-subitem.is-active::before { left: 12px; height: 15px; }
 
 /* ---- Sidebar footer: user card ---- */
 .side-user {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   width: 100%;
-  margin-top: 12px;
-  padding: 10px;
+  margin-top: 10px;
+  padding: 7px;
   border: 1px solid var(--border);
   border-radius: var(--r-btn);
   background: var(--card);
   text-align: left;
-  transition: border-color var(--t), background var(--t), transform var(--t);
+  transition: border-color var(--t), background var(--t);
 }
-.side-user:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.side-user:hover { border-color: var(--border-strong); background: var(--card-sunken); }
 .side-user.is-active { border-color: rgba(var(--secondary-rgb), 0.45); background: var(--hover-green); }
 .side-user-t { flex: 1; min-width: 0; }
 .side-user-name {
@@ -418,128 +377,84 @@
 .side-user-chev { flex: 0 0 auto; color: var(--text-muted); }
 
 /* --------------------------------------------------------------------------
-   Top header
+   View controls — what the top header used to be.
+
+   There is no header any more: it carried a page title every page already
+   printed in its own .page-head, plus a search box and a bell that did
+   nothing. What was worth keeping sits in the same place, on a transparent
+   strip with no bar, no fill and no border, so the page starts at the top of
+   the window instead of below a band of chrome.
    -------------------------------------------------------------------------- */
-.topheader {
-  height: var(--header-h);
-  flex: 0 0 var(--header-h);
+.viewbar {
+  flex: 0 0 var(--viewbar-h);
+  height: var(--viewbar-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   padding: 0 var(--pad);
-  background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
-  border-bottom: 1px solid var(--glass-border);
-}
-
-/* Chat view: no bar of its own — a thin, header-less strip (ChatGPT-style).
-   The sidebar already names the agent, so the top just carries the essential
-   controls (theme, panel toggle) floated right and recedes into the surface. */
-.topheader.is-flat {
-  height: 50px;
-  flex-basis: 50px;
   background: transparent;
-  border-bottom-color: transparent;
+  border: 0;
 }
 
-.topheader-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.viewbar-l,
+.viewbar-r { display: flex; align-items: center; gap: 2px; }
 
-.topheader-burger {
-  display: none;
-  width: 40px; height: 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--card);
-  color: var(--text-secondary);
+.ctl-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
   place-items: center;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  transition: background var(--t), color var(--t);
 }
+.ctl-btn:hover { background: var(--hover-neutral); color: var(--text); }
+.ctl-btn.is-on { color: var(--primary); }
 
-.topheader-title {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: var(--lsp-hero);
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Glass pill: translucent tint + a hairline border for definition, since
-   the flat tint alone reads flat rather than "glass" at this small a size. */
+/* Status pill kept for the pages that still show one (Live Help, Profile). */
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 7px;
   flex: 0 0 auto;
-  padding: 5px 12px 5px 10px;
+  padding: 4px 11px 4px 9px;
   border-radius: var(--r-pill);
   background: var(--hover-green);
   border: 1px solid rgba(var(--secondary-rgb), 0.18);
   color: var(--primary);
   font-size: var(--fs-sm);
   font-weight: 600;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   transition: background var(--t), border-color var(--t), color var(--t);
 }
 .status-badge.is-off { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.2); color: var(--bad); }
 
-/* Online: a soft pulse plus an expanding ring, every 3s. */
 .status-dot {
-  width: 7px; height: 7px;
+  width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--secondary);
-  animation: status-pulse 3s ease-in-out infinite;
 }
-/* Offline: a slow, smooth breathe — never a hard on/off blink. */
-.status-badge.is-off .status-dot {
-  background: var(--bad);
-  animation: badge-breathe 3s ease-in-out infinite;
-}
+.status-badge.is-off .status-dot { background: var(--bad); }
 
-.topheader-r { display: flex; align-items: center; gap: 6px; }
-
-
+/* The icon button used by pages (drawers, table actions) — unchanged API,
+   calmer treatment: no scale-up, no drop shadow on hover. */
 .icon-btn {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-secondary);
-  transition: background var(--t), color var(--t), transform var(--t), box-shadow var(--t);
+  transition: background var(--t), color var(--t);
 }
-.icon-btn:hover {
-  background: var(--hover-neutral);
-  color: var(--text);
-  transform: scale(1.08);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
-}
+.icon-btn:hover { background: var(--hover-neutral); color: var(--text); }
 .icon-btn.is-on { background: var(--hover-green); color: var(--primary); }
-.icon-btn.is-on:hover { box-shadow: 0 4px 14px rgba(var(--secondary-rgb), 0.24); }
-
-.icon-btn-badge {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: var(--r-pill);
-  background: var(--primary);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
-  border: 2px solid var(--bg);
-  animation: notif-pulse-8s 8s ease-in-out infinite;
-}
 
 /* --------------------------------------------------------------------------
    Chat surface — hero + quick actions + transcript + composer
@@ -548,7 +463,7 @@
    already carries its own background/border, so a wrapping card around
    all of them was redundant framing that just drew a box around empty
    space. Transparent, so it reads as one continuous surface with the
-   (also-flat, see .topheader.is-flat) header above it — full-height,
+   thin view-control strip above it — full-height,
    full-width, Claude/ChatGPT-style, not a floating panel. */
 .chat-surface {
   flex: 1;
@@ -593,179 +508,70 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  min-height: 148px;
-  padding: 24px 28px;
-  /* A clearly-defined edge (not just the green tint) so the hero reads as
-     its own elevated card against the chat surface, the way quick-action
-     and history cards do — rather than blending into the surrounding glass. */
-  border: 1px solid rgba(var(--secondary-rgb), 0.24);
+  padding: 22px 24px;
+  border: 1px solid var(--border);
   border-radius: var(--r-hero);
-  /* White glass — translucent enough that the shared engineering-blueprint
-     canvas behind #root reads faintly through it, per the "extend behind
-     the hero card" brief. Still ~96% opaque so body text stays crisp. */
-  background:
-    radial-gradient(120% 140% at 88% 50%, rgba(var(--accent-rgb), 0.16) 0%, transparent 58%),
-    var(--glass-top);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  /* Neutral lift plus a faint brand-tinted glow underneath — the same
-     elevation language as the New Chat button — so the hero clearly reads
-     as a raised card, with a soft inner top highlight for glass depth. */
-  box-shadow: var(--shadow-hover), 0 16px 36px rgba(var(--secondary-rgb), 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  transition: box-shadow var(--t-card);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
-}
-:root[data-theme="dark"] .hero {
-  border-color: rgba(var(--secondary-rgb), 0.22);
-  box-shadow: var(--shadow-hover), 0 16px 36px rgba(var(--secondary-rgb), 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .hero-t { flex: 1; min-width: 0; }
 
 .hero-greet {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--primary);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
-.hero-wave { display: inline-block; animation: orb-float 2.6s ease-in-out infinite; }
 
 .hero-h1 {
   font-size: var(--fs-hero);
-  font-weight: 700;
-  line-height: 1.15;
+  font-weight: 650;
+  line-height: 1.2;
   letter-spacing: var(--lsp-hero);
   color: var(--text);
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
 
 .hero-sub {
   font-size: 13.5px;
   color: var(--text-secondary);
   line-height: 1.55;
-  max-width: 52ch;
+  max-width: 58ch;
 }
 
-/* ---- Premium AI core: radar sweep, guide rings, 4 orbiting dots ---- */
+/* ---- Agent mark: a glass core inside two still guide rings ---- */
 .orb {
   position: relative;
   flex: 0 0 auto;
-  width: 120px;
-  height: 120px;
+  width: 96px;
+  height: 96px;
   display: grid;
   place-items: center;
-  transition: filter var(--t-card);
-}
-/* Hover: the whole assembly reads "more active" via a gentle filter boost —
-   one compositing pass, so it never fights any descendant's own keyframes. */
-.orb:hover { filter: saturate(1.2) brightness(1.05); }
-
-/* Soft breathing gradient orb, drifting almost imperceptibly. */
-.orb-glow {
-  position: absolute;
-  inset: 10%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.42) 0%, rgba(var(--accent-rgb), 0) 70%);
-  filter: blur(7px);
-  animation: orb-pulse-6s 6s ease-in-out infinite;
 }
 
-/* Radar sweep — one bright arc rotating around a faint ring band. The
-   conic gradient is the arc; the radial mask punches the disc into a ring. */
-.orb-sweep {
-  position: absolute;
-  inset: 4%;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg,
-    rgba(var(--secondary-rgb), 0) 0deg,
-    rgba(var(--secondary-rgb), 0) 240deg,
-    rgba(var(--secondary-rgb), 0.28) 330deg,
-    rgba(var(--secondary-rgb), 0.55) 360deg);
-  -webkit-mask: radial-gradient(circle, transparent 60%, #000 61%);
-  mask: radial-gradient(circle, transparent 60%, #000 61%);
-  animation: orb-spin 7s linear infinite;
-}
-.orb:hover .orb-sweep { animation-duration: 4s; }
-
-/* Two clean, thin concentric guide rings (no dashes — reads more refined). */
 .orb-ring {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(var(--secondary-rgb), 0.2);
+  border: 1px solid rgba(var(--secondary-rgb), 0.22);
 }
-.orb-ring-1 { inset: 4%;  }
-.orb-ring-2 { inset: 22%; border-color: rgba(var(--secondary-rgb), 0.14); animation: orb-ring3-pulse 6s ease-in-out infinite; transform-origin: center; }
+.orb-ring-1 { inset: 0; }
+.orb-ring-2 { inset: 14%; border-color: rgba(var(--secondary-rgb), 0.13); }
 
-/* Orbit wrappers: each sized to its own radius (inline `inset`) and rotating
-   at its own duration/direction/delay (inline), so the dot it carries sweeps
-   that radius independently of the others. */
-.orb-orbit {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  animation-name: particle-orbit;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-
-/* Clean glowing dot — a soft point of light, no comet trail. */
-.orb-node {
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  border-radius: 50%;
-  background: var(--secondary);
-  box-shadow: 0 0 7px rgba(var(--secondary-rgb), 0.7);
-  animation-name: particle-flicker;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-/* The energy wave — centered on the core (top/left:50%, then the keyframe's
-   own translate(-50%,-50%) does the rest), expanding + fading every 5s. */
-.orb-wave {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(var(--secondary-rgb), 0.6);
-  animation: ai-pulse-wave 5s ease-out infinite;
-  pointer-events: none;
-}
-
-/* Glass core holding the bot mark */
 .orb-core {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: var(--primary);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.72));
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow:
-    0 10px 28px rgba(var(--primary-rgb), 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  transition: transform var(--t-card), box-shadow var(--t-card);
+  background: var(--hover-green);
+  border: 1px solid rgba(var(--secondary-rgb), 0.24);
 }
-:root[data-theme="dark"] .orb-core {
-  background: linear-gradient(160deg, rgba(30, 41, 52, 0.96), rgba(19, 25, 32, 0.74));
-  border-color: rgba(255, 255, 255, 0.09);
-  color: var(--accent);
-}
-.orb:hover .orb-core {
-  transform: scale(1.05);
-  box-shadow:
-    0 12px 32px rgba(var(--primary-rgb), 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
+:root[data-theme="dark"] .orb-core { color: var(--accent); }
 
 /* --------------------------------------------------------------------------
    Quick actions
@@ -786,22 +592,19 @@
   align-items: center;
   gap: 11px;
   min-width: 0;
-  min-height: 68px;
-  padding: 13px 14px;
+  min-height: 60px;
+  padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--shadow-xs);
   text-align: left;
   color: var(--secondary);
-  transition: transform var(--t-card), box-shadow var(--t-card), border-color var(--t-card);
+  transition: background var(--t), border-color var(--t);
 }
 .quick-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-hover);
-  border-color: rgba(var(--secondary-rgb), 0.4);
+  background: var(--card-sunken);
+  border-color: var(--border-strong);
 }
-.quick-card:active { transform: translateY(-1px) scale(0.98); transition-duration: var(--t-fast); }
 
 /* Soft radial bloom behind the icon, revealed on hover. */
 .quick-glow {
@@ -823,12 +626,11 @@
   width: 34px; height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--hover-green);
   color: var(--primary);
-  transition: transform var(--t-card);
 }
-.quick-card:hover .quick-ic { transform: scale(1.14); }
+
 
 .quick-t { flex: 1; min-width: 0; }
 .quick-title {
@@ -1483,7 +1285,7 @@
 
 /* 768: sidebar becomes a drawer, chat fills the width. */
 @media (max-width: 768px) {
-  :root { --gap: 14px; --pad: 14px; --header-h: 64px; }
+  :root { --gap: 14px; --pad: 14px; --viewbar-h: 44px; }
 
   .shell { padding: 0; }
 
@@ -1501,8 +1303,6 @@
   }
   .sidebar:not(.is-open) { display: none; }
 
-  .topheader-burger { display: grid; }
-  .topheader-title { font-size: 19px; }
 
   .quick { grid-template-columns: 1fr; }
   .quick-card { min-height: 76px; padding: 14px; }
@@ -1525,6 +1325,5 @@
   .composer-tools .composer-tool:nth-child(n + 3) { display: none; }
   .composer-foot .foot-extra { display: none; }
   .bubble-ast { padding: 13px 14px; }
-  .topheader-title { font-size: 17px; }
   .status-badge { padding: 4px 9px 4px 8px; font-size: 12px; }
 }
