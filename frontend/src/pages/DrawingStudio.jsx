@@ -304,7 +304,14 @@ export function DrawingStudio() {
       });
       const d = await res.json();
       if (!d.ok) setError(d.error || "The drawing could not be generated.");
-      else pushRevision(d, req, activeCategory?.label || category);
+      else {
+        // A form-driven sheet is NOT the sheet the held requirement describes,
+        // so the held requirement is dropped. Left in place, the next chat
+        // follow-up would be merged onto a sentence describing a drawing that
+        // is no longer on screen.
+        heldRequirement.current = "";
+        pushRevision(d, req, activeCategory?.label || category);
+      }
     } catch { setError("Could not reach the drawing engine."); }
     finally { setBusy(false); }
   }, [category, values, sheetSize, drawingType, extraRows, titleFields,
@@ -327,6 +334,10 @@ export function DrawingStudio() {
    */
   const AXIS_INPUT = { length: "length_m", width: "width_m", height: "height_m" };
   const [edit, setEdit] = useState(null);
+  // The requirement the current sheet was drawn from, carried across chat turns
+  // so a follow-up can be read as a correction to it. A ref, not state: nothing
+  // renders from it, and it must be readable by the very next request.
+  const heldRequirement = useRef("");
 
   const onSheetClick = useCallback((e) => {
     const hit = e.target?.closest?.("[data-edit]");
@@ -365,7 +376,10 @@ export function DrawingStudio() {
       });
       const d = await res.json();
       if (!d.ok) setError(d.error || "That specification could not be drawn.");
-      else pushRevision(d, req, `${d.category_label} (from spec)`);
+      else {
+        heldRequirement.current = "";     // same reason as the form path
+        pushRevision(d, req, `${d.category_label} (from spec)`);
+      }
     } catch { setError("Could not reach the drawing engine."); }
     finally { setBusy(false); }
   }, [specText, sheetSize, titleFields, pushRevision]);
@@ -394,7 +408,16 @@ export function DrawingStudio() {
         d.text || d.answer || "(no reply)",
         (raw) => console.warn("[agent] tool-call mechanics suppressed:", raw)) }]);
       if (drew) {
-        const req = { question: drew.toolInput?.question || q, sheet_size: sheetSize };
+        // CONVERSATIONAL STATE. The requirement the last sheet was drawn from
+        // travels with the follow-up, so "make it 6m long" is a DELTA on the
+        // booth rather than a requirement on its own — which resolves to
+        // nothing, because it names no equipment. The engine composes the two
+        // and decides whether the follow-up is a delta or a fresh start.
+        const req = {
+          question: drew.toolInput?.question || q,
+          previous: heldRequirement.current || "",
+          sheet_size: sheetSize,
+        };
         const r = await fetch("/api/tools/drawing", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(req),
@@ -402,7 +425,13 @@ export function DrawingStudio() {
         const dr = await r.json();
         // A chat-driven change is a REVISION too, so asking the assistant to
         // alter something never discards the sheet it started from.
-        if (dr.ok && dr.svg) pushRevision(dr, req, q.slice(0, 42));
+        if (dr.ok && dr.svg) {
+          // Hold what the engine ACTUALLY drew from, not what was typed: it is
+          // the composed requirement, and holding the typed fragment instead
+          // would lose the machine again on the turn after next.
+          heldRequirement.current = dr.requirement || req.question;
+          pushRevision(dr, req, q.slice(0, 42));
+        }
       }
     } catch { setChat((c) => [...c, { role: "agent", text: "Could not reach the Drawing Agent." }]); }
     finally { setThinking(false); }

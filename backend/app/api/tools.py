@@ -6,6 +6,7 @@ from ..analytics import _label as category_label
 from ..analytics import record_detail
 from ..analytics import render_lookup_markdown
 from ..analytics import wants_price
+from .. import understand as _understand
 from ..classify import CONFIDENT
 from ..classify import classify_equipment
 from ..pricing import inr_display
@@ -103,6 +104,16 @@ def tool_drawing(payload: dict = Body(...)):
     from ..drawing.spec_parser import looks_like_spec, parse_spec
 
     q = _tool_q(payload)
+    # CONVERSATIONAL STATE. A drawing conversation is a sequence of deltas -
+    # "paint booth 5m x 3m x 4m", then "make it 6m long" - and resolving the
+    # second on its own throws the machine away: no booth, no width, no height,
+    # no draft type. When the caller holds the requirement it drew last, the
+    # two are composed into the ONE restated requirement the correction layer
+    # already knows how to read. A follow-up that names its own equipment
+    # starts fresh; `merge_followup` decides that, not this endpoint.
+    previous = str(payload.get("previous") or "").strip()
+    if previous:
+        q = _understand.merge_followup(previous, q)
     # A pasted specification is drawn AS GIVEN rather than re-resolved, so the
     # sheet matches the document the engineer reviewed.
     if looks_like_spec(q) and (parsed := parse_spec(q)):
@@ -128,6 +139,10 @@ def tool_drawing(payload: dict = Body(...)):
     # The SVG is large and is for the canvas, not the chat: the agent gets the
     # markdown summary and never has to echo vector data.
     drawing["svg_bytes"] = len(drawing.get("svg") or "")
+    # The requirement this sheet was actually drawn from, so the caller can hold
+    # it and send it back as `previous` on the next turn. Returning it rather
+    # than making the caller reconstruct it is what keeps the two in step.
+    drawing["requirement"] = q
     return drawing
 
 

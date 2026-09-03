@@ -278,6 +278,36 @@ check("the safety inputs are declared, so the LLM path keeps them",
       _drop_undeclared({"paint_consumption_l_hr": 10.0}, {}, "paint_booth")
       .get("paint_consumption_l_hr") == 10.0)
 
+# --- conversational drawing state: a follow-up is a DELTA ------------------
+# A drawing conversation is a sequence of corrections - "paint booth 5m x 3m x
+# 4m", then "make it 6m long". Resolved on its own the second names no
+# equipment at all, so the machine is thrown away; composed with what is held,
+# the correction layer reads it as the correction it is.
+from app.understand import merge_followup as _merge
+
+_BASE = "paint booth 5m x 3m x 4m cross draft"
+for _follow, _want in (("make it 6m long", (6.0, 3.0, 4.0)),
+                       ("change the height to 6m", (5.0, 3.0, 6.0)),
+                       ("now 8m x 3m x 4m", (8.0, 3.0, 4.0))):
+    _p = understand(_merge(_BASE, _follow)).parameters
+    _got = (_p.get("length_m"), _p.get("width_m"), _p.get("height_m"))
+    check(f"follow-up {_follow!r} merges to L/W/H {_want}", _got == _want, _got)
+
+# The axes the follow-up does NOT mention must survive. That is the whole point:
+# resolved alone, "make it 6m long" carries no width, no height and no booth.
+_alone = understand("make it 6m long").parameters
+check("the same follow-up ALONE carries no width or height - which is why it is merged",
+      not _alone.get("width_m") and not _alone.get("height_m"), _alone)
+
+# A follow-up that names its own equipment starts fresh rather than being glued
+# onto a machine it does not describe.
+check("a follow-up naming its own equipment is NOT merged",
+      _merge(_BASE, "now draw a wet scrubber 800 cfm 750mm tower")
+      == "now draw a wet scrubber 800 cfm 750mm tower")
+check("a first turn with nothing held behaves exactly as before",
+      _merge("", "paint booth 5m x 3m x 4m") == "paint booth 5m x 3m x 4m")
+check("an empty follow-up leaves the held requirement", _merge(_BASE, "") == _BASE)
+
 print()
 if _fail:
     print(f"{_fail} LOOKUP TEST(S) FAILED")

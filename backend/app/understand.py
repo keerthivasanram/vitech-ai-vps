@@ -509,6 +509,38 @@ def understand(question: str) -> QueryUnderstanding:
     return u
 
 
+def merge_followup(previous: str, followup: str) -> str:
+    """Compose a held requirement and a follow-up into ONE restated requirement.
+
+    THE PROBLEM THIS SOLVES. A drawing conversation is a sequence of deltas —
+    "paint booth 5m x 3m x 4m", then "make it 6m long". Resolving the second on
+    its own throws away the machine: there is no booth, no width, no height, no
+    draft type. The engine already knows how to read a correction, but only
+    when it arrives folded into the requirement it corrects ("... changed to
+    ..."), because `_apply_correction` re-reads the original and then lets the
+    correction override it. This composes that shape.
+
+    A FOLLOW-UP THAT NAMES ITS OWN EQUIPMENT STARTS FRESH. "now draw a wet
+    scrubber 800 cfm" is a new requirement, not a delta on a paint booth, and
+    merging the two would produce a sentence describing neither machine. The
+    test is the classifier's own: if the follow-up confidently identifies an
+    equipment type, it stands alone.
+
+    Returns the follow-up unchanged when there is nothing held, so a first turn
+    behaves exactly as it always did.
+    """
+    from .classify import CONFIDENT, classify_equipment
+
+    prev = (previous or "").strip()
+    now = (followup or "").strip()
+    if not prev or not now:
+        return now or prev
+    cat, score = classify_equipment(now)
+    if cat and score >= CONFIDENT:
+        return now
+    return f"{prev} {now}"
+
+
 # --- corrections -----------------------------------------------------------
 # "change it to", "now", "make it" ... — everything AFTER one of these phrases
 # supersedes the same parameter stated before it.
