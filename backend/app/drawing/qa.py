@@ -71,7 +71,25 @@ def _extent(s) -> Optional[tuple]:
         w = _text_width(s)
         x0 = {"middle": s.x - w / 2, "end": s.x - w}.get(s.anchor, s.x)
         # SVG text sits ON its baseline, so the box runs upward from y.
-        return (x0, s.y - s.size, x0 + w, s.y + s.size * 0.25)
+        box = (x0, s.y - s.size, x0 + w, s.y + s.size * 0.25)
+        rot = float(getattr(s, "rotate", 0.0) or 0.0)
+        if not rot:
+            return box
+        # ROTATED TEXT OCCUPIES A DIFFERENT BOX, and treating it as horizontal
+        # is not a small error: a 26 mm vertical caption read as 26 mm of
+        # WIDTH swept across a quarter of the sheet and reported collisions
+        # that were not there. Rotate the four corners about the anchor and
+        # take their extent — correct for any angle, not just the right ones.
+        a = math.radians(rot)
+        ca, sa = math.cos(a), math.sin(a)
+        pts = []
+        for px, py in ((box[0], box[1]), (box[2], box[1]),
+                       (box[2], box[3]), (box[0], box[3])):
+            dx, dy = px - s.x, py - s.y
+            pts.append((s.x + dx * ca - dy * sa, s.y + dx * sa + dy * ca))
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        return (min(xs), min(ys), max(xs), max(ys))
     if isinstance(s, Circle):
         return (s.cx - s.r, s.cy - s.r, s.cx + s.r, s.cy + s.r)
     if isinstance(s, Rect):
@@ -150,6 +168,7 @@ def audit(spec: dict, sheet_size: str = None, drawing_type: str = "ga") -> list:
     out += _check_section_planes(canvas)
     out += _check_truncation(canvas, pkg)
     out += _check_bounds(canvas, sw, sh, ax, ay, aw, ah)
+    out += _check_leaders(canvas)
     return out
 
 
@@ -261,6 +280,66 @@ def _check_dims_true(canvas, scale: int, schematic: bool) -> list:
                 f"dimension reads {d.label!r} but spans {span:.0f} mm at 1:{scale} "
                 f"({err * 100:.0f}% out) - the value may be real, the geometry "
                 f"it labels is not"))
+    return out
+
+
+# --- leaders must not be drawn THROUGH text ------------------------------
+def _seg_crosses_box(x1, y1, x2, y2, box) -> bool:
+    """Does a segment pass through a rectangle? (Liang-Barsky, clipped.)"""
+    x0, y0, x3, y3 = box
+    dx, dy = x2 - x1, y2 - y1
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x1 - x0), (dx, x3 - x1), (-dy, y1 - y0), (dy, y3 - y1)):
+        if abs(p) < 1e-12:
+            if q < 0:
+                return False
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return False
+            t0 = max(t0, r)
+        else:
+            if r < t0:
+                return False
+            t1 = min(t1, r)
+    return t0 < t1
+
+
+def _check_leaders(canvas) -> list:
+    """A balloon leader that runs through a label.
+
+    A leader exists to say WHICH component a number refers to, so one drawn
+    across a caption damages both: the caption becomes hard to read and the
+    leader looks like it is pointing at the text. This is the collision the
+    balloon system cannot prevent by construction, because a glyph chooses the
+    balloon position and the caption position independently.
+    """
+    from .style import LEADER_LINE
+    leaders = [s for s in canvas.shapes
+               if isinstance(s, Line) and s.layer == LEADER_LINE.layer
+               and abs(s.width - LEADER_LINE.width) < 1e-9]
+    texts = [s for s in canvas.shapes
+             if isinstance(s, Text) and str(s.text).strip()
+             and s.layer in (L_TEXT, L_COMPONENT)]
+    out = []
+    seen = set()
+    for ln in leaders:
+        for t in texts:
+            box = _extent(t)
+            # Shrink the box slightly: a leader grazing a descender is not a
+            # collision, and reporting those would bury the real ones.
+            box = (box[0] + 0.4, box[1] + 0.4, box[2] - 0.4, box[3] - 0.4)
+            if box[2] <= box[0] or box[3] <= box[1]:
+                continue
+            if _seg_crosses_box(ln.x1, ln.y1, ln.x2, ln.y2, box):
+                key = t.text[:24]
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(Finding(WARNING, "leader_through_text",
+                                   f"a balloon leader crosses the label "
+                                   f"{t.text[:36]!r}"))
     return out
 
 

@@ -721,6 +721,40 @@ for _q in ("paint booth 5m x 3m x 4m",
               f"{_size}: every standing note survives a full column ({_q[:26]})")
 
 
+# --- the optional isometric ------------------------------------------------
+from app.drawing import isometric as _iso
+
+_plain = build_drawing(BOOTH)
+_withiso = build_drawing(BOOTH, drawing_type="ga_iso")
+check("ISOMETRIC" not in _plain["svg"], "a plain GA carries no pictorial")
+check("ISOMETRIC" in _withiso["svg"], "ga_iso adds the pictorial")
+check("NOT TO SCALE" in _withiso["svg"],
+      "the pictorial says it cannot be measured off")
+# It must add NO dimension: a pictorial is not to scale, so a number on it
+# would be measurable from a view that is explicitly not measurable.
+_iso_dims_plain = _plain["svg"].count('stroke-dasharray')
+check(len(_withiso["views"]) == len(_plain["views"]),
+      "the pictorial is not counted as a projected view")
+# An unresolved axis means no pictorial at all, rather than an approximate box.
+_partial_iso = build_drawing(
+    {**BOOTH, "geometry": {"envelope_mm": {"length": 6000, "width": None,
+                                           "height": 4000}, "ready": False}},
+    drawing_type="ga_iso")
+check("ISOMETRIC" not in _partial_iso["svg"],
+      "a partly unknown envelope gets NO pictorial, not an approximate one")
+# The projection itself: equal foreshortening, and the origin behind the solid.
+_p0 = _iso.project(0, 0, 0)
+_px = _iso.project(1000, 0, 0)
+_py = _iso.project(0, 1000, 0)
+_pz = _iso.project(0, 0, 1000)
+import math as _m
+_lx = _m.hypot(_px[0] - _p0[0], _px[1] - _p0[1])
+_ly = _m.hypot(_py[0] - _p0[0], _py[1] - _p0[1])
+_lz = _m.hypot(_pz[0] - _p0[0], _pz[1] - _p0[1])
+check(abs(_lx - _ly) < 1e-9 and abs(_lx - _lz) < 1e-9,
+      f"all three axes foreshorten equally ({_lx:.3f}/{_ly:.3f}/{_lz:.3f})")
+
+
 # --- drafting detailing: sections, datums, real-thickness material --------
 from app.drawing.symbols import SECTION_VIEWS, _mm_on_sheet, view_caption
 

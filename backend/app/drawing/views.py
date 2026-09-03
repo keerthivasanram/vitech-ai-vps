@@ -68,9 +68,17 @@ def choose_scale(env: dict, avail_w: float, avail_h: float) -> int:
 # silently produced the full three-view GA.
 VIEW_SETS = {
     "ga": ("plan", "front", "side"),
+    # The same three views PLUS an envelope isometric in the free top-right
+    # quadrant. Kept as its own type rather than folded into "ga": a third-angle
+    # GA is complete without a pictorial, and some drawing offices do not want
+    # one on a working sheet.
+    "ga_iso": ("plan", "front", "side"),
     "plan": ("plan",),
     "elevation": ("front", "side"),
 }
+
+# Drawing types that also carry the pictorial.
+ISO_TYPES = {"ga_iso"}
 
 
 def layout(env: dict, ox: float, oy: float, avail_w: float, avail_h: float,

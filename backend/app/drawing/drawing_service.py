@@ -12,6 +12,7 @@ import re
 from datetime import date
 from typing import Any, Optional
 
+from . import isometric as iso_mod
 from . import schematic as schematic_mod
 from . import sheet, states, symbols, views
 from .primitives import LAYER_LABELS, L_TEXT, Canvas, Text
@@ -269,6 +270,13 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
                                          {v.key: v for v in placed}, rows)
         if gstate.state == states.PARTIAL:
             _partial_banner(canvas, ax, ay, aw, gstate, drawing_type, placed)
+        # OPTIONAL pictorial, into the quadrant a third-angle layout leaves
+        # empty. Only for a fully resolved envelope: a pictorial of a partly
+        # unknown box is exactly the confident-looking guess to avoid.
+        if str(drawing_type).lower() in views.ISO_TYPES and not gstate.missing:
+            box = iso_mod.quadrant(placed, ax, ay, aw, ah)
+            if box:
+                iso_mod.draw(canvas, env, *box)
     else:
         # STATE 3. A preliminary schematic, not an empty sheet: the reader still
         # gets the machine, the reason, and what to send back. Nothing here

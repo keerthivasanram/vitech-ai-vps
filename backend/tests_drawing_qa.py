@@ -102,25 +102,26 @@ def _allowed(cat: str, finding, size: str) -> bool:
 
 
 total_findings = 0
-for size in ("A3", "A4"):
+for size, dtype in (("A3", "ga"), ("A4", "ga"), ("A3", "ga_iso")):
     for state_name, env in ENVELOPES.items():
         for cat in sorted(SYMBOLS):
             spec = {"category": cat, "category_label": cat.replace("_", " ").title(),
                     "geometry": {"envelope_mm": env,
                                  "ready": all(v for v in env.values())},
                     "technical_details": ROWS}
-            findings = [f for f in qa.audit(spec, sheet_size=size)
+            findings = [f for f in qa.audit(spec, sheet_size=size,
+                                            drawing_type=dtype)
                         if not _allowed(cat, f, size)]
             total_findings += len(findings)
             check(not findings,
-                  f"{size} {state_name:9} {cat:22} {qa.summarise(findings)}"
+                  f"{size} {dtype:6} {state_name:9} {cat:22} {qa.summarise(findings)}"
                   + ("" if not findings else "\n        " +
                      "\n        ".join(str(f) for f in findings[:4])))
 
 # The audit must be able to FAIL, or it proves nothing. Each detector is
 # exercised against a canvas built to trip it, because a suite of checks that
 # have never fired is indistinguishable from a suite of checks that cannot.
-from app.drawing.primitives import Canvas, Dim, Rect, Text
+from app.drawing.primitives import Canvas, Dim, Line, Rect, Text
 from app.drawing.style import L_COMPONENT, L_DIM, L_TEXT
 
 _c = Canvas(420, 297); _c.add(Dim(0, 0, 100, 0, "600"))
@@ -155,6 +156,25 @@ for _txt, _sev in (("3 further item(s) listed in the specification - sheet space
     _f = qa._check_truncation(_c, {})
     check(len(_f) == 1 and _f[0].severity == _sev,
           f"detector fires on truncation wording {_txt[:28]!r} as {_sev}")
+
+# A leader drawn straight through a label. Also pins the rotated-text extent:
+# treating a rotated caption as horizontal swept a 26 mm box sideways and
+# reported collisions that were not there -- the detector's own first finding
+# was a false positive from exactly that.
+from app.drawing.style import LEADER_LINE
+_c = Canvas(420, 297)
+_c.add(Text(100, 50, "EXTRACT FILTER FACE", L_TEXT, 2.4, "middle"),
+       Line(80, 50, 130, 49, *LEADER_LINE))
+check(len(qa._check_leaders(_c)) == 1, "detector fires: a leader drawn through a label")
+_c = Canvas(420, 297)
+_c.add(Text(100, 50, "EXTRACT FILTER FACE", L_TEXT, 2.4, "middle", rotate=-90),
+       Line(80, 50, 92, 50, *LEADER_LINE))
+check(not qa._check_leaders(_c),
+      "detector is quiet: a leader clear of a ROTATED caption's true box")
+_h = qa._extent(Text(100, 50, "OVERALL HEIGHT - TBD", L_TEXT, 2.1, "middle"))
+_v = qa._extent(Text(100, 50, "OVERALL HEIGHT - TBD", L_TEXT, 2.1, "middle", rotate=-90))
+check((_h[2] - _h[0]) > (_h[3] - _h[1]) and (_v[3] - _v[1]) > (_v[2] - _v[0]),
+      "a rotated caption measures TALL, not wide")
 
 _c = Canvas(420, 297); _c.add(Rect(400, 10, 60, 20, L_COMPONENT, 0.3))
 check(len(qa._check_bounds(_c, 420, 297, 12, 12, 220, 250)) == 1,
