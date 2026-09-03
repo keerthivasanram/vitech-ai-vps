@@ -7,7 +7,8 @@ philosophy of the platform expressed in drafting terms.
 """
 from . import title_block as tb
 from .primitives import (LW_MED, LW_THIN, L_BORDER, L_TEXT, Line, Rect, Text)
-from .style import T_BODY, T_DIM, T_SECTION, T_SHEET_TITLE, T_SMALL
+from .style import (TABLE_RULE, T_BODY, T_DIM, T_SECTION, T_SHEET_TITLE,
+                    T_SMALL, T_TINY)
 
 # (width, height) in mm, landscape.
 SHEET_SIZES = {
@@ -200,6 +201,63 @@ def _kv_block(canvas, x: float, y: float, heading: str, data: list,
 def _data_table(canvas, x: float, y: float, data: list, limit_y: float) -> float:
     """The DESIGN DATA block. See `_kv_block`."""
     return _kv_block(canvas, x, y, "DESIGN DATA", data, limit_y)
+
+
+def unresolved_table(canvas, x: float, y: float, w: float, rows: list,
+                     max_y: float) -> float:
+    """The COMPLETE schedule of unresolved parameters, with what clears each.
+
+    WHY THIS IS A TABLE IN THE DRAWING AREA and not another block in the side
+    column: the side column is a fixed height shared with the legend, the item
+    list and the standing notes, so it can only ever show what fits and must
+    then admit it dropped the rest. On a sheet with no dimensioned views there
+    is a whole empty drawing area, and the missing inputs ARE the content of
+    that sheet — they are what the reader has to act on.
+
+    Three columns, because a gap is only actionable if the sheet says who owns
+    it: the parameter, that it is unresolved, and the action that resolves it.
+    """
+    if not rows:
+        return y
+    line_h = 4.0
+    c1 = x + 2.0                      # parameter
+    c2 = x + w * 0.38                 # status
+    c3 = x + w * 0.50                 # required action
+    head_y = y
+
+    canvas.add(Text(x, y - 3.0, f"REQUIRED TO COMPLETE THIS DRAWING ({len(rows)})",
+                    L_TEXT, T_SECTION, "start", bold=True))
+    y += 2.0
+    canvas.add(Line(x, y, x + w, y, *TABLE_RULE))
+    y += line_h
+    for head, cx in (("PARAMETER", c1), ("STATUS", c2), ("REQUIRED ACTION", c3)):
+        canvas.add(Text(cx, y - 1.0, head, L_TEXT, T_TINY, "start", bold=True))
+    canvas.add(Line(x, y, x + w, y, *TABLE_RULE))
+
+    shown = 0
+    for r in rows:
+        if y + line_h > max_y:
+            break
+        y += line_h
+        canvas.add(Text(c1, y - 1.0, _fit(str(r.get("parameter", "")), 44),
+                        L_TEXT, T_BODY, "start"))
+        canvas.add(Text(c2, y - 1.0, str(r.get("status", "TBD")),
+                        L_TEXT, T_BODY, "start", bold=True))
+        canvas.add(Text(c3, y - 1.0, _fit(str(r.get("action", "")), 62),
+                        L_TEXT, T_BODY, "start"))
+        shown += 1
+    canvas.add(Line(x, y + 1.4, x + w, y + 1.4, *TABLE_RULE))
+    y += line_h
+
+    # A schedule that silently stopped would be the very failure this table
+    # exists to remove, so an overflow is STATED and points somewhere real.
+    if shown < len(rows):
+        canvas.add(Text(x + 2.0, y,
+                        f"{len(rows) - shown} further item(s) listed in the "
+                        f"specification - sheet space exhausted",
+                        L_TEXT, T_SMALL, "start", bold=True))
+        y += line_h
+    return y
 
 
 def revision_block(canvas, w: float, h: float, revisions: list) -> None:

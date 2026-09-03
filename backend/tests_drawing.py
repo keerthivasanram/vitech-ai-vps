@@ -71,13 +71,38 @@ check([v["key"] for v in a["views"]] == ["plan", "front", "side"],
       "third-angle layout places plan, front and side")
 
 # --- The honest-gap contract ----------------------------------------------
+# THE CONTRACT CHANGED DELIBERATELY, and this is the harder version of it. A
+# sheet with no engineered size used to draw nothing and print "NO DIMENSIONED
+# VIEWS". It now draws a PRELIMINARY SCHEMATIC — which is more useful and more
+# dangerous, so what is asserted here is no longer "nothing was drawn" but
+# "nothing was CLAIMED": no scale, no number against any axis, and the sheet
+# saying on its face that it is not for fabrication.
 nd = build_drawing(NO_DIMS)
-check(nd["views"] == [] and nd["scale"] == "NTS",
-      "with no dimensions there are no views and no scale is claimed")
-check("NO DIMENSIONED VIEWS" in nd["svg"], "the sheet says so plainly instead of drawing a box")
-check(not re.search(r"<rect[^>]*width=\"[1-9]", nd["svg"].split("layer-outline")[-1][:200])
-      or "layer-outline" not in nd["svg"],
-      "no equipment outline is fabricated without dimensions")
+check(nd["scale"] == "NTS" and nd["scale_divisor"] is not None,
+      "no scale is claimed when nothing is dimensioned")
+check(nd["state"] == "schematic", f"the state is named ({nd['state']})")
+check("PRELIMINARY SCHEMATIC - NOT FOR FABRICATION" in nd["svg"],
+      "the schematic says it is not for fabrication, on the sheet")
+check("DIMENSIONS PENDING ENGINEERING / CLIENT CONFIRMATION" in nd["svg"],
+      "the schematic says the dimensions are pending")
+# Abbreviated in the title block because the cell is ~13 mm; the unabbreviated
+# claim lives on the sheet face and in the payload's `state`.
+check(nd["title_block"]["status"] == "PRELIM",
+      f"the title block states PRELIM (got {nd['title_block']['status']})")
+check(nd["state_label"].lower().startswith("preliminary"),
+      f"the payload carries the unabbreviated state ({nd['state_label']})")
+# The load-bearing one: a schematic must not put a NUMBER against any overall
+# extent, so no reader and no exporter can take a size off it. A real dimension
+# is a `Dim` on the DIMENSION layer; a schematic draws none, and every extent
+# is captioned TBD instead. Asserting the layer is absent is stronger than
+# scanning text — it cannot be satisfied by a dimension that merely looks odd.
+check('id="layer-dimension"' not in nd["svg"],
+      "a schematic emits no dimension layer at all")
+for _axis in ("LENGTH", "WIDTH", "HEIGHT"):
+    check(f"OVERALL {_axis} - TBD" in nd["svg"],
+          f"the schematic captions overall {_axis.lower()} as TBD")
+check(nd["missing_axes"] == ["length", "width", "height"],
+      "every unresolved axis is reported")
 check(len(nd["tbd"]) == 4, f"all four unknowns are scheduled ({len(nd['tbd'])})")
 check(all("needs engineering input" in t for t in nd["tbd"]),
       "every TBD says what it needs")
@@ -694,6 +719,60 @@ for _q in ("paint booth 5m x 3m x 4m",
         _pkg = build_drawing(_spec_for_drawing(_q), sheet_size=_size)
         check(all(_n[:40] in _pkg["svg"] for _n in _NOTES),
               f"{_size}: every standing note survives a full column ({_q[:26]})")
+
+
+# --- the three drawing states ---------------------------------------------
+# One classifier decides all fourteen categories, so these are asserted on the
+# state machine itself as well as through a rendered sheet.
+from app.drawing import states as _states
+
+check(_states.classify({"length": 6000, "width": 3000, "height": 4000}).state
+      == _states.FULL, "all three axes -> fully dimensioned")
+check(_states.classify({"length": 6000, "width": None, "height": 4000}).state
+      == _states.PARTIAL, "a missing axis -> partially dimensioned")
+check(_states.classify({}).state == _states.SCHEMATIC, "no axis -> schematic")
+# A zero is not a dimension. Treating it as one is how a machine 0 mm wide gets
+# drawn to scale, and it is the commonest way a bad parse reaches a sheet.
+check(_states.classify({"length": 0, "width": 0, "height": 0}).state
+      == _states.SCHEMATIC, "a zero is not a dimension")
+check(_states.classify({"length": "6000", "width": 3000, "height": 4000}).state
+      == _states.PARTIAL, "a string is not a dimension")
+
+_PART = {"category": "hot_air_oven", "category_label": "Hot Air Oven",
+         "geometry": {"envelope_mm": {"length": 6000, "width": None,
+                                      "height": 4000}, "ready": False},
+         "technical_details": [{"label": "Chamber", "value": "To be determined",
+                                "origin": "tbd"}]}
+_p = build_drawing(_PART)
+check(_p["state"] == "partially_dimensioned", f"partial state named ({_p['state']})")
+check(_p["scale"].startswith("1:"), "a partial sheet still carries a REAL scale")
+check([v["key"] for v in _p["views"]] == ["front"],
+      f"only the view the dimensions support is drawn ({[v['key'] for v in _p['views']]})")
+check("PARTIALLY DIMENSIONED" in _p["svg"], "a partial sheet says it is partial")
+check("width" in _p["missing_axes"] and len(_p["missing_axes"]) == 1,
+      f"the unresolved axis is named ({_p['missing_axes']})")
+# The one that prevents the worst misreading: a view that could not be drawn is
+# declared absent, so nobody assumes the machine simply has no side to show.
+check("omitted for want of a dimension" in _p["svg"],
+      "an undrawable view is declared, not silently missing")
+check(_p["title_block"]["status"] == "DRAFT",
+      "a partial sheet is a DRAFT, not PRELIMINARY -- it carries real dimensions")
+
+# Every unresolved row carries the action that clears it, and the axes come
+# first because they are what blocks a dimensioned GA.
+_u = build_drawing(NO_DIMS)["unresolved"]
+check(_u and all(r.get("action") for r in _u),
+      "every unresolved row names the action that clears it")
+check([r["parameter"] for r in _u][:3]
+      == ["Overall length", "Overall width", "Overall height"],
+      "the blocking geometry rows are scheduled first")
+check(all(r["kind"] == "geometry" for r in _u[:3]),
+      "the axes are classified as geometry")
+# An engineering output must never be sent to the customer to answer.
+check(_states.action_for("Heating capacity (kcal/hr)").startswith("Engineering"),
+      "a computed output is an engineering action, not a customer question")
+check("customer" in _states.action_for("Material handling").lower(),
+      "a process input is a customer question")
 
 
 # --- a dashed line belongs to the layer its dash claims -------------------

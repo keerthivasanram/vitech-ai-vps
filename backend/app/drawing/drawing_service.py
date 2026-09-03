@@ -12,8 +12,10 @@ import re
 from datetime import date
 from typing import Any, Optional
 
-from . import sheet, symbols, views
+from . import schematic as schematic_mod
+from . import sheet, states, symbols, views
 from .primitives import LAYER_LABELS, L_TEXT, Canvas, Text
+from .style import T_BODY, T_CAPTION
 
 # Stated on every sheet, because the component glyphs are schematic. Without
 # this note a reader could mistake an indicative symbol for a set-out position.
@@ -109,6 +111,34 @@ def _key_dimensions(spec: dict) -> list[dict]:
                 value = f"{DIA}{value}"
         out.append({"label": label, "value": value})
     return out
+
+
+def _partial_banner(canvas, ax: float, ay: float, aw: float, gstate,
+                    drawing_type: str, placed: list) -> None:
+    """State 2: say which extents are unresolved, and which views are absent.
+
+    A partially dimensioned sheet is the easiest of the three to misread,
+    because it LOOKS like a finished GA — the views that could be drawn are
+    drawn to scale and dimensioned. What stops the misreading is naming the
+    missing axis and, crucially, saying that a view is ABSENT rather than
+    letting the reader assume the machine has no such aspect.
+    """
+    canvas.add(Text(ax + aw / 2, ay + 4.6,
+                    "PARTIALLY DIMENSIONED - UNRESOLVED SIZES SHOWN AS TBD",
+                    L_TEXT, T_BODY, "middle", bold=True))
+    note = states.required_inputs_note(gstate)
+    if note:
+        canvas.add(Text(ax + aw / 2, ay + 9.0, note, L_TEXT, T_CAPTION, "middle"))
+
+    wanted = list(views.VIEW_SETS.get(str(drawing_type or "ga").lower(),
+                                      views.VIEW_SETS["ga"]))
+    drawn = {v.key for v in placed}
+    absent = [k for k in wanted if k not in drawn]
+    if absent:
+        canvas.add(Text(ax + aw / 2, ay + 13.0,
+                        "View(s) omitted for want of a dimension: "
+                        + ", ".join(absent),
+                        L_TEXT, T_CAPTION, "middle"))
 
 
 def _tbd_items(spec: dict) -> list[str]:
@@ -216,6 +246,15 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
     scale = views.choose_scale(env, aw, ah)
     placed = views.layout(env, ax, ay, aw, ah, scale, drawing_type)
 
+    # WHICH OF THE THREE STATES THIS SHEET IS. Decided from the resolved
+    # envelope, never from equipment type, so every category behaves the same.
+    gstate = states.classify(env)
+    # A sheet with a resolved axis that still places no view is PARTIAL, not
+    # schematic: the dimension exists, it simply does not complete a view (a
+    # height with no length draws nothing in third angle). Saying "schematic"
+    # there would discard a real engineered number.
+    schematic = not placed
+
     legend: list = []
     if placed:
         labels = _dim_labels(env, str(geom.get("equipment_type") or ""))
@@ -223,24 +262,42 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
             views.draw_view(canvas, v, labels)
         legend = symbols.draw_components(canvas, category,
                                          {v.key: v for v in placed}, rows)
+        if gstate.state == states.PARTIAL:
+            _partial_banner(canvas, ax, ay, aw, gstate, drawing_type, placed)
     else:
-        # Nothing dimensionable. Say so on the sheet rather than drawing a box.
-        canvas.add(Text(ax + aw / 2, ay + ah / 2,
-                        "NO DIMENSIONED VIEWS - overall sizes not yet determined",
-                        L_TEXT, 4.0, "middle", bold=True))
-        canvas.add(Text(ax + aw / 2, ay + ah / 2 + 7.0,
-                        "Supply the equipment dimensions to generate the general arrangement.",
-                        L_TEXT, 2.6, "middle"))
+        # STATE 3. A preliminary schematic, not an empty sheet: the reader still
+        # gets the machine, the reason, and what to send back. Nothing here
+        # asserts a size — see `schematic.py` for why that holds.
+        placed = schematic_mod.layout(ax, ay, aw, ah)
+        schematic_mod.draw(canvas, placed, ax, ay, aw, ah)
+        # The glyph still runs. Its views carry model_w/model_h of None, so
+        # every routine needing true millimetres disables itself and what is
+        # left is the equipment SYMBOL — which is information we genuinely have.
+        legend = symbols.draw_components(canvas, category,
+                                         {v.key: v for v in placed}, rows)
+        # The COMPLETE schedule of what is missing, in the band the nominal
+        # views deliberately left free. On this sheet it is the content.
+        table_top = max(v.y + v.h for v in placed) + 26.0
+        sheet.unresolved_table(canvas, ax, table_top, aw,
+                               states.unresolved(env, rows), ay + ah - 2.0)
 
     tbd = _tbd_items(spec)
+    # The same gaps as `tbd`, but classified and carrying the action that
+    # clears each one. `tbd` stays as it was because the agent summary and the
+    # studio both read it; this is the richer form the sheet schedules.
+    unresolved = states.unresolved(env, rows)
     bom = _bom(spec)
     data = _design_data(spec, bom)
     key_dims = _key_dimensions(spec)
     # Reserve the strip the revision block occupies so the column stops above it
     # rather than printing through it.
     reserve = (4.4 * len(revisions[-3:]) + 4.0) if revisions else 0.0
-    sheet.side_column(canvas, sw, sh, legend, STANDING_NOTES, tbd, bom, data,
-                      reserve, key_dims)
+    # ON A SCHEMATIC SHEET the drawing area already carries the COMPLETE
+    # schedule with the action that clears each row, so repeating a shorter,
+    # actionless copy in the side column says the same thing twice and reads as
+    # two different lists that happen to agree.
+    sheet.side_column(canvas, sw, sh, legend, STANDING_NOTES,
+                      [] if schematic else tbd, bom, data, reserve, key_dims)
     # Anything the caller states wins; everything else is derived. The block
     # still invents nothing — an unstated field simply keeps its default.
     info = {
@@ -249,14 +306,22 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         # wording a real title block uses.
         "client": client or "TO BE CONFIRMED",
         "ref": ref or f"VT/GA/{date.today():%y%m%d}/DRAFT",
-        "scale": f"1:{scale}" if placed else "NTS",
+        "scale": f"1:{scale}" if not schematic else "NTS",
         "size": size,
         "units": "mm",
         "date": f"{date.today():%d-%m-%Y}",
         "drawn": drawn_by or "Vitech AI",
         "checked": "",
         "rev": "0",
-        "status": "DRAFT",
+        # The status is the sheet's own claim about itself. A schematic that
+        # said "DRAFT" alongside a normal GA would be indistinguishable from
+        # one at a glance, which is exactly the confusion to prevent.
+        # ABBREVIATED because a title-block cell is ~13 mm wide and the full
+        # word only fits by shrinking below a legible drafting size. "PRELIM"
+        # is the ordinary drafting abbreviation, and nothing is lost: the sheet
+        # carries "PRELIMINARY SCHEMATIC - NOT FOR FABRICATION" in bold across
+        # the drawing area, and the payload's `state` is the unabbreviated form.
+        "status": "PRELIM" if schematic else "DRAFT",
     }
     info.setdefault("duty", _duty(spec))
     info.update({k: v for k, v in (title_block or {}).items() if str(v or "").strip()})
@@ -269,7 +334,7 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "category": category,
         "category_label": label,
         "svg": canvas.svg(),
-        "scale": f"1:{scale}" if placed else "NTS",
+        "scale": f"1:{scale}" if not schematic else "NTS",
         "scale_divisor": scale,
         "sheet_size": size,
         "sheet_mm": {"width": sw, "height": sh},
@@ -282,7 +347,15 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
         "design_data": data,
         "key_dimensions": key_dims,
         "tbd": tbd,
-        "notes": STANDING_NOTES,
+        # The state, and the unresolved schedule with the action that clears
+        # each row, so every consumer (studio, agent, PDF) can say the same
+        # thing about the same sheet rather than each inferring it.
+        "state": gstate.state,
+        "state_label": gstate.label,
+        "state_notes": list(gstate.notes),
+        "unresolved": unresolved,
+        "missing_axes": list(gstate.missing),
+        "notes": STANDING_NOTES + list(gstate.notes),
         "title_block": info,
         "drawing_markdown": _markdown(label, env, scale, placed, tbd, size),
     }

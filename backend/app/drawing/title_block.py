@@ -13,6 +13,28 @@ from ..vitech_letterhead import COMPANY, HEADER_ADDR
 from .primitives import (LW_MED, LW_THICK, LW_THIN, L_TITLE, Line, Rect, Text)
 from .style import T_BODY, T_DIM, T_TINY, T_TITLE_MAIN, T_VIEW_TITLE
 
+def _fit_size(text: str, avail_mm: float, base: float, bold: bool = False) -> float:
+    """Largest size at or below `base` at which `text` fits `avail_mm`.
+
+    The canvas cannot measure rendered text — it must stay deterministic and
+    dependency-free — so this uses a per-character width ratio for the sheet's
+    sans face. Bold is measurably wider, and ignoring that is what let an
+    11-character bold status overflow a cell a 5-character one sat in happily.
+    Floored at 1.5 mm: below that a title-block value stops being readable, and
+    a value too long even for that is a content problem, not a layout one.
+
+    THE RATIOS WERE MEASURED, NOT GUESSED. Rasterising the actual face gives
+    0.69 per character for bold uppercase and 0.63-0.67 for regular; the first
+    version of this guessed 0.62/0.55 and still overflowed, because a guess low
+    by a tenth is a cell short by a millimetre. The values below carry a small
+    margin over what was measured.
+    """
+    if not text:
+        return base
+    ratio = 0.75 if bold else 0.68
+    return max(1.5, min(base, avail_mm / (len(text) * ratio)))
+
+
 TB_W = 148.0        # title block width, mm
 TB_H = 45.0         # title block height, mm (3 sign-off rows)
 
@@ -90,4 +112,12 @@ def draw(canvas, sheet_w: float, sheet_h: float, margin: float, info: dict) -> N
         canvas.add(Text(x + 91.0, ry + 2.6, lab, L_TITLE, T_TINY, "start"))
         canvas.add(Text(x + 110.0, ry + 2.6, str(val), L_TITLE, T_DIM, "start"))
         canvas.add(Text(x + 125.0, ry + 2.6, rlab, L_TITLE, T_TINY, "start"))
-        canvas.add(Text(x + 138.0, ry + 2.6, str(rval), L_TITLE, T_DIM, "start", bold=bold))
+        # RIGHT-ALIGNED to the cell AND shrunk to fit it. Left-aligned from a
+        # fixed 138 mm, a value had 10 mm before the frame, so the first status
+        # longer than "DRAFT" — "PRELIMINARY" — printed through the border.
+        # Right-aligning alone then pushed it left into its own "STATUS" label.
+        # A title-block cell is a fixed box: the only correct answer is to fit
+        # the text to the box, so any future status stays legible and inside.
+        canvas.add(Text(x + TB_W - 2.0, ry + 2.6, str(rval), L_TITLE,
+                        _fit_size(str(rval), 13.0, T_DIM, bold), "end",
+                        bold=bold))

@@ -155,8 +155,18 @@ _row = values.find_row
 
 
 def _find(rows, *needles) -> Optional[str]:
-    """Value of the first spec row whose label contains all the needles."""
-    return values.row_value(rows, *needles)
+    """Value of the first spec row whose label contains all the needles.
+
+    AN ADMITTED GAP IS NOT A VALUE. Glyphs compose captions like
+    `f"Insulated panel lining {insulation}"`, so a raw "To be determined"
+    reaching here printed "Insulated panel lining To be determined" into the
+    legend — which reads as a component whose description is a sentence about
+    not knowing. The gap belongs in the TBD schedule, where it already is, and
+    the legend simply names the part. Returning None lets every existing
+    `or ""` / `.strip()` at the call sites do the right thing unchanged.
+    """
+    v = values.row_value(rows, *needles)
+    return v if _resolved(v) else None
 
 
 def _part(rows, needles, *keys):
@@ -893,7 +903,12 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # never dimensioned, only labelled with the insulation the spec states.
         t = min(w, h) * 0.05
         canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
-        item(canvas, legend, x + w * 0.07, y + h * 0.20, f"Insulated panel lining {insulation}".strip())
+        # Dropped clear of the blower balloon, which sits in the roof band at
+        # 0.20h; on a short view the two circles overlapped. A leader is what
+        # lets it move without losing which feature it names.
+        item(canvas, legend, x + w * 0.07, y + h * 0.42,
+             f"Insulated panel lining {insulation}".strip(),
+             to=(x + t, y + h * 0.42))
 
         # Full-height double-leaf door on the loading face.
         dw = w * 0.30
@@ -927,7 +942,8 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Line(port[0], port[1], port[0], y + h * 0.42, *HIDDEN_LINE))
         qty = f" ({blower_qty} nos)" if blower_qty else ""
         item(canvas, legend, bcx - br - 5.0, bcy,
-             f"Recirculation blower {blower_hp}{qty}".strip())
+             f"Recirculation blower {blower_hp}{qty}".strip(),
+             to=(bcx - br * 0.707, bcy + br * 0.707))
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
@@ -1509,7 +1525,9 @@ def paint_drying_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         x, y, w, h = front.x, front.y, front.w, front.h
         t = min(w, h) * 0.05
         canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
-        item(canvas, legend, x + w * 0.07, y + h * 0.22, f"Insulated panel lining {insulation}".strip())
+        item(canvas, legend, x + w * 0.07, y + h * 0.42,
+             f"Insulated panel lining {insulation}".strip(),
+             to=(x + t, y + h * 0.42))
 
         # Heater / air-handling unit against the end wall.
         hb_w, hb_h = w * 0.18, h * 0.30
