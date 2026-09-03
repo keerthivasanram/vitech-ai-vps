@@ -347,33 +347,44 @@ def _lights(canvas, v, count: int, legend: list, label: str) -> None:
 
 
 def _filter_bank(canvas, v, count: int, legend: list, label: str) -> float:
-    """An extract filter bank across the rear of a plan view; returns its depth."""
+    """An extract filter bank across the rear of a plan view; returns its depth.
+
+    Uses the shared bank so the cells carry PLEATED media. A plain divided
+    rectangle is equally true of glazing or a louvre; the pleats are what say
+    "filter" without reading the legend.
+    """
     depth = v.h * 0.14
     by = v.y + v.h - depth
-    canvas.add(Rect(v.x, by, v.w, depth, *SECONDARY_OUTLINE))
-    if count:
-        for i in range(1, min(count, 12)):
-            fx = v.x + v.w * i / min(count, 12)
-            canvas.add(Line(fx, by, fx, by + depth, *PANEL_SEAM))
+    components.filter_bank(canvas, v.x, by, v.w, depth, count or 1, across=True)
     item(canvas, legend, v.x + v.w * 0.14, by - 5.0,
          f"{label}" + (f" ({count} nos)" if count else ""))
     return depth
 
 
 def _fan(canvas, v, depth: float, legend: list, label: str) -> None:
-    """An extract fan inside the footprint, just ahead of the extract face.
+    """The extract blower inside the footprint, just ahead of the extract face.
 
     Kept INSIDE the outline on purpose: below the view is the width dimension
     and the caption, and a symbol overhanging the outline collides with both.
+    That is also why the RADIUS is derived from the space available — the
+    shared blower draws a volute, a tangential discharge and a drive motor, so
+    it needs about 1.9r across and 1.6r down from its centre.
+
+    Discharge is DOWN, i.e. out through the rear face the bank sits on: air is
+    drawn through the filters and pushed out behind the machine. That is how
+    the equipment works, not a position we chose, so it is safe to draw.
     """
-    fw = v.w * 0.16
-    fh = max(depth * 1.4, v.h * 0.12)
-    fx = v.x + (v.w - fw) / 2
-    fy = v.y + v.h - depth - fh - 2.0
-    canvas.add(Rect(fx, fy, fw, fh, *EQUIPMENT))
-    canvas.add(Circle(fx + fw / 2, fy + fh / 2, min(fw, fh) * 0.32,
-                      INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
-    item(canvas, legend, fx + fw + 6.0, fy + fh / 2, label)
+    avail_w = v.w * 0.16
+    avail_h = max(depth * 1.4, v.h * 0.12)
+    r = min(avail_w / 1.9, avail_h / 1.6)
+    cx = v.x + v.w / 2
+    # The discharge STOPS SHORT of the extract face rather than crossing into
+    # it. Drawn overlapping, the throat sat inside the filter bank and read as
+    # a blower buried in the media; ending clear of it reads as the connection
+    # it is. `blower` puts the throat's far face at 1.55r from the centre.
+    cy = v.y + v.h - depth - r * 1.55 - 1.0
+    components.blower(canvas, cx, cy, r, discharge="down", motor=True)
+    item(canvas, legend, cx + r * 2.0 + 4.0, cy, label)
 
 
 def _door(canvas, v, legend: list, label: str, frac: float = 0.34) -> None:
@@ -382,8 +393,7 @@ def _door(canvas, v, legend: list, label: str, frac: float = 0.34) -> None:
     dx = v.x + (v.w - dw) / 2
     dh = v.h * 0.72
     dy = v.y + v.h - dh
-    canvas.add(Rect(dx, dy, dw, dh, *DOOR))
-    canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, *PANEL_SEAM))
+    components.access_door(canvas, dx, dy, dw, dh, leaves=2)
     item(canvas, legend, dx + dw * 0.22, dy + dh * 0.24, label)
 
 
@@ -903,9 +913,11 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
         # Circulation blower on the roof, with its delivery duct into the chamber.
         br = min(w, h) * 0.055
-        bcx, bcy = x + w * 0.24, y + t + br + 2.0
-        canvas.add(Circle(bcx, bcy, br, EQUIPMENT.layer, EQUIPMENT.width))
-        canvas.add(Line(bcx, bcy + br, bcx, y + h * 0.42, *HIDDEN_LINE))
+        bcx, bcy = x + w * 0.24, y + t + br * 1.7 + 2.0
+        # Discharges DOWN into the chamber it recirculates through — the duct
+        # is hidden because it runs behind the panel the elevation cuts.
+        port = components.blower(canvas, bcx, bcy, br, discharge="down", motor=True)
+        canvas.add(Line(port[0], port[1], port[0], y + h * 0.42, *HIDDEN_LINE))
         qty = f" ({blower_qty} nos)" if blower_qty else ""
         item(canvas, legend, bcx - br - 5.0, bcy,
              f"Recirculation blower {blower_hp}{qty}".strip())
@@ -1322,7 +1334,7 @@ def conveyor(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
         # Drive unit at the far end.
         dwid, dhei = w * 0.06, h * 0.10
-        canvas.add(Rect(x + w - dwid, ty - dhei, dwid, dhei, *EQUIPMENT))
+        components.motor_box(canvas, x + w - dwid, ty - dhei, dwid, dhei)
         item(canvas, legend, x + w - dwid - 5.5, ty - dhei * 0.5, f"Drive unit - {operation or 'drive'}".strip())
 
     if plan:
@@ -1358,6 +1370,12 @@ def ducting(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
         # Flanged joints at an indicative spool pitch.
+        # Joint lines, NOT `components.flange`. That component projects 0.62 of
+        # the BORE either side, which is right for a real flange — and wrong
+        # here, because this elevation draws the run at the envelope height
+        # (4,000 mm), not at the duct bore (600 mm). Fed the view height it
+        # overshot the outline by a fifth and struck the view caption. A
+        # component only fits where the view is drawn at the size it assumes.
         for i in range(1, 8):
             jx = x + w * i / 8
             canvas.add(Line(jx, y - 1.6, jx, y + h + 1.6, *SYMBOL_DETAIL))
@@ -1523,7 +1541,10 @@ def blast_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
         _door(canvas, front, legend, "Blast enclosure door", frac=0.28)
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
-        canvas.add(Text(x + w * 0.5, y + h * 0.30,
+        # Clear of the door head. At 0.30 this printed straight through the top
+        # edge of the door, whose head is at 0.28 — the caption and the leaf
+        # outline crossed and neither read cleanly.
+        canvas.add(Text(x + w * 0.5, y + h * 0.22,
                         f"BLAST MEDIA: {str(media).upper()[:24]}" if media else "BLAST ENCLOSURE",
                         L_TEXT, T_SMALL, "middle"))
     if plan:

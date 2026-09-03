@@ -77,8 +77,19 @@ def filter_bank(canvas, x: float, y: float, w: float, h: float,
 
 
 def _pleat(canvas, x: float, y: float, w: float, h: float, vertical: bool,
-           folds: int = 4) -> None:
-    """The zig-zag of one filter cell's media."""
+           folds: int = 0) -> None:
+    """The zig-zag of one filter cell's media.
+
+    FOLD COUNT FOLLOWS THE CELL'S SHAPE. A fixed count drew whatever the cell
+    happened to be: a shallow bank seen in plan is a long, low cell, and four
+    folds across it produced huge stretched triangles that read as cross
+    bracing rather than media. The pitch is instead held near the cell's DEPTH,
+    which is what makes a pleat look like a pleat at any aspect ratio.
+    """
+    run = h if vertical else w          # along the fold direction
+    depth = w if vertical else h        # across it
+    if folds <= 0:
+        folds = max(2, min(12, int(round(run / max(depth, 0.35) / 2.0)) or 2))
     pts = []
     if vertical:
         for i in range(folds * 2 + 1):
