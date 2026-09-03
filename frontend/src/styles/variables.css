@@ -218,14 +218,14 @@ body::before {
   background-image: var(--blueprint-tile);
   background-size: 240px 240px;
   background-repeat: repeat;
-  opacity: 0.05;
+  opacity: 0.03;
   /* Fades toward the middle so it never sits behind reading content, but the
      transparent hole is kept small so the pattern is clearly legible across
      the margins, header band and rails. */
   -webkit-mask-image: radial-gradient(120% 108% at 50% 40%, transparent 0, transparent 150px, #000 540px);
   mask-image: radial-gradient(120% 108% at 50% 40%, transparent 0, transparent 150px, #000 540px);
 }
-:root[data-theme="dark"] body::before { opacity: 0.13; }
+:root[data-theme="dark"] body::before { opacity: 0.05; }
 
 h1, h2, h3, h4, p, figure { margin: 0; }
 button, input, textarea, select { font: inherit; letter-spacing: inherit; color: inherit; }

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "../common/Button";
 import { OfferDrawer } from "../components/OfferDrawer";
+import { NavIcon } from "../components/NavIcon";
 import { OfferTable, useOfferSearch } from "./OfferTable";
-import { COLL_BADGE, COLL_STATE } from "./collectionMeta";
+import { COLL_BADGE, COLL_ICON, COLL_STATE } from "./collectionMeta";
 
 /** State-aware panel for a collection that has no rows to show yet. */
 function CollectionEmpty({ meta, ov, setView }) {
@@ -31,7 +32,7 @@ function CollectionEmpty({ meta, ov, setView }) {
 
   return (
     <div className="col-empty">
-      <div className="col-empty-ic">{meta.icon}</div>
+      <div className="col-empty-ic"><NavIcon name={COLL_ICON[collection]} size={26} /></div>
       <div className="col-empty-n">
         {meta.count}<span> {meta.state === "engine" ? "rule sets" : "documents"}</span>
       </div>
@@ -91,7 +92,7 @@ export function CollectionPage({ collection, setView }) {
       </nav>
 
       <header className="col-head">
-        <span className="col-ic">{meta.icon}</span>
+        <span className="col-ic"><NavIcon name={COLL_ICON[collection]} size={19} /></span>
         <div className="col-head-t">
           <h1>{meta.label}</h1>
           <p>{meta.desc}</p>

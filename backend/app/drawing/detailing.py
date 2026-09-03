@@ -162,6 +162,25 @@ def detail_bubble(canvas, cx: float, cy: float, r: float, tag: str,
                     "start", bold=True))
 
 
+def note_leader(canvas, from_x: float, from_y: float, to_x: float, to_y: float,
+                text: str, anchor: str = "start") -> None:
+    """A leader from a feature to a note, with the horizontal landing a
+    draughtsman puts under the text.
+
+    FOR A FEATURE TOO THIN TO DIMENSION. A 100 mm lining is 2 mm of sheet at
+    1:50 — drawn to true thickness, but far too thin to carry witness lines and
+    a dimension between them. The drawing convention for exactly that case is a
+    leader to a note ("100 THK"), which states the same engineered value without
+    pretending there is room for a dimension.
+    """
+    canvas.add(Line(from_x, from_y, to_x, to_y, *LEADER_LINE))
+    land = 4.0 if anchor == "start" else -4.0
+    canvas.add(Line(to_x, to_y, to_x + land, to_y, *LEADER_LINE))
+    canvas.add(Circle(from_x, from_y, 0.5, BALLOON.layer, BALLOON.width,
+                      fill="currentColor"))
+    canvas.add(Text(to_x + land * 1.15, to_y - 1.2, text, L_TEXT, T_DIM, anchor))
+
+
 def break_line(canvas, x1: float, y1: float, x2: float, y2: float,
                amp: float = 1.8) -> None:
     """A conventional break: this run continues, and is not drawn to length.

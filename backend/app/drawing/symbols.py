@@ -1080,6 +1080,15 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                                    (x + w - t, y + t, t, h - 2 * t)):
                 detailing.material_hatch(canvas, hx, hy, hw, hh,
                                          detailing.INSULATION)
+            # The thickness is now a TRUE-SCALE feature, so it can be stated as
+            # an engineered value. It is called out on a leader rather than
+            # dimensioned: at 2 mm of sheet there is no room between witness
+            # lines, and this is the convention for exactly that case.
+            mm = _MM_RE.search(str(insulation))
+            if mm:
+                detailing.note_leader(
+                    canvas, x + w * 0.34, y + t / 2, x + w * 0.44, y - 5.5,
+                    f"{mm.group(1)} THK INSULATION")
         # Dropped clear of the blower balloon, which sits in the roof band at
         # 0.20h; on a short view the two circles overlapped. A leader is what
         # lets it move without losing which feature it names.

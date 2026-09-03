@@ -219,8 +219,27 @@ def plenum(canvas, x: float, y: float, w: float, h: float, label: str = "") -> N
 
 
 def structural_base(canvas, x: float, y: float, w: float, depth: float) -> None:
-    """The base frame an enclosure stands on, with its bearing points."""
+    """The base frame an enclosure stands on, with its bearing points.
+
+    Each bearing point carries a BASE PLATE and its holding-down bolts, which is
+    what a supported machine looks like on an industrial elevation — a frame
+    drawn as a plain band with four ticks reads as a plinth, not as steelwork
+    standing on a floor.
+
+    The plate is a SYMBOL at a legible size, not a set-out: neither its size nor
+    its bolt pitch is engineered, and the sheet's standing note already says
+    component positions are indicative. What IS real is that the machine is
+    supported at all — the spec's own base/supports row says so, which is why
+    the glyphs that call this are the ones whose spec states it.
+    """
     canvas.add(Rect(x, y - depth, w, depth, *SECONDARY_OUTLINE))
+    pw = min(w * 0.075, max(depth * 1.5, 1.6))
     for i in range(4):
         fx = x + w * (0.06 + 0.293 * i)
         canvas.add(Line(fx, y - depth, fx, y, *SYMBOL_DETAIL))
+        # Plate at the floor line, with two bolts through it.
+        pt = max(depth * 0.30, 0.5)
+        canvas.add(Rect(fx - pw / 2, y - pt, pw, pt, *SECONDARY_OUTLINE))
+        for b in (-1, 1):
+            bx = fx + b * pw * 0.28
+            canvas.add(Line(bx, y - pt, bx, y + pt * 0.7, *SYMBOL_DETAIL))

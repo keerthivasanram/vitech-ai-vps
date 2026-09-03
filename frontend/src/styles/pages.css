@@ -206,8 +206,16 @@
 }
 .kb-coll:hover { border-color: rgba(var(--secondary-rgb), 0.4); background: var(--card-sunken); }
 .kb-coll-top { display: flex; align-items: center; justify-content: space-between; }
-.kb-coll-ic { font-size: 20px; line-height: 1; }
-.kb-coll-n { font-size: 25px; font-weight: 700; color: var(--primary); }
+/* Now an SVG rather than an emoji, so it needs a real frame. */
+.kb-coll-ic {
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--hover-green);
+  color: var(--primary);
+}
+.kb-coll-n { font-size: 21px; font-weight: 650; color: var(--text); }
 .kb-coll-label { font-size: 14.5px; font-weight: 600; color: var(--text); }
 .kb-coll-desc { flex: 1; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
 .kb-coll .badge { align-self: flex-start; margin-top: 4px; }
@@ -307,9 +315,16 @@
 .crumb-link:hover { text-decoration: underline; }
 
 .col-head { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
-.col-ic { font-size: 32px; line-height: 1; }
+.col-ic {
+  display: grid;
+  place-items: center;
+  width: 36px; height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--hover-green);
+  color: var(--primary);
+}
 .col-head-t { flex: 1; min-width: 0; }
-.col-head-t h1 { font-size: 24px; font-weight: 700; letter-spacing: var(--lsp-hero); margin-bottom: 3px; }
+.col-head-t h1 { font-size: var(--fs-section); font-weight: 650; letter-spacing: var(--lsp-hero); margin-bottom: 3px; }
 .col-head-t p { font-size: 13.5px; color: var(--text-secondary); }
 
 .col-empty {
@@ -324,8 +339,15 @@
   border-radius: var(--r-card);
   background: var(--card);
 }
-.col-empty-ic { font-size: 42px; line-height: 1; }
-.col-empty-n { font-size: 34px; font-weight: 700; color: var(--primary); }
+.col-empty-ic {
+  display: grid;
+  place-items: center;
+  width: 52px; height: 52px;
+  border-radius: var(--r-card);
+  background: var(--hover-green);
+  color: var(--primary);
+}
+.col-empty-n { font-size: 28px; font-weight: 650; color: var(--primary); }
 .col-empty-n span { font-size: 14px; font-weight: 600; color: var(--text-muted); }
 .col-empty-line { max-width: 560px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; }
 

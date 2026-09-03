@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { OfferDrawer } from "../components/OfferDrawer";
+import { NavIcon } from "../components/NavIcon";
 import { OfferTable, useOfferSearch } from "./OfferTable";
-import { COLL_BADGE, COLL_STATE } from "./collectionMeta";
+import { COLL_BADGE, COLL_ICON, COLL_STATE } from "./collectionMeta";
 
 /**
  * Organised view of everything stored: stats, the collection taxonomy,
@@ -55,7 +56,7 @@ export function KnowledgeBase({ setView }) {
             {ov.collections.map((c) => (
               <button key={c.key} type="button" className="kb-coll" onClick={() => setView(c.key)}>
                 <span className="kb-coll-top">
-                  <span className="kb-coll-ic">{c.icon}</span>
+                  <span className="kb-coll-ic"><NavIcon name={COLL_ICON[c.key]} size={19} /></span>
                   <span className="kb-coll-n">{c.count}</span>
                 </span>
                 <span className="kb-coll-label">{c.label}</span>

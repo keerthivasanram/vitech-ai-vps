@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { SidebarGroup, SidebarItem } from "./SidebarItem";
-import { Logo, LogoMark, CircuitDeco } from "./Logo";
+import { Logo, LogoMark } from "./Logo";
 import { Avatar } from "../common/Avatar";
 import { AGENT_VIEWS, navForRole } from "../lib/constants";
 import { useRipple } from "../hooks/useRipple";
@@ -57,8 +57,6 @@ export const Sidebar = memo(function Sidebar({
       className={`sidebar${open ? " is-open" : ""}${collapsed ? " is-collapsed" : ""}`}
       aria-label="Main navigation"
     >
-      <CircuitDeco />
-
       <div className="side-brand">
         {collapsed ? <LogoMark /> : <Logo height={40} isDark={isDark} />}
         <span

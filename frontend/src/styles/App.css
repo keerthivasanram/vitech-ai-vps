@@ -106,7 +106,17 @@
 .sidebar.is-collapsed .side-live { display: none; }
 .sidebar.is-collapsed .side-newchat { width: 44px; padding: 0; }
 .sidebar.is-collapsed .side-newchat-label { display: none; }
-.sidebar.is-collapsed .side-group-label { display: none; }
+/* The group headings cannot fit, so the boundary becomes a hairline —
+   without it the rail is one undifferentiated column of fifteen icons. */
+.sidebar.is-collapsed .side-group-label {
+  height: 1px;
+  margin: 7px 8px;
+  padding: 0;
+  overflow: hidden;
+  text-indent: -999px;
+  background: var(--border);
+}
+.sidebar.is-collapsed .side-group-label:first-child { display: none; }
 .sidebar.is-collapsed .side-nav { width: 100%; margin-top: 12px; gap: 4px; }
 .sidebar.is-collapsed .side-item { justify-content: center; padding: 0; height: 42px; gap: 0; }
 .sidebar.is-collapsed .side-item-label { display: none; }
@@ -118,28 +128,6 @@
 }
 .sidebar.is-collapsed .side-user-t,
 .sidebar.is-collapsed .side-user-chev { display: none; }
-.sidebar.is-collapsed .sidebar-deco { display: none; }
-
-/* Lift the real content above the decoration. The :not() is load-bearing —
-   without it this rule outranks .sidebar-deco's `position: absolute` (equal
-   specificity, declared later), dropping the circuit art back into the flow
-   where it pushes the logo and nav down the rail. */
-.sidebar > *:not(.sidebar-deco) { position: relative; z-index: 1; }
-
-/* Circuit-trace decoration, bottom-left, ~6% opacity (per reference). */
-.sidebar-deco {
-  position: absolute;
-  left: -10px;
-  bottom: 72px;
-  width: 300px;
-  height: 320px;
-  opacity: 0.06;
-  color: var(--primary);
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-}
-:root[data-theme="dark"] .sidebar-deco { opacity: 0.1; }
 
 .side-brand {
   display: flex;
@@ -491,8 +479,19 @@
 .chat-welcome {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   overflow: hidden;
+  width: 100%;
+  max-width: 900px;
+}
+
+/* Before the first message the surface is otherwise empty, so the welcome sits
+   in the middle of it rather than at the top with a screen of nothing beneath.
+   Only while idle: `.is-active` returns the column to top-anchored, because a
+   transcript must grow downward from where it started. */
+.chat-surface:not(.is-active) .chat-scroll {
+  justify-content: center;
+  align-items: center;
 }
 
 /* Once a conversation is under way the transcript owns the whole surface —
@@ -1134,18 +1133,18 @@
 
 /* 1600 and below: tighten the rails rather than the content. */
 @media (max-width: 1600px) {
-  :root { --sidebar-w: 272px; --rightbar-w: 340px; }
+  :root { --sidebar-w: 252px; --rightbar-w: 310px; }
 }
 
 @media (max-width: 1440px) {
-  :root { --sidebar-w: 260px; --rightbar-w: 320px; --gap: 20px; --pad: 20px; }
-  .hero { padding: 22px 24px; gap: 20px; }
+  :root { --sidebar-w: 240px; --rightbar-w: 296px; --gap: 16px; --pad: 18px; }
+  .hero { padding: 20px 22px; gap: 20px; }
 }
 
 /* 1366/1280: quick actions reflow to two columns; the orb keeps its fixed
    proportions (it's self-contained) right up until it's dropped at 1024. */
 @media (max-width: 1366px) {
-  :root { --rightbar-w: 300px; }
+  :root { --rightbar-w: 280px; }
   .quick { grid-template-columns: repeat(2, 1fr); }
   .quick-card { min-height: 88px; }
 }
@@ -1161,9 +1160,9 @@
     position: fixed;
     top: 0; right: 0; bottom: 0;
     z-index: 46;
-    width: min(370px, 88vw);
+    width: min(330px, 88vw);
     flex: none;
-    padding: 20px;
+    padding: 16px;
     background: var(--bg);
     border-left: 1px solid var(--border);
     box-shadow: var(--shadow-lg);
@@ -1183,15 +1182,18 @@
     position: fixed;
     top: 0; left: 0; bottom: 0;
     z-index: 46;
-    width: min(290px, 84vw);
+    width: min(272px, 84vw);
     flex: none;
     margin-right: 0;
-    border-radius: 0 22px 22px 0;
+    border-radius: 0 var(--r-rail) var(--r-rail) 0;
     border-width: 0 1px 0 0;
     box-shadow: var(--shadow-lg);
     animation: fade-in var(--t) both;
   }
   .sidebar:not(.is-open) { display: none; }
+  /* A drawer is never the icon strip: it has the room, and a remembered
+     desktop collapse must not follow the user onto a phone. */
+  .sidebar.is-collapsed { width: min(272px, 84vw); padding: 16px 12px 12px; }
 
 
   .quick { grid-template-columns: 1fr; }
@@ -1206,8 +1208,8 @@
 }
 
 @media (max-width: 640px) {
-  /* Reclaim header width for the title: search + fullscreen are conveniences,
-     not the page identity. */
+  /* Fullscreen is a desktop convenience and the phone is already full-screen. */
+  .ctl-btn.is-optional,
   .icon-btn.is-optional { display: none; }
 }
 
