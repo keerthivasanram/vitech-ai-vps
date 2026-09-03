@@ -42,6 +42,55 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-03 (studio) — EDIT AS INPUTS, and D1 CONVERSATIONAL STATE. Both DONE.
+
+**The studio was a phase behind the engine.** It read four fields off the render response — `bom`,
+`legend`, `scale`, `tbd` — so everything Phases C and D added was invisible: the drawing STATE, the
+actionable unresolved schedule, and the isometric, which `/api/drawing/catalog` did not even offer.
+- **EDIT AS INPUTS IS LIVE — the interaction the product owner asked for by name.** Clicking a
+  dimension does NOT edit the sheet: it opens the REQUIREMENT FIELD that produced it, and
+  committing re-runs the engine. **6 m -> 9 m on a booth moves the scale 1:50 -> 1:100, changes the
+  blower and the airflow in the item list, and records a revision** — it re-resolves rather than
+  stretching a box. A hand-edited sheet is a drawing no engine agrees with, and once one exists
+  nobody can tell which numbers were engineered and which were typed over.
+- **The mechanism is `data-edit` naming the envelope axis**, carried `Dim` -> `Text` -> SVG. **ONLY
+  the overall dimensions carry it** — they map one-to-one onto an input. A component dimension has
+  no input to send the reader to, and making it look clickable would promise an edit the engine
+  cannot honour.
+- **THE WIRING BUG, found by driving the real UI and by nothing else.** Clicks did nothing:
+  **`.ds-stage` sets `pointer-events: none`** so dragging anywhere pans the canvas — which also
+  meant the sheet never received a click and every one fell through to `.ds-viewport`. The element
+  was present and correct; `elementFromPoint` at its own centre returned the viewport. Fixed with
+  `pointer-events: auto` on `[data-edit]` alone, so panning is untouched. **`npm run build` was
+  clean throughout.** The standing lesson held again.
+- **D1 IS DONE.** A drawing conversation is a sequence of deltas, and "make it 6m long" was being
+  resolved ALONE — where it names no equipment, so the machine was discarded and the endpoint's
+  own guard correctly refused it as noise. **That is why a follow-up often did nothing.**
+  `understand.merge_followup(previous, followup)` composes the held requirement and the follow-up
+  into the ONE restated sentence `_apply_correction` was written for — that layer has been tested
+  since August and was simply never given a held requirement to correct.
+  **A follow-up that names its own equipment starts fresh** ("now draw a wet scrubber"), decided by
+  the classifier's own confidence rather than a new guess.
+- **`/api/tools/drawing` takes `previous` and RETURNS `requirement`** — the caller holds the
+  COMPOSED sentence, not the typed fragment; holding the fragment loses the machine again one turn
+  later. **The studio drops the held requirement on a form-driven generate or a draw-from-spec**,
+  because those replace the sheet and the held sentence no longer describes it.
+- **VERIFIED IN A REAL BROWSER end to end**, not by build output: 6 clickable dimensions, the editor
+  opens, apply re-resolves to 9000 on the sheet; the schematic banner and 7 required-to-complete
+  rows render; and through the REAL agent chat, turn 1 `5000 x 3000 x 4000` -> turn 2 "make it 6m
+  long" -> `6000 x 3000 x 4000` with width and height preserved. **Zero console errors throughout.**
+- **`ga_iso` is offered in the catalog**, so the isometric is reachable by a user rather than only
+  by an API caller.
+- **STILL NOT DONE, and it is the same one as ever:** component SETTING-OUT RULES from Vitech.
+  `docs/Vitech_Engineering_Knowledge_Request.pdf` now leads with it as **B1 [HIGHEST PRIORITY]**
+  with a worked example of a sufficient answer. **That document had never been sendable** — the
+  sender block was hard-coded placeholder text, so setting it meant editing Python. It now reads
+  `docs/sender.json` (gitignored) and the build EXITS NON-ZERO naming every unfilled field.
+  **Two asks in it were stale and would have cost credibility**: it asked Vitech to confirm face
+  velocity "currently 0.45" when the code reads 0.50 from THEIR OWN workbook, and asked for the
+  cost-sheet row that was recovered a week ago. Both now appear under "Closed since the last
+  request - with thanks".
+
 ### ▶ 2026-09-03 (Phase D) — A DRAWING QA GATE. `app/drawing/qa.py` + `tests_drawing_qa.py` (NEW).
 
 **The engine now audits its own output.** Every drawing defect this project has shipped was
