@@ -42,6 +42,60 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-03 (Phase D) — A DRAWING QA GATE. `app/drawing/qa.py` + `tests_drawing_qa.py` (NEW).
+
+**The engine now audits its own output.** Every drawing defect this project has shipped was
+invisible in the source and obvious on the paper, and each was found by a person rendering ONE
+sheet and looking at it. That does not scale to 14 categories x 3 states x 2 sheet sizes, and it
+never catches the sheet nobody thought to render. **`tests_drawing_qa.py` builds all 84
+combinations and gates CI** (added to `.github/workflows/tests.yml`).
+- **SEVEN DETECTORS, EACH PROVEN TO FIRE** against a canvas built to trip it — *a suite of checks
+  that have never fired is indistinguishable from one that cannot*: empty / suspiciously sparse
+  views, illegible text, overlapping dimension text, leaders drawn through labels, section
+  captions with no cutting plane, truncated schedules, geometry off-sheet or in the reserved
+  notes column.
+- **`dimension_not_true` IS THE ONE THAT MATTERS.** A dimension is the only mark on a GA a
+  fabricator can work from, so a printed value that does not match the distance it spans **at the
+  sheet's own scale** is the most dangerous thing this engine could emit. It is golden rule #2 as
+  an audit — not "did a model invent a number?" but "does this number describe the geometry it is
+  attached to?" It catches MECHANICALLY the exact trap that stopped the filter cells being
+  dimensioned in Phase C. **`Canvas` now retains the `Dim` objects** beside the lines they expand
+  into, because by the time anything looks at `shapes` there is no way left to ask what a
+  dimension claimed.
+- **EXCEPTIONS ARE DECLARED WITH REASONS, NOT SUPPRESSED**, and a test asserts **every exception
+  is still needed** — a reason left behind after a view was filled out fails as a stale excuse.
+  That check earned itself immediately: given proper composite rows the powder plant's front view
+  is no longer sparse, and its exception was deleted.
+- **WHAT IT FOUND ON FIRST RUN: A4 had never been eyeballed, only A3.** A4 truncates schedules
+  widely. Three were graded ERRORS by a classifier keying on the word "specification" — and they
+  were the DESIGN DATA table, not the unresolved schedule. **The real defect underneath was that
+  the sheet's notices did not say WHAT they dropped** ("... and 5 more" — more of what?). They now
+  name themselves, which serves the reader first and lets the audit grade them second. **The
+  unresolved schedule never truncates even at A4** (it reserves its own notice line), which is why
+  A4 truncation is an accepted WARNING with its reason recorded, not an error.
+- **A DETECTOR'S FIRST FINDING WAS A FALSE POSITIVE AND THE BUG WAS MINE.** `_extent` measured
+  ROTATED text as if horizontal, so a 26 mm vertical caption swept a 26 mm box SIDEWAYS across a
+  quarter of the sheet. **I nearly "fixed" a ducting leader that was never crossing anything.**
+  Lesson worth keeping: a detector's first report is as likely to be wrong about the drawing as
+  the drawing is to be wrong.
+- **`drawing_type="ga_iso"` ADDS AN ENVELOPE ISOMETRIC** in the quadrant third-angle always leaves
+  empty. **Optional on purpose** — plain `"ga"` output is byte-identical. It draws ONLY the
+  resolved box (all three edges are dimensions the sheet states elsewhere, so it adds no claim),
+  carries no dimension, says NOT TO SCALE, and **deliberately omits components**: a pictorial is
+  the most persuasive mark on a sheet, and drawing an indicative arrangement in 3D would make the
+  least reliable information look like the most reliable. A partly unresolved envelope gets **no**
+  pictorial rather than an approximate one. **I drew it inside-out first** — in this projection a
+  larger (x+y) moves DOWN, so the hidden corner is the ORIGIN, not (0,W,0). Caught by rendering.
+- **Thin views FIXED rather than excused:** the paint drying oven's plan showed none of the plant
+  its elevation draws (heating/recirculation unit and stack now projected down). The dust
+  collector, conveyor, ducting and pretreatment were done in Phase C.
+- **THE RETRIEVAL FLAP HAS AT LEAST FIVE VALUES**, not the three this file recorded: seen
+  10,081 / 10,080 / 10,079 / 9,140 / 9,139. Conclusion unchanged, still not re-recorded.
+- **STILL THE BIGGEST OPEN ITEM, and no amount of drafting or QA substitutes for it: COMPONENT
+  SETTING-OUT RULES FROM VITECH.** Every check above verifies the drawing is well formed and
+  self-consistent; none can say whether a component belongs where it is drawn. Positions stay
+  indicative and the sheet keeps saying so.
+
 ### ▶ 2026-09-03 (Phase C) — PROFESSIONAL GA DETAILING. `app/drawing/detailing.py` is NEW.
 
 Asked for: stop looking like a software sketch, become a professional industrial GA — without
