@@ -42,6 +42,65 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-03 (Phase C) — PROFESSIONAL GA DETAILING. `app/drawing/detailing.py` is NEW.
+
+Asked for: stop looking like a software sketch, become a professional industrial GA — without
+fabricating geometry. **`detailing.py` is a THIRD module beside `style.py` and `components.py`**
+and the split is the point: style says how a line LOOKS, components says what a MACHINE PART
+looks like, and neither covers the draughtsman's own vocabulary. That vocabulary — section
+markers, break lines, level datums, material hatching, detail bubbles, leader notes — is what
+separates a GA from a sketch, and it belongs to the DRAWING, not the equipment.
+- **THE FRONT VIEW WAS ALREADY A SECTION AND WAS CAPTIONED AS AN ELEVATION.** A glyph drawing the
+  filter bank, blower and heater INSIDE the casing is showing a cut, not the outside. Renaming it
+  `SECTION A-A` and putting the cutting plane on the plan costs **no geometry** and is simply more
+  correct. Declared in `SECTION_VIEWS`, only where the glyph really draws internals.
+- **THE CAPTION AND THE MARK ARE ONE DECISION (`section_tag`).** The scrubber proved why: a 750 mm
+  tower is ~30 mm of plan at 1:25, and a cutting plane needs ~9 mm either side, so the mark landed
+  on the diameter and the GAS IN/OUT captions. Guarding only the MARK would leave the view
+  captioned "SECTION A-A" with nothing locating the cut — **a reference to a section nobody can
+  find, worse than an unlabelled elevation.** Both drop together.
+- **LEVEL DATUMS (FFL 0.000 / +4.000)** are a reading convention over two values the sheet already
+  carries. **A SCHEMATIC gets none** — there, a level would be the one thing claiming a number.
+- **MATERIAL HATCHING where a view genuinely cuts.** The scrubber's sump gets liquid hatch below
+  its working level (the view already claimed to cut it — it shows the level). **The oven's lining
+  is drawn at its REAL thickness**: a stated "100 mm rockwool" is 2 mm of sheet at 1:50.
+  `_mm_on_sheet` refuses a bare number (as likely a grade as a thickness), a band too thin to
+  print as anything but a smudge, one large enough to swallow the view, or a view with no model
+  dimension. The thickness is then called out on a **LEADER, not a dimension** — at 2 mm there is
+  no room between witness lines, and that is the convention for exactly that case.
+- **WHAT I DECLINED MATTERS MORE THAN WHAT I ADDED.** The obvious use for the unused COMPONENT
+  dimension lane was the filter cell ("600 x 600" is resolved and the bank is right there). But
+  **the bank's cells are drawn as view-width-over-count, NOT at true pitch**, so a "600" against
+  one would dimension a feature that is not 600 at this scale — the fabrication trap one step
+  removed: the VALUE is real, the GEOMETRY it labels is not. The panel bay is dimensionable only
+  because `_panel_joints` draws it at Vitech's real 750 module. **Break lines were also declined**:
+  ducting and conveyor draw their FULL stated length, so a break symbol would announce a
+  truncation that never happened. The symbol is in the library for when a run is actually cut.
+- **THE THIN GLYPHS WERE CHOSEN BY CENSUS, not by eye** — element counts per view, per category.
+  The five thinnest were all core Vitech kit: ducting 28, conveyor 49, dust collector 72 (**plan
+  of 6**), powder plant (**front of 6**), pretreatment (**legend of 2**).
+  **The dust collector's two views described different machines** — elevation with header, ID fan,
+  airlock and door; plan with a grid of circles. Now: 28 -> 97 total, plan 6 -> 27. Conveyor and
+  ducting plans were a single centre line each; a track in plan is two rails with carriers at the
+  elevation's own pitch, a duct is two walls with the same spool joints. Pretreatment 95 -> 145,
+  tanks NUMBERED (the stage count is resolved, so the sequence is real engineering) and carrying
+  their liquor.
+- **A REAL ENGINEERING DEFECT, found because `oven_m` was PARSED AND NEVER USED.** A powder-coated
+  component must clear the booth AND the curing oven, both resolved from the same composite field
+  — but only the booth was drawn and only the booth was clash-checked. **A component that clears
+  the booth and fouls the oven passed silently**, which is the more expensive of the two to find
+  late. Both apertures are now drawn (the side view takes the oven, so the two views are
+  complementary rather than duplicates) and both are checked. Pinned.
+- **THE TITLE-BLOCK LESSON, worth keeping: character widths were MEASURED by rasterising the face**
+  (0.69/char bold, 0.63-0.67 regular). A guess of 0.62 was low by a tenth and still overflowed.
+- **Collisions the render showed and fixed:** the cutting plane's far-end letter landed on the
+  overall dimension (labels now sit INWARD along their own cut line, which cannot collide with the
+  lane at any view size); "INLET SIDE" landed on a pulse header (headers occupy a BAND, leaving
+  the top and bottom clear).
+- **`tools.retrieve` READ 10,079 THIS SESSION — a FOURTH value**, where this file records three
+  (10,081 / 10,080 / 9,140). The spread is wider than documented; conclusion unchanged, still not
+  re-recorded.
+
 ### ▶ 2026-09-03 (later) — THREE DRAWING STATES. A blank sheet is now a PRELIMINARY GA.
 
 Asked for after a real oven sheet came back nearly empty. **`app/drawing/states.py` and
