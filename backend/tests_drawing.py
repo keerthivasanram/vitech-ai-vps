@@ -9,7 +9,7 @@ Run after any change under `app/drawing/`.
 import re
 import sys
 
-from app.drawing import sheet, views
+from app.drawing import sheet, style, views
 from app.api.support import _spec_for_drawing
 from app.drawing.drawing_service import build_drawing
 from app.drawing.primitives import Canvas, Dim, LAYER_ORDER, Line, Text, n
@@ -694,6 +694,49 @@ for _q in ("paint booth 5m x 3m x 4m",
         _pkg = build_drawing(_spec_for_drawing(_q), sheet_size=_size)
         check(all(_n[:40] in _pkg["svg"] for _n in _NOTES),
               f"{_size}: every standing note survives a full column ({_q[:26]})")
+
+
+# --- a dashed line belongs to the layer its dash claims -------------------
+# The studio renders one <g> per layer and toggles it, so a centre line drawn
+# on the COMPONENT layer is one the "Centre lines" switch cannot turn off. Ten
+# glyphs drew their own centre and hidden lines by hand on the component layer
+# while the library drew the identical thing on the right one, so the same
+# toggle worked for a duct axis and not for a conveyor axis on the same sheet.
+_D_CENTRE, _D_HIDDEN = "6,1.5,1.5,1.5", "2,1.5"
+for _cat in SYMBOLS:
+    _svg = build_drawing({"category": _cat, "category_label": _cat,
+                          "geometry": {"envelope_mm": {"length": 6000, "width": 3000,
+                                                       "height": 4000}, "ready": True},
+                          "technical_details": [
+                              {"label": "Conveyor", "value": "overhead"},
+                              {"label": "Zones", "value": "3"},
+                              {"label": "Tower diameter", "value": "750 mm"},
+                              {"label": "Illumination", "value": "LED 6 nos"}]})["svg"]
+    _m = re.search(r'<g[^>]*id="layer-component"[^>]*>(.*?)</g>', _svg, re.S)
+    _body = _m.group(1) if _m else ""
+    # An OPENING legitimately keeps the hidden dash on the component layer, so
+    # the test discriminates by WEIGHT rather than exempting whole glyphs:
+    # stranded hidden detail is LIGHT, an opening is MEDIUM.
+    _dashed = re.findall(r'stroke-dasharray="([^"]*)"[^>]*stroke-width="([^"]*)"'
+                         r'|stroke-width="([^"]*)"[^>]*stroke-dasharray="([^"]*)"', _body)
+    _pairs = [(d or d2, w or w2) for d, w, w2, d2 in _dashed]
+    _light = f"{style.W_LIGHT:g}"
+    _stray_c = sum(1 for d, _w in _pairs if d == _D_CENTRE)
+    _stray_h = sum(1 for d, w in _pairs if d == _D_HIDDEN and w == _light)
+    check(_stray_c == 0,
+          f"{_cat}: no centre line stranded on the component layer ({_stray_c})")
+    check(_stray_h == 0,
+          f"{_cat}: no hidden detail stranded on the component layer ({_stray_h})")
+
+# An OPENING is the deliberate exception: a void in the enclosure is a real
+# feature in front of the viewer, so it keeps the hidden DASH to read as an
+# absence of panel while staying a component. It is a MEDIUM weight, which is
+# what distinguishes it from hidden detail at a glance.
+from app.drawing.style import HIDDEN_LINE, OPENING, CENTRE_LINE, L_COMPONENT as _LC
+check(OPENING.layer == _LC and OPENING.width > HIDDEN_LINE.width,
+      "an OPENING stays a component and outweighs hidden detail")
+check(CENTRE_LINE.layer != _LC and HIDDEN_LINE.layer != _LC,
+      "centre and hidden roles live off the component layer")
 
 
 # --- a Pen may only be splatted into a shape whose tail arg is `dash` ------

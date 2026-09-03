@@ -21,14 +21,13 @@ import re
 from typing import Callable, Optional
 
 from .. import values
-from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_HATCH, LW_MED, LW_THICK,
-                         LW_THIN, L_COMPONENT, L_HIDDEN, L_OUTLINE, L_TEXT,
+from .primitives import (L_COMPONENT, L_TEXT,
                          Circle, Dim, Line, Rect, Text, hatch, poly)
 from . import components
 from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, CENTRE_LINE,
                     DIM_LANE_MAJOR, DOOR, DUCT, EQUIPMENT, FLOOR_LINE,
                     HATCH_LINE, HIDDEN_LINE, INTERNAL_DETAIL, LEADER_DOT_R,
-                    LEADER_LINE, PANEL_SEAM, PRIMARY_OUTLINE,
+                    LEADER_LINE, OPENING, PANEL_SEAM, PRIMARY_OUTLINE,
                     SECONDARY_OUTLINE, SYMBOL_DETAIL, T_BODY, T_CAPTION,
                     T_DIM, T_SMALL, T_TINY, T_VIEW_TITLE)
 
@@ -593,7 +592,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Filtered-air inlet on the face OPPOSITE the extract, as hidden detail.
         if across:
             canvas.add(Line(x + w * 0.04, y, x + w * 0.04, y + h,
-                            L_HIDDEN, LW_THIN, DASH_HIDDEN))
+                            *HIDDEN_LINE))
             # Inboard of the outline: centred at 0.15w the caption started on
             # the envelope line itself.
             canvas.add(Text(x + w * 0.26, y + h * 0.93, "AIR INLET FILTER END",
@@ -604,7 +603,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                             L_TEXT, T_CAPTION, "middle"))
         else:
             canvas.add(Line(x, y + h * 0.10, x + w, y + h * 0.10,
-                            L_HIDDEN, LW_THIN, DASH_HIDDEN))
+                            *HIDDEN_LINE))
             canvas.add(Text(x + w * 0.5, y + h * 0.075, "AIR INLET FILTER SIDE",
                             L_TEXT, T_CAPTION, "middle"))
             # The caption sits BESIDE the arrow, not on its tip, where it was
@@ -711,7 +710,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             else:
                 for i in range(1, 6):
                     canvas.add(Line(x + w * 0.10, cy + ch * i / 6, x + w * 0.90,
-                                    cy + ch * i / 6, L_COMPONENT, LW_THIN, DASH_HIDDEN))
+                                    cy + ch * i / 6, *HIDDEN_LINE))
                 item(canvas, legend, x + w * 0.94, cy + ch / 2, "Packing bed")
 
         # --- spray headers ---------------------------------------------------
@@ -736,7 +735,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # --- sump, water level, base -----------------------------------------
         canvas.add(Rect(x, ty, w, tank_h, *EQUIPMENT))
         wl = ty + tank_h * 0.42
-        canvas.add(Line(x, wl, x + w, wl, L_COMPONENT, LW_THIN, DASH_HIDDEN))
+        canvas.add(Line(x, wl, x + w, wl, *HIDDEN_LINE))
         # Right-anchored just inside the wall. Centred, it was overprinted by the
         # pump balloon on a NARROW view (a 750 mm tower is only ~30 mm of sheet at
         # 1:25), which made both illegible.
@@ -799,7 +798,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         base_h = tank_h * 0.16
         canvas.add(Rect(x, ty, w, tank_h, *EQUIPMENT))
         canvas.add(Line(x, ty + tank_h * 0.42, x + w, ty + tank_h * 0.42,
-                        L_COMPONENT, LW_THIN, DASH_HIDDEN))
+                        *HIDDEN_LINE))
         canvas.add(Rect(x, y + h - base_h, w, base_h, *EQUIPMENT))
         canvas.add(Rect(x + w * 0.10, y + h * 0.16, w * 0.80, h * 0.07,
                         *EQUIPMENT))
@@ -825,7 +824,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # outline and which side the gas enters and leaves.
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
         canvas.add(Rect(x + w * 0.06, y + h * 0.10, w * 0.88, h * 0.80,
-                        L_COMPONENT, LW_THIN, DASH_HIDDEN))
+                        *HIDDEN_LINE))
         runs = 3
         for i in range(runs):
             hy = y + h * (0.28 + 0.22 * i)
@@ -906,7 +905,7 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         br = min(w, h) * 0.055
         bcx, bcy = x + w * 0.24, y + t + br + 2.0
         canvas.add(Circle(bcx, bcy, br, EQUIPMENT.layer, EQUIPMENT.width))
-        canvas.add(Line(bcx, bcy + br, bcx, y + h * 0.42, L_COMPONENT, LW_THIN, DASH_HIDDEN))
+        canvas.add(Line(bcx, bcy + br, bcx, y + h * 0.42, *HIDDEN_LINE))
         qty = f" ({blower_qty} nos)" if blower_qty else ""
         item(canvas, legend, bcx - br - 5.0, bcy,
              f"Recirculation blower {blower_hp}{qty}".strip())
@@ -918,12 +917,12 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         if zones:
             for i in range(1, min(zones, 6)):
                 zx = x + w * i / min(zones, 6)
-                canvas.add(Line(zx, y + t, zx, y + h - t, L_COMPONENT, LW_THIN, DASH_HIDDEN))
+                canvas.add(Line(zx, y + t, zx, y + h - t, *HIDDEN_LINE))
             item(canvas, legend, x + w * 0.30, y + h * 0.20, f"Heating zone division ({zones} zones)")
         if conveyor:
             # Inside the outline: the right-hand side carries the height dim.
             cy = y + h * 0.72
-            canvas.add(Line(x + t, cy, x + w - t, cy, L_COMPONENT, LW_THIN, DASH_CENTRE))
+            canvas.add(Line(x + t, cy, x + w - t, cy, *CENTRE_LINE))
             canvas.add(Text(x + w * 0.5, cy - 2.0, "CONVEYOR CENTRE LINE",
                             L_TEXT, T_CAPTION, "middle"))
             item(canvas, legend, x + w * 0.16, cy + 5.5, f"Conveyor opening - {conveyor}"[:70])
@@ -1111,7 +1110,7 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Inlet and outlet SIDES on plan, matching the side elevation, so the
         # two views read as the same machine. Sides, not positions.
         canvas.add(Line(x, y + h * 0.30, x + w * 0.14, y + h * 0.30,
-                        L_HIDDEN, LW_THIN, DASH_HIDDEN))
+                        *HIDDEN_LINE))
         canvas.add(Text(x + w * 0.02, y + h * 0.24, "INLET SIDE", L_TEXT, T_CAPTION, "start"))
         canvas.add(Text(x + w * 0.98, y + h * 0.24, "OUTLET SIDE", L_TEXT, T_CAPTION, "end"))
 
@@ -1185,7 +1184,7 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
             return "coincident"
         oy = v.y + (v.h - oh) / 2
         canvas.add(Rect(v.x + (v.w - ow) / 2, oy, ow, oh,
-                        L_HIDDEN, LW_THIN, DASH_HIDDEN))
+                        *HIDDEN_LINE))
         # Caption INSIDE the overlay when it nearly fills the view: placed above
         # it, a near-full-height opening pushed the text past the envelope's top
         # edge, which is the overhang this file's other glyphs already guard.
@@ -1205,7 +1204,7 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
                           EQUIPMENT.layer, EQUIPMENT.width))
         canvas.add(Line(hx, y - 2.0, hx, y + h * 0.06, *SYMBOL_DETAIL))
         canvas.add(Line(x - 6.0, y - hr - 2.0, x + w + 6.0, y - hr - 2.0,
-                        L_COMPONENT, LW_THIN, DASH_CENTRE))
+                        *CENTRE_LINE))
         track_txt = f" ({track} m track)" if track else ""
         item(canvas, legend, x + w * 0.14, y + h * 0.10,
              _clip(f"Conveyor hook line - {handling}".strip(" -") or "Conveyor hook line") + track_txt)
@@ -1258,7 +1257,7 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
                  f"Plant process line ({len(stations)} stations)")
         else:
             canvas.add(Line(x + w * 0.12, cy, x + w * 0.84, cy,
-                            L_COMPONENT, LW_THIN, DASH_CENTRE))
+                            *CENTRE_LINE))
             canvas.add(poly([(x + w * 0.88, cy), (x + w * 0.84, cy - 1.6),
                              (x + w * 0.84, cy + 1.6)], SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width, "currentColor"))
             canvas.add(Text(x + w * 0.5, cy - 2.2, "DIRECTION OF TRAVEL", L_TEXT, T_CAPTION, "middle"))
@@ -1329,7 +1328,7 @@ def conveyor(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
         cy = y + h / 2
-        canvas.add(Line(x, cy, x + w, cy, L_COMPONENT, LW_THIN, DASH_CENTRE))
+        canvas.add(Line(x, cy, x + w, cy, *CENTRE_LINE))
         canvas.add(Text(x + w * 0.5, cy - 2.0, "TRACK CENTRE LINE - ROUTING INDICATIVE",
                         L_TEXT, T_CAPTION, "middle"))
 
@@ -1374,7 +1373,7 @@ def ducting(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
-        canvas.add(Line(x, y + h / 2, x + w, y + h / 2, L_COMPONENT, LW_THIN, DASH_CENTRE))
+        canvas.add(Line(x, y + h / 2, x + w, y + h / 2, *CENTRE_LINE))
     return legend
 
 
@@ -1415,7 +1414,7 @@ def buffing_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Open working face rather than a door: the operator works into it.
         oy = front.y + front.h * 0.20
         canvas.add(Rect(front.x + front.w * 0.10, oy, front.w * 0.80,
-                        front.h * 0.66, L_COMPONENT, LW_MED, DASH_HIDDEN))
+                        front.h * 0.66, *OPENING))
         canvas.add(Text(front.x + front.w * 0.5, oy + front.h * 0.36,
                         "OPEN WORKING FACE", L_TEXT, T_SMALL, "middle"))
         item(canvas, legend, front.x + front.w * 0.16, oy + front.h * 0.10, "Open working face (operator side)")
@@ -1439,7 +1438,7 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         oh = front.h * 0.60
         oy = front.y + front.h - oh
         for ox in (front.x, front.x + front.w - ow):
-            canvas.add(Rect(ox, oy, ow, oh, L_COMPONENT, LW_MED, DASH_HIDDEN))
+            canvas.add(Rect(ox, oy, ow, oh, *OPENING))
         item(canvas, legend, front.x + ow * 0.5, oy - 5.0, "Component entry / exit opening")
         # Roof extract plenum.
         canvas.add(Rect(front.x + front.w * 0.20, front.y, front.w * 0.60,
@@ -1448,7 +1447,7 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
         cy = plan.y + plan.h / 2
-        canvas.add(Line(plan.x, cy, plan.x + plan.w, cy, L_COMPONENT, LW_THIN, DASH_CENTRE))
+        canvas.add(Line(plan.x, cy, plan.x + plan.w, cy, *CENTRE_LINE))
         canvas.add(poly([(plan.x + plan.w * 0.90, cy), (plan.x + plan.w * 0.84, cy - 1.8),
                          (plan.x + plan.w * 0.84, cy + 1.8)],
                         SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width, "currentColor"))
@@ -1497,7 +1496,7 @@ def paint_drying_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                         *PANEL_SEAM))
         cy = plan.y + plan.h * 0.72
         canvas.add(Line(plan.x + t, cy, plan.x + plan.w - t, cy,
-                        L_COMPONENT, LW_THIN, DASH_CENTRE))
+                        *CENTRE_LINE))
         canvas.add(Text(plan.x + plan.w * 0.5, cy - 2.0, "CONVEYOR CENTRE LINE",
                         L_TEXT, T_CAPTION, "middle"))
     return legend
@@ -1564,7 +1563,7 @@ def pretreatment_plant(canvas, views: dict, rows: list) -> list[tuple[str, str]]
             note_item(legend, f"Process tank line {tank_moc}".strip())
         # Component travel along the line.
         cy = y + h * 0.92
-        canvas.add(Line(x, cy, x + w, cy, L_COMPONENT, LW_THIN, DASH_CENTRE))
+        canvas.add(Line(x, cy, x + w, cy, *CENTRE_LINE))
         canvas.add(Text(x + w * 0.5, cy - 2.0, "HOIST / CONVEYOR TRAVEL",
                         L_TEXT, T_CAPTION, "middle"))
     if front:

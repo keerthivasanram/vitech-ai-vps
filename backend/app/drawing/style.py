@@ -89,6 +89,14 @@ DUCT = Pen(L_COMPONENT, W_MEDIUM)
 DOOR = Pen(L_COMPONENT, W_MEDIUM)
 EQUIPMENT = Pen(L_COMPONENT, W_MEDIUM)
 
+# An OPENING is a void in the enclosure — an open working face, a component
+# entry. It is NOT hidden detail: it is a real feature of the machine, in front
+# of the viewer, so it stays on the component layer and keeps a component's
+# weight. It carries the hidden dash only to read as an absence of panel rather
+# than a panel, which is the convention the glyphs already used. Named here so
+# that choice is a house decision rather than a coincidence at two call sites.
+OPENING = Pen(L_COMPONENT, W_MEDIUM, DASH_HIDDEN)
+
 # --- LIGHT: detail inside a component --------------------------------------
 INTERNAL_DETAIL = Pen(L_COMPONENT, W_LIGHT)
 SYMBOL_DETAIL = Pen(L_COMPONENT, W_LIGHT)
