@@ -1,15 +1,20 @@
 import { memo } from "react";
 import { ChatHistoryCard } from "./ChatHistoryCard";
-import { UpgradeCard } from "./UpgradeCard";
 
 /**
- * Right rail: chat history, with the upgrade banner pinned beneath it.
+ * Right rail: the chat history, and nothing else.
+ *
+ * It used to carry an "Upgrade your workflow / Unlock advanced AI
+ * capabilities" banner under the list. There is no upgrade — the button
+ * opened the Knowledge Base — so it was template marketing copy taking a
+ * third of the rail away from the history it sat under.
+ *
  * `open` drives both the desktop minimize/maximize state and, below 1024px,
  * the drawer.
  */
 export const RightSidebar = memo(function RightSidebar({
   conversations, activeId, onOpenConversation, onDeleteConversation,
-  onNewChat, onMinimize, onViewAll, open,
+  onNewChat, onMinimize, open,
 }) {
   return (
     <aside className={`rightbar${open ? " is-open" : ""}`} aria-label="Chat history">
@@ -21,7 +26,6 @@ export const RightSidebar = memo(function RightSidebar({
         onNewChat={onNewChat}
         onMinimize={onMinimize}
       />
-      <UpgradeCard onExplore={onViewAll} index={1} />
     </aside>
   );
 });

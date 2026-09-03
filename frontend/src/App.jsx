@@ -300,7 +300,6 @@ export default function App() {
               onDeleteConversation={chat.deleteConversation}
               onNewChat={startNewChat}
               onMinimize={minimizePanel}
-              onViewAll={() => go("knowledge")}
               open={panelOpen}
             />
           )}

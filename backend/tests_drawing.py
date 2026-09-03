@@ -736,6 +736,24 @@ for _cat in SECTION_VIEWS:
 check(view_caption("conveyor", "front", "FRONT ELEVATION") == "FRONT ELEVATION",
       "a category with no declared section keeps its elevation caption")
 
+# THE CAPTION AND THE MARK ARE ONE DECISION. On a plan too small to carry a
+# legible cutting plane, the view must also stop calling itself a section —
+# a section caption with no locating mark is a reference to a cut nobody can
+# find, which is worse than an unlabelled elevation.
+class _P:
+    def __init__(s, w, h): s.w, s.h, s.x, s.y, s.key = w, h, 0.0, 0.0, "plan"
+check(view_caption("paint_booth", "front", "FRONT ELEVATION",
+                   {"plan": _P(120.0, 60.0)}) == "SECTION A-A",
+      "a plan with room keeps the section caption")
+check(view_caption("paint_booth", "front", "FRONT ELEVATION",
+                   {"plan": _P(30.0, 35.0)}) == "FRONT ELEVATION",
+      "a plan too narrow for the mark drops the caption with it")
+check(view_caption("paint_booth", "front", "FRONT ELEVATION", {}) == "FRONT ELEVATION",
+      "no plan at all means no section reference")
+_narrow = build_drawing(_spec_for_drawing("wet scrubber 800 cfm 750mm tower 4 nos"))
+check("SECTION A-A" not in _narrow["svg"],
+      "the real narrow-tower case drops the section reference end to end")
+
 # Levels are a reading convention over values already on the sheet, so they may
 # only appear where a real height was resolved.
 check("FFL 0.000" in _sec["svg"] and "+4.000" in _sec["svg"],

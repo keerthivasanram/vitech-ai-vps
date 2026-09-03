@@ -365,9 +365,29 @@ SECTION_VIEWS = {
 }
 
 
-def view_caption(category: str, key: str, default: str) -> str:
-    """The caption a view carries, allowing a glyph's section to say so."""
+def section_tag(category: str, key: str, views: dict) -> Optional[str]:
+    """The section letter for this view, or None if it cannot be located.
+
+    ONE decision serves both the caption and the cutting plane. If the plan is
+    too small to carry a legible mark, the view must ALSO stop calling itself
+    "SECTION A-A" — a section caption with no locating mark is a reference to a
+    cut nobody can find, which is worse than an unlabelled elevation.
+    """
     tag = (SECTION_VIEWS.get(category) or {}).get(key)
+    if not tag:
+        return None
+    plan = (views or {}).get("plan")
+    # The stubs, arrowheads and letters need roughly 9 mm either side. A
+    # 750 mm scrubber tower is about 30 mm of plan at 1:25, where they land on
+    # the overall dimension and on the view's own captions.
+    if plan is None or plan.w < 50.0 or plan.h < 26.0:
+        return None
+    return tag
+
+
+def view_caption(category: str, key: str, default: str, views: dict = None) -> str:
+    """The caption a view carries, allowing a glyph's section to say so."""
+    tag = section_tag(category, key, views or {})
     return f"SECTION {tag}-{tag}" if tag else default
 
 
@@ -379,8 +399,8 @@ def _section_mark(canvas, plan, category: str) -> None:
     one: it says where the view was taken, and every component inside it is
     still governed by the sheet's indicative-position note.
     """
-    tag = (SECTION_VIEWS.get(category) or {}).get("front")
-    if not tag or plan is None:
+    tag = section_tag(category, "front", {"plan": plan} if plan else {})
+    if not tag:
         return
     cy = plan.y + plan.h / 2
     # Stops SHORT of the overall-width dimension lane on the right. A cutting

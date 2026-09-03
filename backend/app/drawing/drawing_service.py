@@ -263,7 +263,8 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
             # so is more correct than calling it an elevation — the caption
             # comes from the glyph's own declaration, never from a guess here.
             views.draw_view(canvas, v, labels,
-                            caption=symbols.view_caption(category, v.key, v.label))
+                            caption=symbols.view_caption(category, v.key, v.label,
+                                                         {p.key: p for p in placed}))
         legend = symbols.draw_components(canvas, category,
                                          {v.key: v for v in placed}, rows)
         if gstate.state == states.PARTIAL:
