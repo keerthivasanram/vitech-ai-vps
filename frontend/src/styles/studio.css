@@ -11,64 +11,98 @@
    ========================================================================== */
 
 .ds {
-  --ds-rail-l: 292px;
-  --ds-rail-r: 340px;
-  --ds-gap: 10px;
+  --ds-rail-l: 288px;
+  --ds-rail-r: 320px;
+  --ds-bar-h: 44px;
   --ds-r: 12px;
-  --ds-r-sm: 9px;
+  --ds-r-sm: 7px;
   --ds-line: var(--border);
   --ds-panel: var(--card);
   --ds-sunken: var(--card-sunken);
   --ds-ink: var(--text);
   --ds-dim: var(--text-secondary);
   --ds-faint: var(--text-muted);
-  --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 6px 20px rgba(16, 24, 40, 0.06);
+  --ds-shadow: var(--shadow-sm);
   --ds-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
+  /* ONE surface, divided by hairlines — not three cards floating on a page
+     with gaps between them. The gaps were dead pixels on every edge of every
+     panel, and a CAD application is a single instrument, not a dashboard. */
   display: grid;
   grid-template-columns: var(--ds-rail-l) minmax(0, 1fr) var(--ds-rail-r);
-  grid-template-rows: 48px minmax(0, 1fr);
+  grid-template-rows: var(--ds-bar-h) minmax(0, 1fr);
   grid-template-areas: "bar bar bar" "params viewport ai";
-  gap: var(--ds-gap);
+  gap: 0;
   height: 100%;
-  min-height: calc(100vh - 132px);
-  animation: ds-in 0.32s var(--ds-ease) both;
+  min-height: calc(100vh - 116px);
+  background: var(--ds-panel);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r);
+  box-shadow: var(--ds-shadow);
+  overflow: hidden;
+  animation: ds-in 0.28s var(--ds-ease) both;
 }
-@keyframes ds-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes ds-in { from { opacity: 0; } }
 
-:root[data-theme="dark"] .ds {
-  --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.32);
-}
+/* A hidden rail gives its whole width to the drawing. */
+.ds.no-l { grid-template-columns: minmax(0, 1fr) var(--ds-rail-r); grid-template-areas: "bar bar" "viewport ai"; }
+.ds.no-r { grid-template-columns: var(--ds-rail-l) minmax(0, 1fr); grid-template-areas: "bar bar" "params viewport"; }
+.ds.no-l.no-r { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "viewport"; }
+
+:root[data-theme="dark"] .ds { --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
 
 /* --------------------------------------------------------------------------
    Top toolbar
    -------------------------------------------------------------------------- */
 .ds-bar {
   grid-area: bar;
-  display: flex; align-items: center; gap: 12px;
-  padding: 0 12px;
-  background: var(--ds-panel);
-  border: 1px solid var(--ds-line);
-  border-radius: var(--ds-r);
-  box-shadow: var(--ds-shadow);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px;
+  background: var(--ds-sunken);
+  border-bottom: 1px solid var(--ds-line);
 }
-.ds-bar-brand { display: flex; align-items: center; gap: 8px; font-weight: 680; font-size: 13.5px; color: var(--ds-ink); }
+.ds-bar-brand {
+  display: flex; align-items: center; gap: 7px;
+  font-weight: 650; font-size: 13px; color: var(--ds-ink); white-space: nowrap;
+}
 .ds-bar-brand svg { color: var(--primary); }
-.ds-bar-sub { font-size: 11.5px; color: var(--ds-faint); padding-left: 10px; border-left: 1px solid var(--ds-line); }
-.ds-bar-spacer { flex: 1; }
+.ds-bar-sub { font-size: 11.5px; color: var(--ds-faint); white-space: nowrap; }
+
+/* What is currently on the sheet, stated once. The scale / sheet / TBD chips
+   that used to live here duplicated the status bar under the drawing. */
+.ds-bar-doc {
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0; overflow: hidden;
+  padding-left: 10px; border-left: 1px solid var(--ds-line);
+  font-size: 11.5px; color: var(--ds-dim); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ds-bar-doc b { color: var(--ds-ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
+.ds-bar-doc i { color: var(--ds-faint); font-style: normal; }
+
+.ds-bar-spacer { flex: 1; min-width: 8px; }
 .ds-bar-group { display: flex; align-items: center; gap: 6px; }
+.ds-bar-sep { width: 1px; height: 20px; background: var(--ds-line); flex: none; }
+
+/* Toolbar icon button — the layout switches and focus toggle. */
+.ds-tbtn {
+  width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center;
+  border: none; border-radius: var(--ds-r-sm);
+  background: transparent; color: var(--ds-faint); cursor: pointer;
+  transition: background 0.14s var(--ds-ease), color 0.14s var(--ds-ease);
+}
+.ds-tbtn:hover { background: var(--hover-neutral); color: var(--ds-ink); }
 
 .ds-chip {
   display: inline-flex; align-items: center; gap: 5px;
-  height: 26px; padding: 0 10px; border-radius: 999px;
-  font-size: 11px; font-weight: 650; letter-spacing: 0.01em;
-  background: var(--ds-sunken); color: var(--ds-dim);
+  height: 22px; padding: 0 9px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 650;
+  background: var(--ds-panel); color: var(--ds-dim);
   border: 1px solid var(--ds-line);
   font-variant-numeric: tabular-nums;
 }
 .ds-chip.is-live { color: var(--primary); border-color: rgba(var(--primary-rgb), 0.35); background: rgba(var(--primary-rgb), 0.08); }
-.ds-chip.is-warn { color: #b45309; border-color: rgba(180, 83, 9, 0.3); background: rgba(180, 83, 9, 0.08); }
-:root[data-theme="dark"] .ds-chip.is-warn { color: #fbbf24; }
 
 /* --------------------------------------------------------------------------
    Buttons

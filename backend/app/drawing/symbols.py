@@ -1333,12 +1333,52 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             canvas.add(Text(x + w * 0.5, y - 2.5,
                             f"{bags} FILTER ELEMENTS - ARRANGEMENT INDICATIVE",
                             L_TEXT, T_CAPTION, "middle"))
+        # THE PLAN MUST SHOW THE SAME MACHINE THE ELEVATION DOES. It carried
+        # the element grid and two side captions while the elevation showed a
+        # pulse header, an ID fan, an airlock and a door — so the two views
+        # disagreed about what the collector has. Everything added here is a
+        # component the elevation already draws, projected onto the plan; no
+        # component appears on one view and not the other.
+
+        # Pulse-jet air headers running across the tube sheet, one per row of
+        # elements, with the solenoid count the spec resolved.
+        # The headers occupy a BAND, leaving the top and bottom of the plan
+        # clear for the captions. Spread over the full height they ran straight
+        # through "INLET SIDE" — a caption and a component competing for the
+        # same 2 mm, which is the collision this file keeps re-learning.
+        if solenoids:
+            n_hdr = max(1, min(solenoids, 6))
+            for i in range(n_hdr):
+                hy = y + h * (0.16 + 0.68 * (i + 0.5) / n_hdr)
+                canvas.add(Line(x + w * 0.06, hy, x + w * 0.70, hy, *DUCT))
+                canvas.add(Rect(x + w * 0.70, hy - h * 0.016, w * 0.035,
+                                h * 0.032, *SYMBOL_DETAIL))
+            canvas.add(Text(x + w * 0.38, y + h * 0.10,
+                            f"PULSE HEADERS ({solenoids} SOLENOID)",
+                            L_TEXT, T_TINY, "middle"))
+
+        # The hopper below, seen through the tube sheet: hidden, because in plan
+        # it genuinely is behind the elements.
+        canvas.add(Rect(x + w * 0.14, y + h * 0.16, w * 0.72, h * 0.68,
+                        *HIDDEN_LINE))
+
+        # The ID fan on the outlet side, discharging clear of the casing — the
+        # same fan the elevation puts on the clean side.
+        fr = min(w * 0.05, h * 0.09)
+        components.blower(canvas, x + w * 0.86, y + h * 0.78, fr,
+                          discharge="right", motor=True)
+
+        # The airlock at the hopper discharge, on the machine's centre.
+        if airlock:
+            canvas.add(Circle(x + w * 0.5, y + h * 0.5, min(w, h) * 0.055,
+                              INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
+
         # Inlet and outlet SIDES on plan, matching the side elevation, so the
         # two views read as the same machine. Sides, not positions.
-        canvas.add(Line(x, y + h * 0.30, x + w * 0.14, y + h * 0.30,
+        canvas.add(Line(x, y + h * 0.93, x + w * 0.14, y + h * 0.93,
                         *HIDDEN_LINE))
-        canvas.add(Text(x + w * 0.02, y + h * 0.24, "INLET SIDE", L_TEXT, T_CAPTION, "start"))
-        canvas.add(Text(x + w * 0.98, y + h * 0.24, "OUTLET SIDE", L_TEXT, T_CAPTION, "end"))
+        canvas.add(Text(x + w * 0.02, y + h * 0.97, "INLET SIDE", L_TEXT, T_CAPTION, "start"))
+        canvas.add(Text(x + w * 0.98, y + h * 0.97, "OUTLET SIDE", L_TEXT, T_CAPTION, "end"))
 
     # Real resolved hardware with no engineered position on this sheet is
     # SCHEDULED (lettered) rather than drawn — the sheet must still tell the
@@ -1437,7 +1477,15 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
         _opening(front, booth_m, "BOOTH INNER OPENING")
 
     if side:
-        _opening(side, booth_m, "BOOTH INNER OPENING")
+        # THE OVEN OPENING WAS PARSED AND NEVER DRAWN. A component has to clear
+        # BOTH apertures, and the curing oven's inner size is resolved from the
+        # same composite field the booth's is — showing only the booth told the
+        # reader half the constraint. The side view takes the oven so the two
+        # views are complementary rather than duplicates.
+        if oven_m:
+            _opening(side, oven_m, "CURING OVEN INNER OPENING")
+        else:
+            _opening(side, booth_m, "BOOTH INNER OPENING")
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
@@ -1498,12 +1546,17 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
         env_m = {front.w_axis: front.model_w / 1000.0, front.h_axis: front.model_h / 1000.0}
         if side and side.model_w:
             env_m.setdefault(side.w_axis, side.model_w / 1000.0)
-    if booth_m and env_m:
-        named = {"length": booth_m[0], "width": booth_m[1], "height": booth_m[2]}
+    # BOTH apertures are checked. The component must pass through the booth AND
+    # the curing oven; testing only the booth would clear a component that the
+    # oven cannot take, which is the more expensive of the two to discover late.
+    for _ap_m, _ap_name in ((booth_m, "booth"), (oven_m, "curing oven")):
+        if not (_ap_m and env_m):
+            continue
+        named = {"length": _ap_m[0], "width": _ap_m[1], "height": _ap_m[2]}
         tight = [a for a, v in env_m.items() if named.get(a) and named[a] < v - 0.01]
         if tight:
-            note_item(legend, "CHECK: component exceeds reused booth opening on "
-                              f"{', '.join(tight)} - confirm booth size")
+            note_item(legend, f"CHECK: component exceeds reused {_ap_name} opening "
+                              f"on {', '.join(tight)} - confirm {_ap_name} size")
 
     # The modules themselves are real resolved values but have no engineered
     # setting-out, so they are scheduled in the legend rather than drawn.
@@ -1566,8 +1619,22 @@ def conveyor(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
         cy = y + h / 2
+        # The track in plan is its two rails about the axis, with the carriers
+        # on the SAME pitch the elevation draws them at — the two views were
+        # showing different machines, one with eight carriers and one with none.
+        rail = min(h * 0.10, 3.0)
+        canvas.add(Line(x, cy - rail, x + w, cy - rail, *EQUIPMENT),
+                   Line(x, cy + rail, x + w, cy + rail, *EQUIPMENT))
         canvas.add(Line(x, cy, x + w, cy, *CENTRE_LINE))
-        canvas.add(Text(x + w * 0.5, cy - 2.0, "TRACK CENTRE LINE - ROUTING INDICATIVE",
+        for i in range(8):
+            cxp = x + w * (i + 0.5) / 8
+            canvas.add(Circle(cxp, cy, rail * 0.55,
+                              INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
+        # Drive at the far end, matching the elevation's drive unit.
+        components.motor_box(canvas, x + w - w * 0.06, cy + rail * 1.4,
+                             w * 0.05, min(h * 0.16, 5.0))
+        canvas.add(Text(x + w * 0.5, cy - rail - 2.4,
+                        "TRACK CENTRE LINE - ROUTING INDICATIVE",
                         L_TEXT, T_CAPTION, "middle"))
 
     if side:
@@ -1618,7 +1685,16 @@ def ducting(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
-        canvas.add(Line(x, y + h / 2, x + w, y + h / 2, *CENTRE_LINE))
+        cy = y + h / 2
+        # A duct in plan is its two walls about the axis, not a bare centre
+        # line — and the joints are the same spool pitch the elevation uses, so
+        # the two views describe one run rather than two.
+        components.duct_run(canvas, x, cy, x + w, cy, min(h * 0.55, w * 0.10))
+        bore = min(h * 0.55, w * 0.10)
+        for i in range(1, 8):
+            jx = x + w * i / 8
+            canvas.add(Line(jx, cy - bore * 0.62, jx, cy + bore * 0.62,
+                            *SYMBOL_DETAIL))
     return legend
 
 
@@ -1832,9 +1908,23 @@ def pretreatment_plant(canvas, views: dict, rows: list) -> list[tuple[str, str]]
         if stages:
             for i in range(stages):
                 tx = x + w * i / stages
+                tw = w / stages - w * 0.02 / stages
                 canvas.add(Rect(tx + w * 0.01 / stages, y + h * 0.16,
-                                w / stages - w * 0.02 / stages, h * 0.68,
-                                *EQUIPMENT))
+                                tw, h * 0.68, *EQUIPMENT))
+                # NUMBER each tank. The stage COUNT is resolved, so the
+                # sequence is real engineering; an unnumbered row of identical
+                # boxes tells a reader there are five of something and nothing
+                # about the order they are used in.
+                if tw > 5.0:
+                    canvas.add(Text(tx + w * 0.01 / stages + tw / 2,
+                                    y + h * 0.30, str(i + 1),
+                                    L_TEXT, T_BODY, "middle", bold=True))
+                # Liquid in each tank, in the horizontal hatch a section uses.
+                # The plan cuts the tank line at working level, which is what
+                # the front elevation's own working-level line already says.
+                detailing.material_hatch(canvas, tx + w * 0.01 / stages + tw * 0.10,
+                                         y + h * 0.40, tw * 0.80, h * 0.36,
+                                         detailing.LIQUID)
             item(canvas, legend, x + w * 0.5, y + h * 0.08,
                  f"Process tank ({stages} stages) {tank_moc}".strip(),
                  to=(x + w * 0.5, y + h * 0.16))

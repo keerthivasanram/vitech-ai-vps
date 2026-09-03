@@ -779,6 +779,28 @@ check(_mm_on_sheet("100 mm", _V(120.0, 80.0, None, None)) is None,
       "no model dimension means no real-thickness conversion")
 
 
+# --- a component must clear BOTH apertures, not just the booth ------------
+# `oven_m` was parsed and never used: the curing oven's inner opening is
+# resolved from the same composite field the booth's is, and a component has to
+# pass through both. Checking only the booth cleared a component the oven
+# cannot take — the more expensive of the two to discover late.
+_pp = [{"label": "Powder coating booth", "value": "inner size 3.0L x 2.0W x 2.5H",
+        "parts": {"inner_size_m": "3.0L x 2.0W x 2.5H"}},
+       {"label": "Curing oven", "value": "inner size 3.0L x 2.0W x 1.8H",
+        "parts": {"inner_size_m": "3.0L x 2.0W x 1.8H"}}]
+_pd = build_drawing({"category": "powder_coating_plant", "category_label": "P",
+                     "geometry": {"envelope_mm": {"length": 2500, "width": 1500,
+                                                  "height": 2200}, "ready": True},
+                     "technical_details": _pp})
+_checks = [r["description"] for r in _pd["legend"] if "CHECK" in r["description"]]
+check(any("curing oven" in c and "height" in c for c in _checks),
+      f"a component too tall for the curing oven is reported ({_checks})")
+check(not any("booth" in c for c in _checks),
+      "and the booth, which the component DOES clear, is not reported")
+check("CURING OVEN INNER OPENING" in _pd["svg"],
+      "the oven opening is drawn, not just parsed")
+
+
 # --- the three drawing states ---------------------------------------------
 # One classifier decides all fourteen categories, so these are asserted on the
 # state machine itself as well as through a rendered sheet.

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, Box, Bot, ChevronDown, ClipboardPaste, Download, Expand,
-  FileText, Layers, ListPlus, Maximize2, Minus, Package, PenTool, Plus, Ruler,
-  Send, Shrink, Sparkles, Trash2, User, Wrench,
+  AlertTriangle, Bot, ChevronDown, ClipboardPaste, Download, Expand,
+  FileText, Layers, ListPlus, Minus, PanelLeft, PanelLeftClose, PanelRight,
+  PanelRightClose, PenTool, Plus, Scan, Send, Shrink, Trash2, User,
 } from "lucide-react";
 import { agentUrl } from "../lib/constants";
 import { sanitizeAgentReply } from "../lib/agentReply";
@@ -21,13 +21,25 @@ import { Answer } from "../lib/markdown";
  * input fields, drawing types and sheet sizes all come from the backend, so a
  * category added server-side appears here with no change to this file.
  */
-const MIN_ZOOM = 0.2;
+const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 8;
+/* CSS resolves 1mm as 96/25.4 px, so a sheet sized in millimetres renders at
+   true printed size when the scale factor is 1. That is what makes the zoom
+   readout mean something: 100% is A3 at A3, not "as wide as the panel". */
+const MM_PX = 96 / 25.4;
+/* Breathing room left around the sheet when fitting it to the viewport. */
+const FIT_PAD = 34;
 // Zoom response per pixel of wheel travel. A mouse notch is 120 px, so this is
 // a ~4% step: deliberately gentle, because a 10-15% step compounded past 300%
 // in a dozen turns and made the sheet impossible to hold steady.
 const ZOOM_SENSITIVITY = 0.00033;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** The sheet's true size in mm, read from the SVG's own viewBox. */
+function sheetSizeMm(svg) {
+  const m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg || "");
+  return m ? { w: parseFloat(m[1]), h: parseFloat(m[2]) } : null;
+}
 
 /**
  * One starting point per catalog category, each carrying that category's REQUIRED
@@ -168,6 +180,19 @@ export function DrawingStudio() {
   const chatId = useRef(`studio-${Math.random().toString(36).slice(2, 10)}`);
   const logEnd = useRef(null);
 
+  /* The two rails collapse so the sheet can own the window. Remembered,
+     because which rails an engineer wants open is a working preference, not a
+     per-visit decision. */
+  const [railL, setRailL] = useState(() => localStorage.getItem("vitech_ds_l") !== "0");
+  const [railR, setRailR] = useState(() => localStorage.getItem("vitech_ds_r") !== "0");
+  const toggleRailL = () => setRailL((v) => { localStorage.setItem("vitech_ds_l", v ? "0" : "1"); return !v; });
+  const toggleRailR = () => setRailR((v) => { localStorage.setItem("vitech_ds_r", v ? "0" : "1"); return !v; });
+
+  /* The panel used to be one accordion of nine sections, so the category
+     selector sat below fourteen preset cards and the layer switches below
+     everything. Three tabs give each concern a home at the top of the panel. */
+  const [tab, setTab] = useState("setup");
+
   const [focus, setFocus] = useState(false);
   useEffect(() => {
     document.body.classList.toggle("studio-focus", focus);
@@ -222,7 +247,6 @@ export function DrawingStudio() {
       return next;
     });
     setHidden(new Set());
-    setView({ zoom: 1, x: 0, y: 0 });
   }, []);
 
   // The title block's REV cell shows the revision this sheet actually is, so a
@@ -341,8 +365,55 @@ export function DrawingStudio() {
   const onDown = (e) => { if (e.button === 0) drag.current = { x: e.clientX - view.x, y: e.clientY - view.y }; };
   const onMove = (e) => { if (drag.current) setView((v) => ({ ...v, x: e.clientX - drag.current.x, y: e.clientY - drag.current.y })); };
   const onUp = () => { drag.current = null; };
-  const fit = () => setView({ zoom: 1, x: 0, y: 0 });
   const nudge = (f) => setView((v) => ({ ...v, zoom: clamp(v.zoom * f, MIN_ZOOM, MAX_ZOOM) }));
+
+  /* The sheet is laid out at its TRUE millimetre size, so it has a fixed
+     pixel footprint the viewport can be measured against. */
+  const sheetMm = useMemo(() => sheetSizeMm(drawing?.svg), [drawing]);
+
+  /**
+   * FIT — the control this viewport did not have.
+   *
+   * "Reset to 100%" used to mean "the sheet is as wide as the stage", which on
+   * a tall viewport left the drawing floating in half a screen of nothing and
+   * on a short one cropped it. Fit measures the viewport and scales the sheet
+   * to it, which is what every CAD package means by the word.
+   */
+  const fit = useCallback(() => {
+    const el = viewportRef.current;
+    if (!el || !sheetMm) { setView({ zoom: 1, x: 0, y: 0 }); return; }
+    const box = el.getBoundingClientRect();
+    const zoom = clamp(
+      Math.min((box.width - FIT_PAD * 2) / (sheetMm.w * MM_PX),
+               (box.height - FIT_PAD * 2) / (sheetMm.h * MM_PX)),
+      MIN_ZOOM, MAX_ZOOM);
+    setView({ zoom, x: 0, y: 0 });
+  }, [sheetMm]);
+
+  /* Refit whenever the sheet changes or the space around it does — collapsing
+     a rail or entering focus mode gives the viewport a different shape, and a
+     sheet that stayed at the old scale would be the obvious wrong answer. */
+  useEffect(() => { fit(); }, [fit, railL, railR, focus]);
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => fit());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fit]);
+
+  /* F fits, 0 goes to true printed size. Both ignored while typing. */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA" || t?.tagName === "SELECT") return;
+      if (e.key === "f" || e.key === "F") { e.preventDefault(); fit(); }
+      if (e.key === "0") { e.preventDefault(); setView({ zoom: 1, x: 0, y: 0 }); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fit]);
 
   const toggleLayer = (id) => setHidden((p) => {
     const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -390,20 +461,39 @@ export function DrawingStudio() {
   const layerCss = [...hidden].map((id) => `.ds-stage [data-layer="${id}"]{display:none}`).join("");
   const env = drawing?.envelope_mm;
 
+
+  const sheetCount = drawing?.views?.length ?? 0;
+
   return (
-    <div className="ds">
-      {/* ---------------- top toolbar ---------------- */}
+    <div className={`ds${railL ? "" : " no-l"}${railR ? "" : " no-r"}`}>
+      {/* ---------------- top toolbar ----------------
+          One dense strip, CAD-fashion: identity, what is on the sheet, the
+          layout switches and the export cluster. The scale / sheet / TBD chips
+          that used to sit here are gone — they were a second copy of the
+          status bar under the drawing, which is where a draughtsman reads
+          them. */}
       <header className="ds-bar">
-        <span className="ds-bar-brand"><PenTool size={16} strokeWidth={2} /> Drawing Studio</span>
-        <span className="ds-bar-sub">Deterministic 2D general arrangement</span>
-        <div className="ds-bar-spacer" />
-        {drawing && (
-          <div className="ds-bar-group">
-            <span className="ds-chip is-live">{drawing.scale}</span>
-            <span className="ds-chip">{drawing.sheet_size}</span>
-            {drawing.tbd?.length > 0 && <span className="ds-chip is-warn">{drawing.tbd.length} TBD</span>}
-          </div>
+        <button type="button" className="ds-tbtn" onClick={toggleRailL}
+                title={railL ? "Hide parameters" : "Show parameters"}
+                aria-pressed={railL} aria-label={railL ? "Hide parameters" : "Show parameters"}>
+          {railL ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
+        </button>
+
+        <span className="ds-bar-brand"><PenTool size={15} strokeWidth={2} /> Drawing Studio</span>
+
+        {drawing ? (
+          <span className="ds-bar-doc">
+            <b>{drawing.category_label}</b>
+            <i>·</i>{drawing.sheet_size}
+            <i>·</i>{drawing.scale}
+            <i>·</i>Rev {activeRev}
+          </span>
+        ) : (
+          <span className="ds-bar-sub">Deterministic 2D general arrangement</span>
         )}
+
+        <div className="ds-bar-spacer" />
+
         <div className="ds-bar-group ds-export">
           <span className="ds-export-label"><Download size={14} strokeWidth={2} /> Export</span>
           {["svg", "dxf", "pdf"].map((fmt) => (
@@ -416,253 +506,310 @@ export function DrawingStudio() {
               {exporting === fmt ? "…" : fmt.toUpperCase()}
             </button>
           ))}
-          <button type="button" className="ds-btn is-icon" onClick={() => setFocus((f) => !f)}
-                  title={focus ? "Exit expanded view (Esc)" : "Expand workspace"}
-                  aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>
-            {focus ? <Shrink size={15} /> : <Expand size={15} />}
-          </button>
         </div>
+
+        <i className="ds-bar-sep" />
+
+        <button type="button" className="ds-tbtn" onClick={() => setFocus((f) => !f)}
+                title={focus ? "Exit expanded view (Esc)" : "Expand workspace"}
+                aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>
+          {focus ? <Shrink size={16} /> : <Expand size={16} />}
+        </button>
+        <button type="button" className="ds-tbtn" onClick={toggleRailR}
+                title={railR ? "Hide assistant" : "Show assistant"}
+                aria-pressed={railR} aria-label={railR ? "Hide assistant" : "Show assistant"}>
+          {railR ? <PanelRightClose size={16} /> : <PanelRight size={16} />}
+        </button>
       </header>
 
       {/* ---------------- parameters ---------------- */}
+      {railL && (
       <aside className="ds-panel ds-params">
-        <div className="ds-panel-head"><Wrench size={14} strokeWidth={2} /><h3>Parameters</h3></div>
+        {/* Tabs, not one nine-section scroll: the category selector used to sit
+            below fourteen preset cards and the layer switches below everything
+            else, so the two controls used most were the two hardest to reach. */}
+        <div className="ds-tabs" role="tablist" aria-label="Parameter sections">
+          {[["setup", "Setup"], ["detail", "Detail"], ["sheet", "Sheet"]].map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k}
+                    className={`ds-tab${tab === k ? " is-on" : ""}`}
+                    onClick={() => setTab(k)}>
+              {label}
+              {k === "sheet" && drawing?.tbd?.length > 0 && (
+                <span className="ds-tab-dot" title={`${drawing.tbd.length} to be determined`} />
+              )}
+            </button>
+          ))}
+        </div>
 
         <div className="ds-panel-body">
-          <section className="ds-group">
-            <div className="ds-group-h"><Sparkles size={12} strokeWidth={2} /> Quick start</div>
-            <div className="ds-presets">
-              {PRESETS.map((p) => (
-                <button key={p.label} type="button" className="ds-preset"
-                        onClick={() => { setCategory(p.category); setValues(p.values); setError(""); }}>
-                  <Box size={15} strokeWidth={1.9} />
-                  <span>{p.label}<small>{p.hint}</small></span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="ds-group">
-            <div className="ds-group-h"><Package size={12} strokeWidth={2} /> Equipment</div>
-            <label className="ds-field">
-              <span>Category</span>
-              <select className="ds-select" value={category}
-                      onChange={(e) => { setCategory(e.target.value); setValues({}); setError(""); }}>
-                {catalog?.categories?.map((c) => (
-                  <option key={c.key} value={c.key}>{c.label}{c.has_symbols ? " — detailed" : ""}</option>
-                ))}
-              </select>
-            </label>
-            <div className="ds-grid2">
-              <label className="ds-field">
-                <span>Drawing type</span>
-                <select className="ds-select" value={drawingType} onChange={(e) => setDrawingType(e.target.value)}>
-                  {catalog?.drawing_types?.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-                </select>
-              </label>
-              <label className="ds-field">
-                <span>Sheet</span>
-                <select className="ds-select" value={sheetSize} onChange={(e) => setSheetSize(e.target.value)}>
-                  {catalog?.sheet_sizes?.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-                </select>
-              </label>
-            </div>
-          </section>
-
-          {/* Required and optional inputs are separated: what the engine NEEDS
-              to size the equipment should not be buried among nice-to-haves. */}
-          {activeCategory && required.length > 0 && (
-            <Group icon={Ruler} title="Required inputs" count={required.length}
-                   open={open.required} onToggle={() => toggle("required")}>
-              <div className="ds-grid2">
-                {required.map((f) => <Field key={f.key} f={f} values={values} setValues={setValues} />)}
-              </div>
-            </Group>
-          )}
-
-          {activeCategory && optional.length > 0 && (
-            <Group icon={Sparkles} title="Process &amp; options" count={optional.length}
-                   open={open.optional} onToggle={() => toggle("optional")}>
-              <div className="ds-grid2">
-                {optional.map((f) => <Field key={f.key} f={f} values={values} setValues={setValues} />)}
-              </div>
-              {optional.some((f) => f.drawing_only) && (
-                <p className="ds-note">
-                  Overall sizes are drawing inputs for equipment specified by duty
-                  rather than size. Leave them blank and the sheet schedules them
-                  as TBD instead of guessing.
-                </p>
-              )}
-            </Group>
-          )}
-
-          {/* Manually entered specification lines. These are the engineer's own
-              stated values, carried as "From Requirement" — never dressed up as
-              something the engine calculated. */}
-          <Group icon={ListPlus} title="Additional specification" count={extraRows.length}
-                 open={open.extra} onToggle={() => toggle("extra")}>
-            {extraRows.map((r, i) => (
-              <div key={i} className="ds-pair">
-                <input className="ds-input" placeholder="Parameter" value={r.label}
-                       onChange={(e) => setExtraRows((p) => p.map((x, j) =>
-                         j === i ? { ...x, label: e.target.value } : x))} />
-                <input className="ds-input" placeholder="Value" value={r.value}
-                       onChange={(e) => setExtraRows((p) => p.map((x, j) =>
-                         j === i ? { ...x, value: e.target.value } : x))} />
-                <button type="button" className="ds-icon-btn" aria-label="Remove line"
-                        onClick={() => setExtraRows((p) => p.filter((_, j) => j !== i))}>
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
-            <button type="button" className="ds-btn is-block"
-                    onClick={() => setExtraRows((p) => [...p, { label: "", value: "" }])}>
-              <Plus size={13} strokeWidth={2} /> Add specification line
-            </button>
-            <p className="ds-note">
-              Anything added here is recorded as a stated value, not a calculated
-              one, and appears in the sheet's bill of material.
-            </p>
-          </Group>
-
-          {/* Draw an existing specification exactly as written. */}
-          <Group icon={ClipboardPaste} title="From a specification"
-                 open={open.spec} onToggle={() => toggle("spec")}>
-            <textarea className="ds-textarea" rows={6} value={specText}
-                      placeholder="Paste a generated engineering specification here…"
-                      onChange={(e) => setSpecText(e.target.value)} />
-            <button type="button" className="ds-btn is-block" disabled={busy || !specText.trim()}
-                    onClick={generateFromSpec}>
-              <FileText size={13} strokeWidth={2} /> Draw this specification
-            </button>
-            <p className="ds-note">
-              Draws the specification as it stands — every reviewed value and
-              every accepted TBD — rather than re-deriving it.
-            </p>
-          </Group>
-
-          <Group icon={FileText} title="Title block"
-                 open={open.title} onToggle={() => toggle("title")}>
-            <label className="ds-field"><span>Project / drawing title</span>
-              <input className="ds-input" value={project} placeholder="auto from equipment"
-                     onChange={(e) => setProject(e.target.value)} /></label>
-            <div className="ds-grid2">
-              <label className="ds-field"><span>Client</span>
-                <input className="ds-input" value={client} placeholder="(to be completed)"
-                       onChange={(e) => setClient(e.target.value)} /></label>
-              <label className="ds-field"><span>Drawing no.</span>
-                <input className="ds-input" value={ref} placeholder="auto"
-                       onChange={(e) => setRef(e.target.value)} /></label>
-              <label className="ds-field"><span>Drawn by</span>
-                <input className="ds-input" value={drawnBy} placeholder="Vitech AI"
-                       onChange={(e) => setDrawnBy(e.target.value)} /></label>
-              <label className="ds-field"><span>Checked by</span>
-                <input className="ds-input" value={checkedBy} placeholder="(engineer)"
-                       onChange={(e) => setCheckedBy(e.target.value)} /></label>
-            </div>
-            <p className="ds-note">
-              The sheet is stamped <b>Rev {revisions.length}</b> and marked DRAFT
-              until an engineer signs it off.
-            </p>
-          </Group>
-
-          {error && <div className="ds-alert"><AlertTriangle size={14} /> <span>{error}</span></div>}
-
-          {drawing?.layers?.length > 0 && (
-            <section className="ds-group">
-              <div className="ds-group-h"><Layers size={12} strokeWidth={2} /> Layers</div>
-              {drawing.layers.map((l) => (
-                <label key={l.id} className="ds-toggle">
-                  <input type="checkbox" checked={!hidden.has(l.id)} onChange={() => toggleLayer(l.id)} />
-                  <span>{l.label}</span>
+          {tab === "setup" && (
+            <>
+              <section className="ds-group">
+                <div className="ds-group-h">Equipment</div>
+                <label className="ds-field">
+                  <span>Category</span>
+                  <select className="ds-select" value={category}
+                          onChange={(e) => { setCategory(e.target.value); setValues({}); setError(""); }}>
+                    {catalog?.categories?.map((c) => (
+                      <option key={c.key} value={c.key}>{c.label}{c.has_symbols ? " — detailed" : ""}</option>
+                    ))}
+                  </select>
                 </label>
-              ))}
-            </section>
+                <div className="ds-grid2">
+                  <label className="ds-field">
+                    <span>Drawing type</span>
+                    <select className="ds-select" value={drawingType} onChange={(e) => setDrawingType(e.target.value)}>
+                      {catalog?.drawing_types?.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="ds-field">
+                    <span>Sheet</span>
+                    <select className="ds-select" value={sheetSize} onChange={(e) => setSheetSize(e.target.value)}>
+                      {catalog?.sheet_sizes?.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
+                    </select>
+                  </label>
+                </div>
+                {/* Presets are a one-line starting point rather than fourteen
+                    cards: they seed a category's required inputs, and after the
+                    first use nobody needs to see the whole catalogue again. */}
+                <label className="ds-field">
+                  <span>Start from a typical size</span>
+                  <select className="ds-select" value=""
+                          onChange={(e) => {
+                            const pre = PRESETS.find((x) => x.label === e.target.value);
+                            if (!pre) return;
+                            setCategory(pre.category); setValues(pre.values); setError("");
+                          }}>
+                    <option value="">Choose a starting point…</option>
+                    {PRESETS.map((pre) => (
+                      <option key={pre.label} value={pre.label}>{pre.label} — {pre.hint}</option>
+                    ))}
+                  </select>
+                </label>
+              </section>
+
+              {/* Required and optional inputs are separated: what the engine
+                  NEEDS to size the equipment should not be buried among
+                  nice-to-haves. */}
+              {activeCategory && required.length > 0 && (
+                <Group title="Required inputs" count={required.length}
+                       open={open.required} onToggle={() => toggle("required")}>
+                  <div className="ds-grid2">
+                    {required.map((f) => <Field key={f.key} f={f} values={values} setValues={setValues} />)}
+                  </div>
+                </Group>
+              )}
+
+              {activeCategory && optional.length > 0 && (
+                <Group title="Process &amp; options" count={optional.length}
+                       open={open.optional} onToggle={() => toggle("optional")}>
+                  <div className="ds-grid2">
+                    {optional.map((f) => <Field key={f.key} f={f} values={values} setValues={setValues} />)}
+                  </div>
+                  {optional.some((f) => f.drawing_only) && (
+                    <p className="ds-note">
+                      Overall sizes are drawing inputs for equipment specified by duty
+                      rather than size. Leave them blank and the sheet schedules them
+                      as TBD instead of guessing.
+                    </p>
+                  )}
+                </Group>
+              )}
+            </>
           )}
 
-          {drawing?.legend?.length > 0 && (
-            <section className="ds-group">
-              <div className="ds-group-h">Legend</div>
-              <div className="ds-list">
-                {drawing.legend.map((l) => (
-                  <div key={l.tag} className="ds-row">
-                    <span className="ds-tag">{l.tag}</span><span>{l.description}</span>
+          {tab === "detail" && (
+            <>
+              {/* Manually entered specification lines. These are the engineer's
+                  own stated values, carried as "From Requirement" — never
+                  dressed up as something the engine calculated. */}
+              <Group icon={ListPlus} title="Additional specification" count={extraRows.length}
+                     open={open.extra} onToggle={() => toggle("extra")}>
+                {extraRows.map((r, i) => (
+                  <div key={i} className="ds-pair">
+                    <input className="ds-input" placeholder="Parameter" value={r.label}
+                           onChange={(e) => setExtraRows((p) => p.map((x, j) =>
+                             j === i ? { ...x, label: e.target.value } : x))} />
+                    <input className="ds-input" placeholder="Value" value={r.value}
+                           onChange={(e) => setExtraRows((p) => p.map((x, j) =>
+                             j === i ? { ...x, value: e.target.value } : x))} />
+                    <button type="button" className="ds-icon-btn" aria-label="Remove line"
+                            onClick={() => setExtraRows((p) => p.filter((_, j) => j !== i))}>
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 ))}
-              </div>
-            </section>
+                <button type="button" className="ds-btn is-block"
+                        onClick={() => setExtraRows((p) => [...p, { label: "", value: "" }])}>
+                  <Plus size={13} strokeWidth={2} /> Add specification line
+                </button>
+                <p className="ds-note">
+                  Anything added here is recorded as a stated value, not a calculated
+                  one, and appears in the sheet's bill of material.
+                </p>
+              </Group>
+
+              {/* Draw an existing specification exactly as written. */}
+              <Group icon={ClipboardPaste} title="From a specification"
+                     open={open.spec} onToggle={() => toggle("spec")}>
+                <textarea className="ds-textarea" rows={6} value={specText}
+                          placeholder="Paste a generated engineering specification here…"
+                          onChange={(e) => setSpecText(e.target.value)} />
+                <button type="button" className="ds-btn is-block" disabled={busy || !specText.trim()}
+                        onClick={generateFromSpec}>
+                  <FileText size={13} strokeWidth={2} /> Draw this specification
+                </button>
+                <p className="ds-note">
+                  Draws the specification as it stands — every reviewed value and
+                  every accepted TBD — rather than re-deriving it.
+                </p>
+              </Group>
+
+              <Group icon={FileText} title="Title block"
+                     open={open.title} onToggle={() => toggle("title")}>
+                <label className="ds-field"><span>Project / drawing title</span>
+                  <input className="ds-input" value={project} placeholder="auto from equipment"
+                         onChange={(e) => setProject(e.target.value)} /></label>
+                <div className="ds-grid2">
+                  <label className="ds-field"><span>Client</span>
+                    <input className="ds-input" value={client} placeholder="(to be completed)"
+                           onChange={(e) => setClient(e.target.value)} /></label>
+                  <label className="ds-field"><span>Drawing no.</span>
+                    <input className="ds-input" value={ref} placeholder="auto"
+                           onChange={(e) => setRef(e.target.value)} /></label>
+                  <label className="ds-field"><span>Drawn by</span>
+                    <input className="ds-input" value={drawnBy} placeholder="Vitech AI"
+                           onChange={(e) => setDrawnBy(e.target.value)} /></label>
+                  <label className="ds-field"><span>Checked by</span>
+                    <input className="ds-input" value={checkedBy} placeholder="(engineer)"
+                           onChange={(e) => setCheckedBy(e.target.value)} /></label>
+                </div>
+                <p className="ds-note">
+                  The sheet is stamped <b>Rev {revisions.length}</b> and marked DRAFT
+                  until an engineer signs it off.
+                </p>
+              </Group>
+            </>
           )}
 
-          {drawing?.tbd?.length > 0 && (
-            <section className="ds-group">
-              <div className="ds-group-h"><AlertTriangle size={12} strokeWidth={2} /> To be determined
-                <span className="ds-count">{drawing.tbd.length}</span></div>
-              <div className="ds-list">
-                {drawing.tbd.map((t) => <div key={t} className="ds-row is-tbd">— <span>{t}</span></div>)}
-              </div>
-            </section>
+          {tab === "sheet" && (
+            drawing ? (
+              <>
+                {drawing.layers?.length > 0 && (
+                  <section className="ds-group">
+                    <div className="ds-group-h"><Layers size={12} strokeWidth={2} /> Layers</div>
+                    {drawing.layers.map((l) => (
+                      <label key={l.id} className="ds-toggle">
+                        <input type="checkbox" checked={!hidden.has(l.id)} onChange={() => toggleLayer(l.id)} />
+                        <span>{l.label}</span>
+                      </label>
+                    ))}
+                  </section>
+                )}
+
+                {drawing.tbd?.length > 0 && (
+                  <section className="ds-group">
+                    <div className="ds-group-h"><AlertTriangle size={12} strokeWidth={2} /> To be determined
+                      <span className="ds-count">{drawing.tbd.length}</span></div>
+                    <div className="ds-list">
+                      {drawing.tbd.map((t) => <div key={t} className="ds-row is-tbd"><span>{t}</span></div>)}
+                    </div>
+                  </section>
+                )}
+
+                {drawing.legend?.length > 0 && (
+                  <section className="ds-group">
+                    <div className="ds-group-h">Legend<span className="ds-count">{drawing.legend.length}</span></div>
+                    <div className="ds-list">
+                      {drawing.legend.map((l) => (
+                        <div key={l.tag} className="ds-row">
+                          <span className="ds-tag">{l.tag}</span><span>{l.description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {drawing.bom?.length > 0 && (
+                  <section className="ds-group">
+                    <div className="ds-group-h">Bill of material<span className="ds-count">{drawing.bom.length}</span></div>
+                    <div className="ds-list">
+                      {drawing.bom.map((b) => (
+                        <div key={b.item} className="ds-row"><b>{b.item}</b><span>{b.spec}</span></div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <p className="ds-note">
+                  Geometry is generated deterministically by the engineering engine.
+                  Component positions are schematic; anything not yet engineered is
+                  listed here and on the sheet, never guessed.
+                </p>
+              </>
+            ) : (
+              <p className="ds-note">
+                Layers, the legend, the bill of material and anything left to be
+                determined are listed here once a sheet has been drawn.
+              </p>
+            )
           )}
 
-          {drawing?.bom?.length > 0 && (
-            <section className="ds-group">
-              <div className="ds-group-h">Bill of material<span className="ds-count">{drawing.bom.length}</span></div>
-              <div className="ds-list">
-                {drawing.bom.map((b) => (
-                  <div key={b.item} className="ds-row"><b>{b.item}</b><span>{b.spec}</span></div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <p className="ds-note">
-            Geometry is generated deterministically by the engineering engine.
-            Component positions are schematic; anything not yet engineered is
-            listed above and on the sheet, never guessed.
-          </p>
+          {error && <div className="ds-alert"><AlertTriangle size={14} /> <span>{error}</span></div>}
         </div>
 
         <div className="ds-panel-foot">
-          {busy && <div className="ds-progress" style={{ marginBottom: 9 }}><i /></div>}
+          {busy && <div className="ds-progress"><i /></div>}
           <button type="button" className="ds-btn is-primary is-block" onClick={generate} disabled={busy || !category}>
             <Send size={14} strokeWidth={2} /> {busy ? "Generating…" : "Generate drawing"}
           </button>
           {missingRequired.length > 0 && !drawing && (
-            <p className="ds-note" style={{ marginTop: 8 }}>
+            <p className="ds-note">
               {missingRequired.join(", ")} still empty — the sheet will schedule
               anything undetermined rather than guess it.
             </p>
           )}
         </div>
       </aside>
+      )}
 
       {/* ---------------- viewport ---------------- */}
       <section className="ds-viewport" ref={viewportRef}
                onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
-        <div className="ds-tools">
-          <button type="button" onClick={() => nudge(1 / 1.2)} title="Zoom out" aria-label="Zoom out"><Minus size={15} /></button>
-          <button type="button" className="ds-zoom" onClick={fit} title="Reset to 100%">{Math.round(view.zoom * 100)}%</button>
-          <button type="button" onClick={() => nudge(1.2)} title="Zoom in" aria-label="Zoom in"><Plus size={15} /></button>
-          <i className="sep" />
-          <button type="button" onClick={fit} title="Fit to view" aria-label="Fit to view"><Maximize2 size={14} /></button>
-          <i className="sep" />
-          <button type="button" className={focus ? "is-on" : ""} onClick={() => setFocus((f) => !f)}
-                  title={focus ? "Exit expanded view (Esc)" : "Expand workspace"}
-                  aria-label={focus ? "Exit focus mode" : "Enter focus mode"}>
-            {focus ? <Shrink size={15} /> : <Expand size={15} />}
-          </button>
-        </div>
-
         {layerCss && <style>{layerCss}</style>}
 
-        {/* Revision strip: every sheet ever generated, newest last. Kept small
-            and out of the way at the top-left so the canvas stays the subject. */}
+        {drawing && (
+          <div className="ds-stage">
+            <div className="ds-sheet"
+                 style={{
+                   width: sheetMm ? `${sheetMm.w}mm` : "100%",
+                   height: sheetMm ? `${sheetMm.h}mm` : "100%",
+                   transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
+                 }}
+                 dangerouslySetInnerHTML={{ __html: drawing.svg }} />
+          </div>
+        )}
+
+        {!drawing && (
+          <div className="ds-empty">
+            <div className="ds-empty-icon"><PenTool size={22} strokeWidth={1.6} /></div>
+            <h4>No drawing yet</h4>
+            <p>
+              Set the equipment and its dimensions on the left, or ask the
+              assistant — try <kbd>draw a paint booth 5m x 3m x 4m</kbd>.
+            </p>
+          </div>
+        )}
+
+        {/* Revision strip: every sheet generated this session, newest last.
+            Small and out of the way — it is a way back, not the subject. */}
         {revisions.length > 0 && (
           <div className="ds-revs" role="tablist" aria-label="Drawing revisions">
             {revisions.map((r, i) => (
               <button key={r.at} type="button" role="tab"
                       className={`ds-rev${i === activeRev ? " is-on" : ""}`}
                       aria-selected={i === activeRev}
-                      onClick={() => { setActiveRev(i); setHidden(new Set()); setView({ zoom: 1, x: 0, y: 0 }); }}
+                      onClick={() => { setActiveRev(i); setHidden(new Set()); }}
                       title={`Rev ${i}: ${r.label}`}>
                 <span className="ds-rev-thumb"
                       dangerouslySetInnerHTML={{ __html: r.drawing.svg }} />
@@ -672,36 +819,41 @@ export function DrawingStudio() {
           </div>
         )}
 
-        {drawing ? (
-          <>
-            <div className="ds-stage"
-                 style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
-                 dangerouslySetInnerHTML={{ __html: drawing.svg }} />
-            <div className="ds-status">
-              <b>{drawing.category_label}</b><i className="sep" />
-              <span>Scale <b>{drawing.scale}</b></span><i className="sep" />
-              <span>Sheet <b>{drawing.sheet_size}</b></span><i className="sep" />
+        <div className="ds-tools">
+          <button type="button" onClick={() => nudge(1 / 1.25)} title="Zoom out" aria-label="Zoom out"><Minus size={15} /></button>
+          <button type="button" className="ds-zoom" onClick={() => setView((v) => ({ ...v, zoom: 1 }))}
+                  title="True printed size (0)">{Math.round(view.zoom * 100)}%</button>
+          <button type="button" onClick={() => nudge(1.25)} title="Zoom in" aria-label="Zoom in"><Plus size={15} /></button>
+          <i className="sep" />
+          <button type="button" onClick={fit} title="Fit sheet to view (F)" aria-label="Fit sheet to view"><Scan size={15} /></button>
+        </div>
+
+        {/* Status bar — the draughtsman's read-out, spanning the foot of the
+            canvas rather than floating in a corner of it. */}
+        <div className="ds-status">
+          {drawing ? (
+            <>
+              <b>{drawing.category_label}</b>
+              <i className="sep" /><span>Scale <b>{drawing.scale}</b></span>
+              <i className="sep" /><span>Sheet <b>{drawing.sheet_size}</b></span>
+              <i className="sep" />
               <span>{env?.length
                 ? <>Envelope <b>{env.length} × {env.width} × {env.height}</b> mm</>
                 : <>Envelope <b>not determined</b></>}</span>
-              <i className="sep" />
-              <span>{drawing.views.length} view{drawing.views.length === 1 ? "" : "s"}</span>
-              {drawing.tbd?.length > 0 && <><i className="sep" /><span className="warn">{drawing.tbd.length} TBD</span></>}
-            </div>
-          </>
-        ) : (
-          <div className="ds-empty">
-            <div className="ds-empty-icon"><PenTool size={26} strokeWidth={1.6} /></div>
-            <h4>No drawing yet</h4>
-            <p>
-              Set the equipment and its dimensions on the left, or just ask the
-              assistant — try <kbd>draw a paint booth 5m x 3m x 4m</kbd>.
-            </p>
-          </div>
-        )}
+              <i className="sep" /><span>{sheetCount} view{sheetCount === 1 ? "" : "s"}</span>
+              {drawing.tbd?.length > 0 && (
+                <><i className="sep" /><span className="warn">{drawing.tbd.length} TBD</span></>
+              )}
+              <span className="ds-status-r">Rev {activeRev} of {revisions.length - 1}</span>
+            </>
+          ) : (
+            <span>Ready — scroll to zoom, drag to pan, <b>F</b> to fit</span>
+          )}
+        </div>
       </section>
 
       {/* ---------------- AI assistant ---------------- */}
+      {railR && (
       <aside className="ds-panel ds-ai">
         <div className="ds-panel-head">
           <Bot size={14} strokeWidth={2} /><h3>Drawing Assistant</h3>
@@ -711,14 +863,24 @@ export function DrawingStudio() {
 
         <div className="ds-ai-log">
           {chat.length === 0 && !thinking && (
-            <div className="ds-msg agent">
-              <span className="ds-msg-av"><Bot size={13} strokeWidth={2} /></span>
-              <div className="ds-msg-body">
-                <p>Describe the equipment and I'll draw its general arrangement. Dimensions,
-                   scale and bill of material come from the engineering engine, so nothing
-                   here is estimated.</p>
+            <>
+              <div className="ds-msg agent">
+                <span className="ds-msg-av"><Bot size={13} strokeWidth={2} /></span>
+                <div className="ds-msg-body">
+                  <p>Describe the equipment and I'll draw its general arrangement. Dimensions,
+                     scale and bill of material come from the engineering engine, so nothing
+                     here is estimated.</p>
+                </div>
               </div>
-            </div>
+              {/* The starters sat pinned above the composer with the whole rail
+                  empty between them and the one message above. They belong with
+                  the sentence that invites them. */}
+              <div className="ds-suggest">
+                {SUGGESTIONS.map((sug) => (
+                  <button key={sug} type="button" onClick={() => sendChat(sug)}>{sug}</button>
+                ))}
+              </div>
+            </>
           )}
           {chat.map((m, i) => (
             <div key={i} className={`ds-msg ${m.role}`}>
@@ -740,13 +902,6 @@ export function DrawingStudio() {
         </div>
 
         <div className="ds-composer">
-          {chat.length === 0 && (
-            <div className="ds-suggest">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => sendChat(s)}>{s}</button>
-              ))}
-            </div>
-          )}
           <div className="ds-composer-in">
             <input value={ask} placeholder="Ask the Drawing Assistant…"
                    onChange={(e) => setAsk(e.target.value)}
@@ -758,6 +913,7 @@ export function DrawingStudio() {
           </div>
         </div>
       </aside>
+      )}
     </div>
   );
 }
