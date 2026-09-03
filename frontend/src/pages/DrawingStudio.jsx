@@ -285,11 +285,15 @@ export function DrawingStudio() {
     })),
   }), [client, ref, drawnBy, checkedBy, project, revisions]);
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (override) => {
     if (!category) return;
     setBusy(true); setError("");
+    // `override` exists for the edit-as-inputs path: React state has not
+    // committed yet at the moment an edit is applied, so the new value is
+    // passed in directly rather than read back a tick later.
+    const vals = override && !override.nativeEvent ? override : values;
     const req = {
-      category, values, sheet_size: sheetSize, drawing_type: drawingType,
+      category, values: vals, sheet_size: sheetSize, drawing_type: drawingType,
       extra_rows: extraRows.filter((r) => r.label.trim() && r.value.trim()),
       ...titleFields(),
     };
@@ -305,6 +309,49 @@ export function DrawingStudio() {
     finally { setBusy(false); }
   }, [category, values, sheetSize, drawingType, extraRows, titleFields,
       pushRevision, activeCategory]);
+
+  /**
+   * EDIT AS INPUTS, which is the whole point of this interaction.
+   *
+   * Clicking a dimension on the sheet does NOT edit the sheet. It opens the
+   * REQUIREMENT FIELD that produced that dimension, and committing a value
+   * re-runs the engine — so every other number on the drawing follows from the
+   * change, as engineering rather than as typing. A hand-edited sheet would be
+   * a drawing no engine agrees with, and the moment one exists nobody can tell
+   * which numbers were engineered and which were typed over.
+   *
+   * The dimensions carry `data-edit` naming the envelope axis they measure.
+   * ONLY the overall dimensions carry it: those map one-to-one onto an input.
+   * A component dimension has no input to send the reader to, and making it
+   * look clickable would promise an edit the engine cannot honour.
+   */
+  const AXIS_INPUT = { length: "length_m", width: "width_m", height: "height_m" };
+  const [edit, setEdit] = useState(null);
+
+  const onSheetClick = useCallback((e) => {
+    const hit = e.target?.closest?.("[data-edit]");
+    if (!hit) { setEdit(null); return; }
+    const axis = hit.getAttribute("data-edit");
+    const key = AXIS_INPUT[axis];
+    if (!key) return;
+    const field = (activeCategory?.fields || []).find((f) => f.key === key);
+    const box = hit.getBoundingClientRect();
+    setEdit({
+      axis, key,
+      label: field?.label || `Overall ${axis}`,
+      unit: field?.unit || "m",
+      value: values[key] ?? "",
+      x: box.left + box.width / 2, y: box.top,
+    });
+  }, [activeCategory, values]);
+
+  const commitEdit = useCallback(() => {
+    if (!edit) return;
+    const next = { ...values, [edit.key]: edit.value };
+    setValues(next);
+    setEdit(null);
+    generate(next);
+  }, [edit, values, generate]);
 
   /** Draw a generated engineering specification exactly as it stands. */
   const generateFromSpec = useCallback(async () => {
@@ -734,7 +781,33 @@ export function DrawingStudio() {
                   </section>
                 )}
 
-                {drawing.tbd?.length > 0 && (
+                {/* The engine returns each unresolved parameter WITH the action
+                    that clears it and who owns it. A bare list of gaps tells a
+                    reader what is missing; this tells them what to do, and
+                    whether it is theirs to do or the customer's. Falls back to
+                    the plain list for an older response. */}
+                {drawing.unresolved?.length > 0 ? (
+                  <section className="ds-group">
+                    <div className="ds-group-h"><AlertTriangle size={12} strokeWidth={2} /> Required to complete
+                      <span className="ds-count">{drawing.unresolved.length}</span></div>
+                    <div className="ds-list">
+                      {drawing.unresolved.map((u, i) => (
+                        <div key={`${u.parameter}-${i}`} className={`ds-unres is-${u.kind}`}>
+                          <div className="ds-unres-h">
+                            <b>{u.parameter}</b>
+                            <span className="ds-unres-status">{u.status}</span>
+                          </div>
+                          <span className="ds-unres-act">{u.action}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="ds-note">
+                      Geometry items block a dimensioned drawing; the rest enrich it.
+                      Anything marked for the customer is their process input, not ours
+                      to assume.
+                    </p>
+                  </section>
+                ) : drawing.tbd?.length > 0 && (
                   <section className="ds-group">
                     <div className="ds-group-h"><AlertTriangle size={12} strokeWidth={2} /> To be determined
                       <span className="ds-count">{drawing.tbd.length}</span></div>
@@ -787,7 +860,7 @@ export function DrawingStudio() {
 
         <div className="ds-panel-foot">
           {busy && <div className="ds-progress"><i /></div>}
-          <button type="button" className="ds-btn is-primary is-block" onClick={generate} disabled={busy || !category}>
+          <button type="button" className="ds-btn is-primary is-block" onClick={() => generate()} disabled={busy || !category}>
             <Send size={14} strokeWidth={2} /> {busy ? "Generating…" : "Generate drawing"}
           </button>
           {missingRequired.length > 0 && !drawing && (
@@ -807,13 +880,58 @@ export function DrawingStudio() {
 
         {drawing && (
           <div className="ds-stage">
-            <div className="ds-sheet"
+            <div className="ds-sheet is-editable"
+                 onClick={onSheetClick}
                  style={{
                    width: sheetMm ? `${sheetMm.w}mm` : "100%",
                    height: sheetMm ? `${sheetMm.h}mm` : "100%",
                    transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom}) translate(-50%, -50%)`,
                  }}
                  dangerouslySetInnerHTML={{ __html: drawing.svg }} />
+          </div>
+        )}
+
+        {/* The sheet's own claim about itself, over the canvas. A schematic
+            says NOT FOR FABRICATION on the paper; without this the studio
+            around it said nothing, so the state was invisible until you read
+            the drawing. */}
+        {drawing?.state && drawing.state !== "fully_dimensioned" && (
+          <div className={`ds-state is-${drawing.state}`}>
+            <AlertTriangle size={13} strokeWidth={2} />
+            <div>
+              <b>{drawing.state_label}</b>
+              {drawing.missing_axes?.length > 0 && (
+                <span> — overall {drawing.missing_axes.join(", ")} not yet engineered</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Editing a dimension edits the INPUT behind it, never the sheet. */}
+        {edit && (
+          <div className="ds-edit" style={{ left: edit.x, top: edit.y }}
+               onClick={(e) => e.stopPropagation()}>
+            <div className="ds-edit-h">{edit.label}</div>
+            <div className="ds-edit-row">
+              <input className="ds-input" autoFocus type="number" step="any"
+                     value={edit.value}
+                     onChange={(e) => setEdit((p) => ({ ...p, value: e.target.value }))}
+                     onKeyDown={(e) => {
+                       if (e.key === "Enter") commitEdit();
+                       if (e.key === "Escape") setEdit(null);
+                     }} />
+              <span className="ds-edit-unit">{edit.unit}</span>
+            </div>
+            <div className="ds-edit-acts">
+              <button type="button" className="ds-btn is-primary" onClick={commitEdit}>
+                Apply &amp; re-resolve
+              </button>
+              <button type="button" className="ds-btn" onClick={() => setEdit(null)}>Cancel</button>
+            </div>
+            <p className="ds-edit-note">
+              Changes the requirement and re-runs the engine. The sheet is never
+              edited directly.
+            </p>
           </div>
         )}
 

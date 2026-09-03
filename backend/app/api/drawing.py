@@ -52,6 +52,11 @@ def drawing_catalog():
              "description": "Footprint / layout view"},
             {"key": "elevation", "label": "Elevations only",
              "description": "Front and side elevation"},
+            # The pictorial. Listed LAST because a third-angle GA is the
+            # working drawing and this is an addition to it, not a variant.
+            {"key": "ga_iso", "label": "General Arrangement + isometric",
+             "description": "The three views plus an envelope isometric in the "
+                            "free quadrant (envelope only, not to scale)"},
         ],
         "sheet_sizes": [{"key": k, "label": f"{k} ({int(w)} x {int(h)} mm)"}
                         for k, (w, h) in sheet.SHEET_SIZES.items()],

@@ -602,3 +602,67 @@ body.studio-focus .ds {
 /* Narrow toolbars keep the format buttons and drop the word. */
 .ds.is-narrow .ds-export-label,
 .ds.is-stack .ds-export-label { font-size: 0; gap: 0; margin-right: 0; }
+
+/* ---------------------------------------------------------------------------
+   Drawing state, edit-as-inputs and the unresolved schedule
+   ------------------------------------------------------------------------- */
+
+/* A dimension is the only thing on the sheet you can act on, so it is the only
+   thing that offers a cursor. Everything else stays a drawing.
+
+   `pointer-events: auto` is LOAD-BEARING. `.ds-stage` sets `pointer-events:
+   none` so that dragging anywhere over the sheet pans the canvas rather than
+   selecting the drawing - which also meant the sheet never received a click at
+   all, and every click fell through to the viewport underneath. Opting the
+   dimensions back in is what makes them reachable while leaving panning
+   untouched everywhere else. Found by driving the real UI: the element was
+   present and `elementFromPoint` at its centre returned the viewport. */
+.ds-sheet.is-editable [data-edit] { cursor: pointer; pointer-events: auto; }
+.ds-sheet.is-editable [data-edit]:hover { fill: var(--ds-accent, #1d6fb8); font-weight: 700; }
+
+/* The sheet's own status, over the canvas. */
+.ds-state {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+  display: flex; gap: 8px; align-items: center;
+  max-width: min(560px, 78%);
+  padding: 7px 12px; border-radius: 7px;
+  font-size: 12px; line-height: 1.35;
+  background: #fff7e6; color: #6b4a05; border: 1px solid #e8c877;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+  z-index: 6; pointer-events: none;
+}
+.ds-state.is-schematic { background: #fdecec; color: #7a1f1f; border-color: #e2a2a2; }
+.ds-state b { font-weight: 700; }
+
+/* The inline requirement editor. Fixed-positioned because it is anchored to a
+   point measured in VIEWPORT coordinates off the clicked SVG element, which is
+   inside a transformed (panned and zoomed) parent. */
+.ds-edit {
+  position: fixed; transform: translate(-50%, calc(-100% - 12px));
+  width: 264px; padding: 11px 12px 9px;
+  background: var(--ds-panel, #fff); color: var(--ds-ink, #17202a);
+  border: 1px solid var(--ds-line, #ccd4dd); border-radius: 8px;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 22%); z-index: 40;
+}
+.ds-edit-h { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.ds-edit-row { display: flex; align-items: center; gap: 6px; }
+.ds-edit-row .ds-input { flex: 1; }
+.ds-edit-unit { font-size: 11px; opacity: 0.7; }
+.ds-edit-acts { display: flex; gap: 6px; margin-top: 8px; }
+.ds-edit-acts .ds-btn {
+  flex: 1; justify-content: center; font-size: 11px;
+  white-space: nowrap;   /* "Apply & re-resolve" wrapped to two lines at 232px */
+}
+.ds-edit-note { margin: 7px 0 0; font-size: 10.5px; line-height: 1.35; opacity: 0.72; }
+
+/* Unresolved parameters, with the action that clears each one. */
+.ds-unres {
+  padding: 6px 8px; margin-bottom: 5px; border-radius: 5px;
+  border-left: 3px solid var(--ds-line, #ccd4dd);
+  background: var(--ds-sunken, rgb(0 0 0 / 3%)); font-size: 11.5px;
+}
+.ds-unres.is-geometry { border-left-color: #d06a2c; }
+.ds-unres.is-confirm  { border-left-color: #2c7ad0; }
+.ds-unres-h { display: flex; justify-content: space-between; gap: 8px; }
+.ds-unres-status { font-size: 10px; font-weight: 700; opacity: 0.75; }
+.ds-unres-act { display: block; margin-top: 2px; opacity: 0.78; line-height: 1.35; }

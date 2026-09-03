@@ -183,16 +183,24 @@ class Text(NamedTuple):
     anchor: str = "start"          # start | middle | end
     bold: bool = False
     rotate: float = 0.0
+    # WHICH REQUIREMENT FIELD this text reports, when it reports one. Emitted as
+    # `data-edit`, and it is the whole mechanism behind editing a drawing by
+    # changing its INPUTS: the studio can tell that a click landed on the
+    # overall length, and send the reader to the length input rather than
+    # letting them type a new number onto the sheet. A drawing must never be
+    # hand-edited; this is what makes the alternative reachable.
+    edit_key: Optional[str] = None
 
     def svg(self) -> str:
         w = ' font-weight="bold"' if self.bold else ""
         r = (f' transform="rotate({n(self.rotate)} {n(self.x)} {n(self.y)})"'
              if self.rotate else "")
+        e = f' data-edit="{esc(self.edit_key)}"' if self.edit_key else ""
         # fill MUST be set explicitly: the document group paints fill="none" so
         # that outlines stay hollow, and without this override every glyph
         # renders invisibly.
         return (f'<text x="{n(self.x)}" y="{n(self.y)}" font-size="{n(self.size)}" '
-                f'text-anchor="{self.anchor}"{w}{r} stroke="none" fill="currentColor">'
+                f'text-anchor="{self.anchor}"{w}{r}{e} stroke="none" fill="currentColor">'
                 f'{esc(self.text)}</text>')
 
 
@@ -212,11 +220,12 @@ class Dim:
     layer = L_DIM
 
     def __init__(self, x1, y1, x2, y2, label: str, offset: float = 8.0,
-                 vertical: bool = False):
+                 vertical: bool = False, edit_key: str = None):
         self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2
         self.label = label
         self.offset = offset
         self.vertical = vertical
+        self.edit_key = edit_key
 
     def shapes(self) -> list:
         out: list = []
@@ -235,7 +244,8 @@ class Dim:
             u = 1.0 if by > ay else -1.0
             out += [_arrowhead(ax, ay, 0, -u), _arrowhead(bx, by, 0, u)]
             out.append(Text(ax - 1.2, (ay + by) / 2, self.label, L_DIM,
-                            T_DIM, "middle", rotate=-90))
+                            T_DIM, "middle", rotate=-90,
+                            edit_key=self.edit_key))
         else:
             dy = self.offset
             ax, ay = self.x1, self.y1 + dy
@@ -247,7 +257,7 @@ class Dim:
             u = 1.0 if bx > ax else -1.0
             out += [_arrowhead(ax, ay, -u, 0), _arrowhead(bx, by, u, 0)]
             out.append(Text((ax + bx) / 2, ay - 1.2, self.label, L_DIM,
-                            T_DIM, "middle"))
+                            T_DIM, "middle", edit_key=self.edit_key))
         return out
 
 

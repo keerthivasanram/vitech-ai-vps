@@ -152,11 +152,18 @@ def draw_view(canvas, v: View, dim_labels: dict, caption: str = "") -> None:
 
     # OVERALL dimensions take the lane nearest the view; anything a glyph adds
     # steps out to the next lane, so parallel dimensions cannot collide.
+    # Each OVERALL dimension names the envelope axis it measures, so a click on
+    # it can be traced back to the input that produced it. Only these carry an
+    # edit key: they are the dimensions that correspond one-to-one with a
+    # requirement field. A component dimension has no such input — there is
+    # nothing to send the reader to — and labelling it editable would promise
+    # an edit the engine cannot honour.
     canvas.add(Dim(v.x, v.y + v.h, v.x + v.w, v.y + v.h,
-                   dim_labels.get(v.w_axis, "TBD"), offset=DIM_LANE_OVERALL))
+                   dim_labels.get(v.w_axis, "TBD"), offset=DIM_LANE_OVERALL,
+                   edit_key=v.w_axis))
     canvas.add(Dim(v.x + v.w, v.y, v.x + v.w, v.y + v.h,
                    dim_labels.get(v.h_axis, "TBD"), offset=DIM_LANE_OVERALL,
-                   vertical=True))
+                   vertical=True, edit_key=v.h_axis))
 
     # View title, underscored the way a drafted sheet does it: the rule is what
     # binds the caption to its view when three views share one field.
