@@ -42,6 +42,77 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-03 — THE GLYPH MIGRATION IS FINISHED. All fourteen are on the standard.
+
+Container disk wiped again -> `bootstrap-pod.sh` then `start-all.sh`; **all six services 200**,
+**all three agents reproducible from git** (9953 / 5622 / 3102) and the Drawing Agent verified
+live on a migrated glyph. The 2026-09-02 entry's "cyclone, cartridge collector, oven and the ten
+thin glyphs" **over-counted: there is no cyclone or cartridge-collector glyph in the codebase**.
+The real remainder was the oven plus ten thin glyphs — eleven — and they are done.
+- **ZERO RAW LINE WIDTHS REMAIN IN `symbols.py`.** All 113 call sites now name a ROLE, and the
+  `LW_*` / `DASH_*` imports are gone. The rename was **PROVEN BYTE-IDENTICAL across sixteen
+  rendered cases** before anything else moved — that separation is what made the later changes
+  legible.
+- **A SCRATCH DIGEST HARNESS IS WHAT MADE THIS SAFE, and it is worth rebuilding.** The contract
+  suite fingerprints only **two of the fourteen** glyphs, so eleven could have been broken with
+  every suite green. It caught two things eyes did not (below). **It is now committed as
+  `backend/tools_glyph_digest.py`** — `--save` a baseline before touching `app/drawing/`,
+  `--diff` after. It is a TOOL, not a suite member, so CI does not gate on it. A digest says
+  something changed and never says whether it got BETTER: when one moves on purpose, render it.
+- **TRAP, now guarded by a test: `Line`/`Rect` end (layer, width, DASH) but `Circle`/`poly` end
+  (layer, width, FILL).** So `*PEN` splats cleanly into the first pair and silently passes the
+  Pen's dash into the *fill* of the second, emitting `fill="None"`. It renders hollow anyway
+  (a parent `<g fill="none">` means the invalid value is ignored) and the PDF exporter sees the
+  in-process `None` it already treats as unfilled — **so nothing visibly broke, and I overstated
+  it as a black-blob bug before checking**. It is invalid output that disagrees with
+  `export.py`'s own fill contract. A check across all fourteen glyphs keeps it caught.
+- **TWO REAL, USER-VISIBLE LAYER DEFECTS the roles surfaced.** All **eight** glyph centre lines
+  were hand-drawn on `L_COMPONENT` (and at 0.18, not the standard's 0.13) while
+  `components.duct_run` drew the identical thing on `L_CENTRE` — so on ONE sheet the studio's
+  "Centre lines" switch turned off a duct axis and left the conveyor axis behind. `L_CENTRE` did
+  not appear in `symbols.py` at all. Likewise **six of thirteen hidden lines** sat on the
+  component layer, so "Hidden detail" hid seven and left six. Both verified on a rendered sheet
+  before and after, and pinned by tests.
+- **`OPENING` IS A NEW ROLE, and the reason matters.** A buffing booth's open working face is a
+  void IN FRONT of the viewer, not geometry behind a panel — so it keeps the hidden dash (to read
+  as an absence of panel) but stays a MEDIUM-weight component. **The layer test discriminates by
+  WEIGHT rather than exempting those two glyphs**, so the exception cannot quietly widen.
+- **THE THIN GLYPHS NOW COMPOSE FROM `components.py`** — reached through the three SHARED helpers
+  (`_fan` -> `blower`, `_door` -> `access_door`, `_filter_bank` -> `filter_bank`), which is ten
+  categories in three edits. An extract fan was a rectangle with a circle in it; the oven's
+  recirculation blower was a bare circle with a line hanging off it.
+- **THREE DEFECTS FOUND ONLY BY RENDERING** (the standing lesson, again): the blower **discharged
+  into the filter bank** (throat buried in the media; it now stops 1 mm clear); **pleats were
+  stretched into cross bracing** because `_pleat` drew four folds whatever the cell's shape — the
+  count now follows the cell's depth, and **this is why the booth sheet SHRANK 1.4 kB**; and the
+  blast booth **printed its media caption through the door head** (0.30 vs a head at 0.28),
+  pre-existing and unrelated.
+- **ONE SUBSTITUTION REVERTED, which is the honest half.** `components.flange` projects 0.62 of
+  the BORE either side — right for a real flange, wrong in the ducting elevation, which draws the
+  run at the **envelope height (4,000 mm), not the duct bore (600 mm)**. The flanges overshot the
+  outline by a fifth and struck the caption. **A component only fits where the view is drawn at
+  the size it assumes.** Reason recorded at the call site.
+- **BALLOON LEADERS ARE WIRED ACROSS THE THIN GLYPHS** (17 balloons). **A leader must land on a
+  REAL feature, not the view's mid-point**: aimed at `w * 0.5` the luminaire and capture-hood
+  leaders fell in the GAP between two fittings of an even-numbered row, pointing confidently at
+  nothing. Two balloons deliberately keep no leader — they already sit on what they name.
+- **THREE FINGERPRINTS RE-RECORDED BY HAND, never with `--record`**, which rewrites the whole
+  baseline and would pin `tools.retrieve` to one arbitrary HNSW traversal. `tools.drawing.scrub`
+  (+103 B, the newly-emitted hidden group), then `drawing.render` and `tools.drawing.booth`
+  (-1.3 kB each, the pleat change). Each traced to its cause and proven stable across runs first.
+  **`tools.retrieve` read 10,081, then 9,140, then 10,080 across three restarts this session** —
+  all three of its documented values, and on the last run the suite was **29/29**. That is the
+  flap behaving exactly as recorded; do NOT re-record it.
+- **STILL OPEN and unchanged:** the studio rebuild ("edit as inputs, re-resolve") is not started;
+  D1 conversational drawing state is not started; the **isometric** in the empty third-angle
+  quadrant is a PRODUCT DECISION, not styling; and **chasing Vitech for COMPONENT SETTING-OUT
+  RULES remains the only thing between this and a fabrication-grade GA**. No drafting work
+  substitutes for it — the sheet will keep saying "component positions indicative" until they
+  answer.
+- **NEWLY VISIBLE, worth a look next time:** the oven's **side elevation is entirely empty** and
+  its plan carries only zone divisions — the glyph is thin in CONTENT, not just in styling, and
+  the component library does not fix that. Same for `pretreatment_plant` and `ducting`.
+
 ### ▶ 2026-09-02 (END OF SESSION) — POD IS SAFE TO STOP. Everything pushed to `main`.
 
 **All committed AND PUSHED on `main`** (the pod is on main now, not the old branch), **PG backed
