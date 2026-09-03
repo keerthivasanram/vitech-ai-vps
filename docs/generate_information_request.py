@@ -34,7 +34,7 @@ _SENDER_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "sender.json")
 
 SENDER = {
-    "company": "[Your Company Name]",
+    "company": "Vitech",
     "line1": "[Address line]",
     "line2": "[City, PIN]",
     "contact": "[Contact name]  |  [email]  |  [phone]",
@@ -700,6 +700,13 @@ def appendix(p: Doc):
     p.ln(5)
     h2(p, "Return to")
     body(p, f"{SENDER['contact']}")
+    # The address, but ONLY when it is real. `line1`/`line2` were defined and
+    # rendered nowhere, so the build nagged for two fields that appeared on no
+    # page — and printing them unfilled would put "[Address line]" on a document
+    # going to a client, which is worse than omitting the address entirely.
+    for _line in (SENDER["line1"], SENDER["line2"]):
+        if _line.strip() and not _line.strip().startswith("["):
+            body(p, _line, gap=0.6)
     body(p, "Please raise any question about a specific item rather than omitting it - in most "
             "cases a partial or informal answer is still directly usable.")
 
