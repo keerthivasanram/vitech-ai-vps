@@ -95,8 +95,8 @@
     "status": 200
   },
   "tools.drawing.scrub": {
-    "bytes": 37433,
-    "sha256": "0b216b2c9f176de45a19e03c291c70ee8ee4ae04d3c07dd06d1a943224c5ef03",
+    "bytes": 37536,
+    "sha256": "da4c0fbde7cb0fdda71866523752eb286a804284713724d63b2fe246107a2aae",
     "status": 200
   },
   "tools.filters": {
