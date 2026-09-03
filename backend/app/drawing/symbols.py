@@ -25,10 +25,12 @@ from .primitives import (DASH_CENTRE, DASH_HIDDEN, LW_HATCH, LW_MED, LW_THICK,
                          LW_THIN, L_COMPONENT, L_HIDDEN, L_OUTLINE, L_TEXT,
                          Circle, Dim, Line, Rect, Text, hatch, poly)
 from . import components
-from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, DIM_LANE_MAJOR,
-                    SYMBOL_DETAIL, T_VIEW_TITLE,
-                    LEADER_DOT_R,
-                    LEADER_LINE, T_BODY, T_CAPTION, T_DIM, T_SMALL, T_TINY)
+from .style import (AIRFLOW_LINE, BALLOON, BALLOON_R, CENTRE_LINE,
+                    DIM_LANE_MAJOR, DOOR, DUCT, EQUIPMENT, FLOOR_LINE,
+                    HATCH_LINE, HIDDEN_LINE, INTERNAL_DETAIL, LEADER_DOT_R,
+                    LEADER_LINE, PANEL_SEAM, PRIMARY_OUTLINE,
+                    SECONDARY_OUTLINE, SYMBOL_DETAIL, T_BODY, T_CAPTION,
+                    T_DIM, T_SMALL, T_TINY, T_VIEW_TITLE)
 
 
 
@@ -96,7 +98,7 @@ def airflow(canvas, points, label: str = "") -> None:
     px, py = -uy * 1.5, ux * 1.5
     canvas.add(poly([(tx, ty), (tx - ux * 3.4 + px, ty - uy * 3.4 + py),
                      (tx - ux * 3.4 - px, ty - uy * 3.4 - py)],
-                    L_COMPONENT, LW_THIN, "currentColor"))
+                    AIRFLOW_LINE.layer, AIRFLOW_LINE.width, "currentColor"))
     if label:
         canvas.add(Text(tx, ty - 2.4, label, L_TEXT, T_CAPTION, "middle"))
 
@@ -282,7 +284,7 @@ def _panel_joints(canvas, v, dimension: bool = False) -> None:
         for i in range(1, min(n_joints, 24) + 1):
             jx = v.x + i * step_x
             if jx < v.x + v.w - 0.5:
-                canvas.add(Line(jx, v.y, jx, v.y + v.h, L_COMPONENT, LW_THIN))
+                canvas.add(Line(jx, v.y, jx, v.y + v.h, *PANEL_SEAM))
         # A single bay, one lane out from the overall dimension. COLLISION
         # CHECK, not a hope: the view caption is centred under the view at this
         # depth, so the bay dimension is drawn only when it ends clear of the
@@ -300,7 +302,7 @@ def _panel_joints(canvas, v, dimension: bool = False) -> None:
         for i in range(1, min(n_courses, 8) + 1):
             jy = v.y + v.h - i * step_y
             if jy > v.y + 0.5:
-                canvas.add(Line(v.x, jy, v.x + v.w, jy, L_COMPONENT, LW_THIN))
+                canvas.add(Line(v.x, jy, v.x + v.w, jy, *PANEL_SEAM))
 
 
 def _floor(canvas, v, legend: list = None, label: bool = True) -> float:
@@ -311,11 +313,11 @@ def _floor(canvas, v, legend: list = None, label: bool = True) -> float:
     which side of it is ground.
     """
     fy = v.y + v.h * 0.94
-    canvas.add(Line(v.x, fy, v.x + v.w, fy, L_OUTLINE, LW_THICK))
+    canvas.add(Line(v.x, fy, v.x + v.w, fy, *FLOOR_LINE))
     # Base frame with its bearing points, from the shared library.
     components.structural_base(canvas, v.x, fy, v.w, v.h * 0.035)
     canvas.add(hatch(v.x, fy, v.w, v.h * 0.06, spacing=2.0, slope=-1,
-                        layer=L_COMPONENT, width=LW_HATCH))
+                        layer=HATCH_LINE.layer, width=HATCH_LINE.width))
     if label:
         canvas.add(Text(v.x + v.w * 0.30, fy - v.h * 0.05, "FLOOR LEVEL",
                         L_TEXT, T_CAPTION, "middle"))
@@ -341,7 +343,7 @@ def _lights(canvas, v, count: int, legend: list, label: str) -> None:
     for i in range(shown):
         lx = v.x + v.w * (0.14 + 0.72 * (i / max(1, shown - 1)))
         canvas.add(Rect(lx - v.w * 0.035, v.y + v.h * 0.06, v.w * 0.07,
-                        v.h * 0.04, L_COMPONENT, LW_THIN))
+                        v.h * 0.04, *SYMBOL_DETAIL))
     item(canvas, legend, v.x + v.w * 0.5, v.y + v.h * 0.16, f"{label} ({count} nos)")
 
 
@@ -349,11 +351,11 @@ def _filter_bank(canvas, v, count: int, legend: list, label: str) -> float:
     """An extract filter bank across the rear of a plan view; returns its depth."""
     depth = v.h * 0.14
     by = v.y + v.h - depth
-    canvas.add(Rect(v.x, by, v.w, depth, L_COMPONENT, LW_MED))
+    canvas.add(Rect(v.x, by, v.w, depth, *SECONDARY_OUTLINE))
     if count:
         for i in range(1, min(count, 12)):
             fx = v.x + v.w * i / min(count, 12)
-            canvas.add(Line(fx, by, fx, by + depth, L_COMPONENT, LW_THIN))
+            canvas.add(Line(fx, by, fx, by + depth, *PANEL_SEAM))
     item(canvas, legend, v.x + v.w * 0.14, by - 5.0,
          f"{label}" + (f" ({count} nos)" if count else ""))
     return depth
@@ -369,8 +371,9 @@ def _fan(canvas, v, depth: float, legend: list, label: str) -> None:
     fh = max(depth * 1.4, v.h * 0.12)
     fx = v.x + (v.w - fw) / 2
     fy = v.y + v.h - depth - fh - 2.0
-    canvas.add(Rect(fx, fy, fw, fh, L_COMPONENT, LW_MED))
-    canvas.add(Circle(fx + fw / 2, fy + fh / 2, min(fw, fh) * 0.32, L_COMPONENT, LW_THIN))
+    canvas.add(Rect(fx, fy, fw, fh, *EQUIPMENT))
+    canvas.add(Circle(fx + fw / 2, fy + fh / 2, min(fw, fh) * 0.32,
+                      INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
     item(canvas, legend, fx + fw + 6.0, fy + fh / 2, label)
 
 
@@ -380,8 +383,8 @@ def _door(canvas, v, legend: list, label: str, frac: float = 0.34) -> None:
     dx = v.x + (v.w - dw) / 2
     dh = v.h * 0.72
     dy = v.y + v.h - dh
-    canvas.add(Rect(dx, dy, dw, dh, L_COMPONENT, LW_MED))
-    canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, L_COMPONENT, LW_THIN))
+    canvas.add(Rect(dx, dy, dw, dh, *DOOR))
+    canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, *PANEL_SEAM))
     item(canvas, legend, dx + dw * 0.22, dy + dh * 0.24, label)
 
 
@@ -450,7 +453,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 
         # View panels either side of the door.
         for sx in (x + w * 0.10, x + w * 0.78):
-            canvas.add(Rect(sx, y + h * 0.26, w * 0.12, h * 0.18, L_COMPONENT, LW_THIN))
+            canvas.add(Rect(sx, y + h * 0.26, w * 0.12, h * 0.18, *SYMBOL_DETAIL))
         item(canvas, legend, x + w * 0.16, y + h * 0.20, "View glass panel",
              to=(x + w * 0.16, y + h * 0.35))
 
@@ -458,7 +461,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             for i in range(min(lights, 6)):
                 lx = x + w * (0.14 + 0.72 * (i / max(1, min(lights, 6) - 1)))
                 canvas.add(Rect(lx - w * 0.035, y + h * 0.07, w * 0.07, h * 0.035,
-                                L_COMPONENT, LW_THIN))
+                                *SYMBOL_DETAIL))
             # Offset from the door balloon below it, which sits at dy - 5 mm.
             item(canvas, legend, x + w * 0.36, y + h * 0.135,
                  f"{_luminaire_label(rows)} ({lights} nos)")
@@ -471,8 +474,8 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             # over it, two components occupying the same 20 mm of sheet.
             px = (x + w - fb_w - pw - w * 0.02) if _bank_right else x + w * 0.905
             py = y + h * 0.52
-            canvas.add(Rect(px, py, pw, ph, L_COMPONENT, LW_MED))
-            canvas.add(Line(px, py + ph * 0.3, px + pw, py + ph * 0.3, L_COMPONENT, LW_THIN))
+            canvas.add(Rect(px, py, pw, ph, *EQUIPMENT))
+            canvas.add(Line(px, py + ph * 0.3, px + pw, py + ph * 0.3, *SYMBOL_DETAIL))
             item(canvas, legend, px - 6.0, py + ph * 0.5, _clip(f"Control panel {panel}"),
                  to=(px + pw * 0.5, py + ph * 0.5))
 
@@ -582,7 +585,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             else:
                 cw, ch = w * 0.22, bh * 0.8
                 cx, cy = x + w * 0.06, byy - bh * 0.9
-            canvas.add(Rect(cx, cy, cw, ch, L_COMPONENT, LW_THIN))
+            canvas.add(Rect(cx, cy, cw, ch, *SYMBOL_DETAIL))
             item(canvas, legend, cx - 6.0 if across else cx + cw + 5.5, cy + ch / 2,
                  _clip(f"Activated carbon chamber {carbon}"),
                  to=(cx + cw * 0.5, cy + ch * 0.5))
@@ -688,10 +691,10 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # --- demister --------------------------------------------------------
         dy = y + h * 0.16
         dh = h * 0.07
-        canvas.add(Rect(x + w * 0.10, dy, w * 0.80, dh, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x + w * 0.10, dy, w * 0.80, dh, *EQUIPMENT))
         for i in range(1, 8):
             hx = x + w * (0.10 + 0.80 * i / 8)
-            canvas.add(Line(hx, dy, hx - h * 0.03, dy + dh, L_COMPONENT, LW_THIN))
+            canvas.add(Line(hx, dy, hx - h * 0.03, dy + dh, *SYMBOL_DETAIL))
         item(canvas, legend, x + w * 0.16, dy + dh + 4.5,
              _clip(f"Demister / eliminator {demister}", 60))
 
@@ -699,11 +702,11 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         if contact:
             cy = y + h * 0.26
             ch = h * 0.05
-            canvas.add(Rect(x + w * 0.10, cy, w * 0.80, ch, L_COMPONENT, LW_MED))
+            canvas.add(Rect(x + w * 0.10, cy, w * 0.80, ch, *EQUIPMENT))
             if contact == "baffle":
                 for i in range(1, 9):
                     bx = x + w * (0.10 + 0.80 * i / 9)
-                    canvas.add(Line(bx, cy, bx, cy + ch, L_COMPONENT, LW_THIN))
+                    canvas.add(Line(bx, cy, bx, cy + ch, *SYMBOL_DETAIL))
                 item(canvas, legend, x + w * 0.94, cy + ch / 2, "Baffle plate contact stage")
             else:
                 for i in range(1, 6):
@@ -714,11 +717,11 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # --- spray headers ---------------------------------------------------
         for i in range(3):
             sy = y + h * (0.36 + 0.11 * i)
-            canvas.add(Line(x + w * 0.12, sy, x + w * 0.88, sy, L_COMPONENT, LW_THIN))
+            canvas.add(Line(x + w * 0.12, sy, x + w * 0.88, sy, *SYMBOL_DETAIL))
             for j in range(4):
                 nx = x + w * (0.20 + 0.20 * j)
                 canvas.add(poly([(nx, sy), (nx - 1.4, sy + 2.6), (nx + 1.4, sy + 2.6)],
-                                L_COMPONENT, LW_THIN))
+                                SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width))
         item(canvas, legend, x + w * 0.94, y + h * 0.42,
              f"Spray nozzle header ({nozzles} nozzles)" if nozzles else "Spray nozzle header")
 
@@ -731,7 +734,7 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         item(canvas, legend, x + w * 0.42, in_y + h * 0.04, "Inlet duct (gas entry)")
 
         # --- sump, water level, base -----------------------------------------
-        canvas.add(Rect(x, ty, w, tank_h, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x, ty, w, tank_h, *EQUIPMENT))
         wl = ty + tank_h * 0.42
         canvas.add(Line(x, wl, x + w, wl, L_COMPONENT, LW_THIN, DASH_HIDDEN))
         # Right-anchored just inside the wall. Centred, it was overprinted by the
@@ -762,16 +765,19 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         ocx = x + w - cr - 1.5
         for frac, tag in ((0.16, "OF"), (0.40, "MU")):
             ocy = ty + tank_h * frac
-            canvas.add(Circle(ocx, ocy, cr, L_COMPONENT, LW_THIN))
+            canvas.add(Circle(ocx, ocy, cr,
+                          INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
             canvas.add(Text(ocx - cr - 1.2, ocy + 0.7, tag, L_TEXT, T_TINY, "end"))
-        canvas.add(Circle(x + w * 0.50, y + h - base_h - cr - 0.6, cr, L_COMPONENT, LW_THIN))
+        canvas.add(Circle(x + w * 0.50, y + h - base_h - cr - 0.6, cr,
+                          INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
         canvas.add(Text(x + w * 0.545, y + h - base_h - cr - 0.6, "DR", L_TEXT, T_TINY, "start"))
 
         # --- circulation pump -------------------------------------------------
         pr = min(w * 0.05, tank_h * 0.30)
         pcx, pcy = x + w * 0.12, ty + tank_h * 0.45   # clears the base frame below
-        canvas.add(Circle(pcx, pcy, pr, L_COMPONENT, LW_MED))
-        canvas.add(Line(pcx, pcy - pr, pcx, y + h * 0.36, L_COMPONENT, LW_THIN))
+        canvas.add(Circle(pcx, pcy, pr,
+                          EQUIPMENT.layer, EQUIPMENT.width))
+        canvas.add(Line(pcx, pcy - pr, pcx, y + h * 0.36, *SYMBOL_DETAIL))
         item(canvas, legend, pcx + pr + 5.5, pcy,
              " ".join(t for t in ("Circulation pump", str(pump).strip() and f"{pump} HP",
                                   str(pump_make).strip()) if t))
@@ -791,15 +797,15 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         tank_h = h * 0.26
         ty = y + h - tank_h
         base_h = tank_h * 0.16
-        canvas.add(Rect(x, ty, w, tank_h, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x, ty, w, tank_h, *EQUIPMENT))
         canvas.add(Line(x, ty + tank_h * 0.42, x + w, ty + tank_h * 0.42,
                         L_COMPONENT, LW_THIN, DASH_HIDDEN))
-        canvas.add(Rect(x, y + h - base_h, w, base_h, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x, y + h - base_h, w, base_h, *EQUIPMENT))
         canvas.add(Rect(x + w * 0.10, y + h * 0.16, w * 0.80, h * 0.07,
-                        L_COMPONENT, LW_MED))
+                        *EQUIPMENT))
 
         in_y = y + h * 0.66
-        canvas.add(Rect(x, in_y - h * 0.045, w * 0.18, h * 0.09, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x, in_y - h * 0.045, w * 0.18, h * 0.09, *EQUIPMENT))
         airflow(canvas, [(x + w * 0.22, in_y), (x + w * 0.42, in_y)], "GAS IN")
 
         # Access door: every scrubber needs the spray bank and demister reached
@@ -809,9 +815,9 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # drawn inside the door.
         dw2, dh2 = w * 0.44, h * 0.24
         dx2, dy2 = x + w * 0.28, y + h * 0.28
-        canvas.add(Rect(dx2, dy2, dw2, dh2, L_COMPONENT, LW_THIN))
+        canvas.add(Rect(dx2, dy2, dw2, dh2, *SYMBOL_DETAIL))
         canvas.add(Circle(dx2 + dw2 * 0.86, dy2 + dh2 * 0.5, min(dw2, dh2) * 0.10,
-                          L_COMPONENT, LW_THIN))
+                          SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width))
         item(canvas, legend, dx2 + dw2 + 5.0, dy2 + dh2 * 0.5, "Access / inspection door")
 
     if plan:
@@ -823,11 +829,12 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         runs = 3
         for i in range(runs):
             hy = y + h * (0.28 + 0.22 * i)
-            canvas.add(Line(x + w * 0.12, hy, x + w * 0.88, hy, L_COMPONENT, LW_MED))
+            canvas.add(Line(x + w * 0.12, hy, x + w * 0.88, hy, *EQUIPMENT))
             per = max(1, nozzles // runs) if nozzles else 4
             for j in range(min(per, 8)):
                 nx = x + w * (0.16 + 0.68 * (j / max(1, min(per, 8) - 1)))
-                canvas.add(Circle(nx, hy, min(w, h) * 0.012, L_COMPONENT, LW_THIN))
+                canvas.add(Circle(nx, hy, min(w, h) * 0.012,
+                          INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
         canvas.add(Text(x + w * 0.5, y + h * 0.20,
                         f"{nozzles} NOZZLES ON {runs} HEADERS - ARRANGEMENT INDICATIVE"
                         if nozzles else "SPRAY HEADERS - ARRANGEMENT INDICATIVE",
@@ -869,7 +876,7 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # schematic thickness — the client has given no wall section — so it is
         # never dimensioned, only labelled with the insulation the spec states.
         t = min(w, h) * 0.05
-        canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, L_COMPONENT, LW_THIN))
+        canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
         item(canvas, legend, x + w * 0.07, y + h * 0.20, f"Insulated panel lining {insulation}".strip())
 
         # Full-height double-leaf door on the loading face.
@@ -877,28 +884,28 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         dx = x + w * 0.60
         dy = y + t
         dh = h - 2 * t
-        canvas.add(Rect(dx, dy, dw, dh, L_COMPONENT, LW_MED))
-        canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, L_COMPONENT, LW_THIN))
+        canvas.add(Rect(dx, dy, dw, dh, *DOOR))
+        canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, *PANEL_SEAM))
         # Hinge ticks on both stiles.
         for hx in (dx, dx + dw):
             for f in (0.25, 0.75):
                 canvas.add(Line(hx - 1.2, dy + dh * f, hx + 1.2, dy + dh * f,
-                                L_COMPONENT, LW_THIN))
+                                *SYMBOL_DETAIL))
         item(canvas, legend, dx + dw * 0.25, dy + dh * 0.30, "Insulated door, double leaf")
 
         # Heater bank along the floor of the chamber.
         hb_h = h * 0.07
         hb_y = y + h - t - hb_h
-        canvas.add(Rect(x + t + w * 0.04, hb_y, w * 0.42, hb_h, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x + t + w * 0.04, hb_y, w * 0.42, hb_h, *EQUIPMENT))
         for i in range(1, 6):
             hx = x + t + w * (0.04 + 0.42 * i / 6)
-            canvas.add(Line(hx, hb_y, hx, hb_y + hb_h, L_COMPONENT, LW_THIN))
+            canvas.add(Line(hx, hb_y, hx, hb_y + hb_h, *PANEL_SEAM))
         item(canvas, legend, x + w * 0.28, hb_y - 5.0, f"Heater bank - {heating}".strip(" -") or "Heater bank")
 
         # Circulation blower on the roof, with its delivery duct into the chamber.
         br = min(w, h) * 0.055
         bcx, bcy = x + w * 0.24, y + t + br + 2.0
-        canvas.add(Circle(bcx, bcy, br, L_COMPONENT, LW_MED))
+        canvas.add(Circle(bcx, bcy, br, EQUIPMENT.layer, EQUIPMENT.width))
         canvas.add(Line(bcx, bcy + br, bcx, y + h * 0.42, L_COMPONENT, LW_THIN, DASH_HIDDEN))
         qty = f" ({blower_qty} nos)" if blower_qty else ""
         item(canvas, legend, bcx - br - 5.0, bcy,
@@ -907,7 +914,7 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
         t = min(w, h) * 0.05
-        canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, L_COMPONENT, LW_THIN))
+        canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
         if zones:
             for i in range(1, min(zones, 6)):
                 zx = x + w * i / min(zones, 6)
@@ -957,7 +964,7 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         bag_top = y + pl_h
         bag_bot = hop_y - 1.0
         ch = bag_bot - bag_top                    # clear chamber height
-        canvas.add(Rect(x, y, w, pl_h, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x, y, w, pl_h, *EQUIPMENT))
         item(canvas, legend, x + w * 0.06, bag_top + ch * 0.08,
              "Clean air plenum / outlet manifold")
 
@@ -965,7 +972,7 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         shown = min(bags, 12) if bags else 0
         for i in range(shown):
             bx = x + w * (i + 0.5) / shown
-            canvas.add(Line(bx, bag_top, bx, bag_bot, L_COMPONENT, LW_THIN))
+            canvas.add(Line(bx, bag_top, bx, bag_bot, *SYMBOL_DETAIL))
         if bags:
             # Off the vertical centre line, which the view already draws.
             item(canvas, legend, x + w * 0.30, bag_top + ch * 0.42, f"Filter element ({bags} nos)")
@@ -973,7 +980,7 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Hopper: a trapezoid narrowing to the discharge.
         canvas.add(poly([(x, hop_y), (x + w, hop_y),
                          (x + w * 0.58, y + h), (x + w * 0.42, y + h)],
-                        L_COMPONENT, LW_MED, closed=True))
+                        EQUIPMENT.layer, EQUIPMENT.width, closed=True))
         item(canvas, legend, x + w * 0.14, hop_y + hop_h * 0.22, "Dust hopper")
 
         # Rotary airlock at the hopper discharge. Drawn just INSIDE the
@@ -981,12 +988,13 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         if airlock:
             ar = min(hop_h * 0.20, w * 0.035)
             acx, acy = x + w * 0.5, y + h - ar - 1.0
-            canvas.add(Circle(acx, acy, ar, L_COMPONENT, LW_MED))
+            canvas.add(Circle(acx, acy, ar,
+                          EQUIPMENT.layer, EQUIPMENT.width))
             for k in range(4):
                 ang = math.pi * k / 4
                 canvas.add(Line(acx - ar * math.cos(ang), acy - ar * math.sin(ang),
                                 acx + ar * math.cos(ang), acy + ar * math.sin(ang),
-                                L_COMPONENT, LW_THIN))
+                                *SYMBOL_DETAIL))
             item(canvas, legend, x + w * 0.80, acy, f"Rotary airlock {airlock}".strip())
 
         # Induced-draught fan on the clean side. Drawn INSIDE the plenum: the
@@ -1010,7 +1018,7 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Tube sheet — the plate the elements hang from, and the boundary
         # between dirty and clean air. It is what makes the section readable as
         # a filter rather than an empty box.
-        canvas.add(Line(x, y + pl_h, x + w, y + pl_h, L_COMPONENT, LW_MED))
+        canvas.add(Line(x, y + pl_h, x + w, y + pl_h, *EQUIPMENT))
 
         # Pulse-jet cleaning: compressed-air header across the tube sheet with a
         # blow pipe per solenoid. Drawn only when the spec actually resolved a
@@ -1018,13 +1026,13 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # never gets a header it does not have.
         if solenoids or "pulse" in str(cleaning).lower():
             hdr_y = y + pl_h * 0.34
-            canvas.add(Line(x + w * 0.06, hdr_y, x + w * 0.62, hdr_y, L_COMPONENT, LW_MED))
+            canvas.add(Line(x + w * 0.06, hdr_y, x + w * 0.62, hdr_y, *EQUIPMENT))
             n_sol = max(1, min(solenoids or 4, 8))
             for i in range(n_sol):
                 sx = x + w * (0.10 + 0.48 * (i / max(1, n_sol - 1)))
-                canvas.add(Line(sx, hdr_y, sx, y + pl_h, L_COMPONENT, LW_THIN))
+                canvas.add(Line(sx, hdr_y, sx, y + pl_h, *SYMBOL_DETAIL))
                 canvas.add(Rect(sx - w * 0.011, hdr_y - pl_h * 0.20,
-                                w * 0.022, pl_h * 0.20, L_COMPONENT, LW_THIN))
+                                w * 0.022, pl_h * 0.20, *SYMBOL_DETAIL))
             desc = "Pulse-jet compressed air header"
             if solenoids:
                 desc += f", solenoid valve ({solenoids} nos)"
@@ -1034,8 +1042,9 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # tells the operator when the elements are blinding.
         dpr = min(pl_h * 0.26, w * 0.028)
         dpx, dpy = x + w * 0.06, bag_top + ch * 0.40
-        canvas.add(Circle(dpx, dpy, dpr, L_COMPONENT, LW_THIN))
-        canvas.add(Line(dpx, dpy, dpx + dpr * 0.7, dpy - dpr * 0.7, L_COMPONENT, LW_THIN))
+        canvas.add(Circle(dpx, dpy, dpr,
+                          INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
+        canvas.add(Line(dpx, dpy, dpx + dpr * 0.7, dpy - dpr * 0.7, *SYMBOL_DETAIL))
         item(canvas, legend, dpx + dpr + 4.5, dpy, "Differential pressure gauge")
 
     side = views.get("side")
@@ -1044,10 +1053,10 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         pl_h = h * 0.13
         hop_h = h * 0.30
         hop_y = y + h - hop_h
-        canvas.add(Line(x, y + pl_h, x + w, y + pl_h, L_COMPONENT, LW_MED))
+        canvas.add(Line(x, y + pl_h, x + w, y + pl_h, *EQUIPMENT))
         canvas.add(poly([(x, hop_y), (x + w, hop_y),
                          (x + w * 0.62, y + h), (x + w * 0.38, y + h)],
-                        L_COMPONENT, LW_MED, closed=True))
+                        EQUIPMENT.layer, EQUIPMENT.width, closed=True))
 
         # Dirty-air inlet into the chamber, and the clean-air outlet off the
         # plenum. Both are drawn INSIDE the outline as wall stubs: a duct hung
@@ -1066,7 +1075,7 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Outlet arrow runs HORIZONTALLY inside the plenum and carries no
         # caption. Drawn vertically it needed a label above the tip, which
         # landed OUTSIDE the envelope's top edge; the balloon already names it.
-        canvas.add(Rect(x + w * 0.80, y, w * 0.16, pl_h, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x + w * 0.80, y, w * 0.16, pl_h, *EQUIPMENT))
         airflow(canvas, [(x + w * 0.60, y + pl_h * 0.5), (x + w * 0.78, y + pl_h * 0.5)])
         if exhaust:
             item(canvas, legend, x + w * 0.46, y + pl_h * 0.5, _clip(f"Exhaust duct {exhaust}"))
@@ -1076,9 +1085,9 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         dw2, dh2 = w * 0.30, ch2 * 0.34
         dx2 = x + w * 0.34
         dy2 = y + pl_h + ch2 * 0.52
-        canvas.add(Rect(dx2, dy2, dw2, dh2, L_COMPONENT, LW_THIN))
+        canvas.add(Rect(dx2, dy2, dw2, dh2, *SYMBOL_DETAIL))
         canvas.add(Circle(dx2 + dw2 * 0.86, dy2 + dh2 * 0.5, min(dw2, dh2) * 0.09,
-                          L_COMPONENT, LW_THIN))
+                          SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width))
         item(canvas, legend, dx2 + dw2 + 5.0, dy2 + dh2 * 0.5, "Filter access door")
 
     if plan:
@@ -1093,7 +1102,8 @@ def dust_collector(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
                 for cc in range(cols):
                     cxp = x + w * (cc + 0.5) / cols
                     cyp = y + h * (rr + 0.5) / rowsn
-                    canvas.add(Circle(cxp, cyp, max(r, 0.4), L_COMPONENT, LW_THIN))
+                    canvas.add(Circle(cxp, cyp, max(r, 0.4),
+                          INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
             # Inside the outline: below it sits the width dimension and caption.
             canvas.add(Text(x + w * 0.5, y - 2.5,
                             f"{bags} FILTER ELEMENTS - ARRANGEMENT INDICATIVE",
@@ -1191,8 +1201,9 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
         # conveyor, so the envelope top IS the hook line.
         hx = x + w * 0.5
         hr = min(w, h) * 0.035
-        canvas.add(Circle(hx, y - hr - 2.0, hr, L_COMPONENT, LW_MED))
-        canvas.add(Line(hx, y - 2.0, hx, y + h * 0.06, L_COMPONENT, LW_THIN))
+        canvas.add(Circle(hx, y - hr - 2.0, hr,
+                          EQUIPMENT.layer, EQUIPMENT.width))
+        canvas.add(Line(hx, y - 2.0, hx, y + h * 0.06, *SYMBOL_DETAIL))
         canvas.add(Line(x - 6.0, y - hr - 2.0, x + w + 6.0, y - hr - 2.0,
                         L_COMPONENT, LW_THIN, DASH_CENTRE))
         track_txt = f" ({track} m track)" if track else ""
@@ -1233,13 +1244,13 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
             bx0 = x + (w - span) / 2
             for i, name in enumerate(stations):
                 bx = bx0 + i * (bw + gap)
-                canvas.add(Rect(bx, band_y, bw, band_h, L_COMPONENT, LW_MED))
+                canvas.add(Rect(bx, band_y, bw, band_h, *EQUIPMENT))
                 canvas.add(Text(bx + bw / 2, band_y + band_h * 0.60,
                                 name[:max(3, int(bw / 1.25))], L_TEXT, T_TINY, "middle"))
                 if i:
                     canvas.add(poly([(bx, cy), (bx - gap * 0.85, cy - 1.4),
                                      (bx - gap * 0.85, cy + 1.4)],
-                                    L_COMPONENT, LW_THIN, "currentColor"))
+                                    SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width, "currentColor"))
             canvas.add(Text(x + w * 0.5, band_y - 2.6,
                             "PROCESS SEQUENCE - SCHEMATIC, NOT TO SCALE",
                             L_TEXT, T_CAPTION, "middle"))
@@ -1249,7 +1260,7 @@ def powder_coating_plant(canvas, views: dict, rows: list) -> list[tuple[str, str
             canvas.add(Line(x + w * 0.12, cy, x + w * 0.84, cy,
                             L_COMPONENT, LW_THIN, DASH_CENTRE))
             canvas.add(poly([(x + w * 0.88, cy), (x + w * 0.84, cy - 1.6),
-                             (x + w * 0.84, cy + 1.6)], L_COMPONENT, LW_THIN, "currentColor"))
+                             (x + w * 0.84, cy + 1.6)], SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width, "currentColor"))
             canvas.add(Text(x + w * 0.5, cy - 2.2, "DIRECTION OF TRAVEL", L_TEXT, T_CAPTION, "middle"))
             item(canvas, legend, x + w * 0.16, cy + 5.5, "Plant line direction")
 
@@ -1298,21 +1309,21 @@ def conveyor(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         x, y, w, h = front.x, front.y, front.w, front.h
         # Track at the top of the envelope, carriers hanging below it.
         ty = y + h * 0.12
-        canvas.add(Line(x, ty, x + w, ty, L_COMPONENT, LW_MED))
-        canvas.add(Line(x, ty + 1.6, x + w, ty + 1.6, L_COMPONENT, LW_THIN))
+        canvas.add(Line(x, ty, x + w, ty, *EQUIPMENT))
+        canvas.add(Line(x, ty + 1.6, x + w, ty + 1.6, *SYMBOL_DETAIL))
         item(canvas, legend, x + w * 0.08, ty - 5.0, f"Track - {ctype or 'overhead conveyor'} {moc}".strip())
 
         # Carriers at an indicative pitch (no engineered pitch is given).
         for i in range(8):
             cx = x + w * (i + 0.5) / 8
-            canvas.add(Line(cx, ty + 1.6, cx, y + h * 0.55, L_COMPONENT, LW_THIN))
+            canvas.add(Line(cx, ty + 1.6, cx, y + h * 0.55, *SYMBOL_DETAIL))
             canvas.add(Line(cx - w * 0.012, y + h * 0.55, cx + w * 0.012, y + h * 0.55,
-                            L_COMPONENT, LW_THIN))
+                            *SYMBOL_DETAIL))
         item(canvas, legend, x + w * 0.5, y + h * 0.62, "Carrier / hanger - pitch indicative")
 
         # Drive unit at the far end.
         dwid, dhei = w * 0.06, h * 0.10
-        canvas.add(Rect(x + w - dwid, ty - dhei, dwid, dhei, L_COMPONENT, LW_MED))
+        canvas.add(Rect(x + w - dwid, ty - dhei, dwid, dhei, *EQUIPMENT))
         item(canvas, legend, x + w - dwid - 5.5, ty - dhei * 0.5, f"Drive unit - {operation or 'drive'}".strip())
 
     if plan:
@@ -1326,9 +1337,9 @@ def conveyor(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         x, y, w, h = side.x, side.y, side.w, side.h
         # Track section on the side elevation.
         canvas.add(Line(x + w * 0.5 - w * 0.22, y + h * 0.12, x + w * 0.5 + w * 0.22,
-                        y + h * 0.12, L_COMPONENT, LW_MED))
+                        y + h * 0.12, *EQUIPMENT))
         canvas.add(Line(x + w * 0.5, y + h * 0.12, x + w * 0.5, y + h * 0.55,
-                        L_COMPONENT, LW_THIN))
+                        *SYMBOL_DETAIL))
     return legend
 
 
@@ -1350,14 +1361,15 @@ def ducting(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         # Flanged joints at an indicative spool pitch.
         for i in range(1, 8):
             jx = x + w * i / 8
-            canvas.add(Line(jx, y - 1.6, jx, y + h + 1.6, L_COMPONENT, LW_THIN))
+            canvas.add(Line(jx, y - 1.6, jx, y + h + 1.6, *SYMBOL_DETAIL))
         item(canvas, legend, x + w * 0.5, y + h * 0.5, f"Flanged duct spool {material}".strip())
         canvas.add(Text(x + w * 0.5, y - 4.0, "DEVELOPED LENGTH - ROUTING NOT SHOWN",
                         L_TEXT, T_DIM, "middle"))
 
     if side:
         x, y, w, h = side.x, side.y, side.w, side.h
-        canvas.add(Circle(x + w / 2, y + h / 2, min(w, h) * 0.42, L_COMPONENT, LW_MED))
+        canvas.add(Circle(x + w / 2, y + h / 2, min(w, h) * 0.42,
+                          DUCT.layer, DUCT.width))
         item(canvas, legend, x + w * 0.5, y + h * 0.5, f"Duct section {duct}".strip())
 
     if plan:
@@ -1378,14 +1390,14 @@ def cleaning_room(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         _door(canvas, front, legend, "Personnel / component door, double leaf")
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
         # Ceiling inlet plenum: a room is supplied from above and extracted low.
-        canvas.add(Rect(front.x, front.y, front.w, front.h * 0.05, L_COMPONENT, LW_THIN))
+        canvas.add(Rect(front.x, front.y, front.w, front.h * 0.05, *SYMBOL_DETAIL))
         canvas.add(Text(front.x + front.w * 0.5, front.y + front.h * 0.28,
                         "CLEANING ROOM", L_TEXT, T_BODY, "middle"))
     if plan:
         depth = _filter_bank(canvas, plan, 0, legend, "Extract filter face")
         _fan(canvas, plan, depth, legend, _blower_label(rows))
         canvas.add(Line(plan.x, plan.y + plan.h * 0.10, plan.x + plan.w,
-                        plan.y + plan.h * 0.10, L_HIDDEN, LW_THIN, DASH_HIDDEN))
+                        plan.y + plan.h * 0.10, *HIDDEN_LINE))
         canvas.add(Text(plan.x + plan.w * 0.5, plan.y + plan.h * 0.075,
                         "FILTERED AIR INLET SIDE", L_TEXT, T_CAPTION, "middle"))
     return legend
@@ -1431,7 +1443,7 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         item(canvas, legend, front.x + ow * 0.5, oy - 5.0, "Component entry / exit opening")
         # Roof extract plenum.
         canvas.add(Rect(front.x + front.w * 0.20, front.y, front.w * 0.60,
-                        front.h * 0.10, L_COMPONENT, LW_MED))
+                        front.h * 0.10, *EQUIPMENT))
         item(canvas, legend, front.x + front.w * 0.5, front.y + front.h * 0.16, f"Roof extract plenum - {_blower_label(rows)}".strip(" -"))
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
@@ -1439,7 +1451,7 @@ def flash_off_zone(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         canvas.add(Line(plan.x, cy, plan.x + plan.w, cy, L_COMPONENT, LW_THIN, DASH_CENTRE))
         canvas.add(poly([(plan.x + plan.w * 0.90, cy), (plan.x + plan.w * 0.84, cy - 1.8),
                          (plan.x + plan.w * 0.84, cy + 1.8)],
-                        L_COMPONENT, LW_THIN, "currentColor"))
+                        SYMBOL_DETAIL.layer, SYMBOL_DETAIL.width, "currentColor"))
         canvas.add(Text(plan.x + plan.w * 0.5, cy - 2.2, "DIRECTION OF TRAVEL",
                         L_TEXT, T_CAPTION, "middle"))
         item(canvas, legend, plan.x + plan.w * 0.16, cy + 5.5, "Conveyor / trolley line through zone")
@@ -1460,28 +1472,29 @@ def paint_drying_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
         t = min(w, h) * 0.05
-        canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, L_COMPONENT, LW_THIN))
+        canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
         item(canvas, legend, x + w * 0.07, y + h * 0.22, f"Insulated panel lining {insulation}".strip())
 
         # Heater / air-handling unit against the end wall.
         hb_w, hb_h = w * 0.18, h * 0.30
         canvas.add(Rect(x + t + w * 0.03, y + h - t - hb_h, hb_w, hb_h,
-                        L_COMPONENT, LW_MED))
+                        *EQUIPMENT))
         canvas.add(Circle(x + t + w * 0.03 + hb_w / 2, y + h - t - hb_h / 2,
-                          min(hb_w, hb_h) * 0.26, L_COMPONENT, LW_THIN))
+                          min(hb_w, hb_h) * 0.26,
+                          INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
         item(canvas, legend, x + t + w * 0.03 + hb_w + 6.0, y + h - t - hb_h * 0.5, f"Heating / recirculation unit {heating}".strip())
 
         # Exhaust stack rising off the roof, drawn inside the sheet.
         sx = x + w * 0.72
-        canvas.add(Line(sx, y + t, sx, y + h * 0.30, L_COMPONENT, LW_MED),
+        canvas.add(Line(sx, y + t, sx, y + h * 0.30, *DUCT),
                    Line(sx + w * 0.03, y + t, sx + w * 0.03, y + h * 0.30,
-                        L_COMPONENT, LW_MED))
+                        *DUCT))
         item(canvas, legend, sx + w * 0.09, y + h * 0.22, "Exhaust stack")
         _lights(canvas, front, lights, legend, _luminaire_label(rows))
     if plan:
         t = min(plan.w, plan.h) * 0.05
         canvas.add(Rect(plan.x + t, plan.y + t, plan.w - 2 * t, plan.h - 2 * t,
-                        L_COMPONENT, LW_THIN))
+                        *PANEL_SEAM))
         cy = plan.y + plan.h * 0.72
         canvas.add(Line(plan.x + t, cy, plan.x + plan.w - t, cy,
                         L_COMPONENT, LW_THIN, DASH_CENTRE))
@@ -1506,7 +1519,7 @@ def blast_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         hop_h = h * 0.22
         hy = y + h - hop_h
         canvas.add(poly([(x, hy), (x + w, hy), (x + w * 0.56, y + h),
-                         (x + w * 0.44, y + h)], L_COMPONENT, LW_MED))
+                         (x + w * 0.44, y + h)], EQUIPMENT.layer, EQUIPMENT.width))
         item(canvas, legend, x + w * 0.16, hy + hop_h * 0.30, f"Media recovery hopper {recovery}".strip())
 
         _door(canvas, front, legend, "Blast enclosure door", frac=0.28)
@@ -1542,7 +1555,7 @@ def pretreatment_plant(canvas, views: dict, rows: list) -> list[tuple[str, str]]
                 tx = x + w * i / stages
                 canvas.add(Rect(tx + w * 0.01 / stages, y + h * 0.16,
                                 w / stages - w * 0.02 / stages, h * 0.68,
-                                L_COMPONENT, LW_MED))
+                                *EQUIPMENT))
             item(canvas, legend, x + w * 0.5, y + h * 0.08, f"Process tank ({stages} stages) {tank_moc}".strip())
         else:
             canvas.add(Text(x + w * 0.5, y + h * 0.5,
@@ -1557,11 +1570,11 @@ def pretreatment_plant(canvas, views: dict, rows: list) -> list[tuple[str, str]]
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
         # Tank tops at a common working level.
-        canvas.add(Line(x, y + h * 0.34, x + w, y + h * 0.34, L_COMPONENT, LW_MED))
+        canvas.add(Line(x, y + h * 0.34, x + w, y + h * 0.34, *EQUIPMENT))
         if stages:
             for i in range(1, stages):
                 sx = x + w * i / stages
-                canvas.add(Line(sx, y + h * 0.34, sx, y + h, L_COMPONENT, LW_THIN))
+                canvas.add(Line(sx, y + h * 0.34, sx, y + h, *PANEL_SEAM))
         item(canvas, legend, x + w * 0.10, y + h * 0.24, f"Tank working level {tank_size}".strip())
     return legend
 
@@ -1582,18 +1595,18 @@ def fume_extraction(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         x, y, w, h = front.x, front.y, front.w, front.h
         # Main header at high level, hoods dropping off it.
         hy = y + h * 0.16
-        canvas.add(Line(x, hy, x + w, hy, L_COMPONENT, LW_MED),
-                   Line(x, hy + 2.0, x + w, hy + 2.0, L_COMPONENT, LW_THIN))
+        canvas.add(Line(x, hy, x + w, hy, *DUCT),
+                   Line(x, hy + 2.0, x + w, hy + 2.0, *SYMBOL_DETAIL))
         item(canvas, legend, x + w * 0.08, hy - 5.0, f"Extract header {duct}".strip())
 
         if points:
             shown = min(points, 8)
             for i in range(shown):
                 hx = x + w * (i + 0.5) / shown
-                canvas.add(Line(hx, hy + 2.0, hx, y + h * 0.52, L_COMPONENT, LW_THIN))
+                canvas.add(Line(hx, hy + 2.0, hx, y + h * 0.52, *SYMBOL_DETAIL))
                 canvas.add(poly([(hx - w * 0.03, y + h * 0.66), (hx + w * 0.03, y + h * 0.66),
                                  (hx + w * 0.008, y + h * 0.52), (hx - w * 0.008, y + h * 0.52)],
-                                L_COMPONENT, LW_MED))
+                                EQUIPMENT.layer, EQUIPMENT.width))
             item(canvas, legend, x + w * 0.5, y + h * 0.76, f"Capture hood ({points} nos)")
     if plan:
         depth = _filter_bank(canvas, plan, 0, legend, "Plant / collector connection")

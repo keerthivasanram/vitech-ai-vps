@@ -696,6 +696,27 @@ for _q in ("paint booth 5m x 3m x 4m",
               f"{_size}: every standing note survives a full column ({_q[:26]})")
 
 
+# --- a Pen may only be splatted into a shape whose tail arg is `dash` ------
+# `Line` and `Rect` end (layer, width, dash), so `*PEN` reads cleanly. `Circle`
+# and `poly` end (layer, width, FILL) — splatting a Pen there silently passes
+# the Pen's dash (None) as the fill, emitting fill="None". Under cairosvg that
+# still renders hollow, so it is invisible on screen; but `export.py` treats any
+# fill outside ("none", "", None) as SOLID, so the shape prints as a black blob
+# in the PDF. A digest caught it once; this keeps it caught.
+_FILL_OK = {"none", "", "currentColor"}
+for _cat in SYMBOLS:
+    _svg = build_drawing({"category": _cat, "category_label": _cat,
+                          "geometry": {"envelope_mm": {"length": 6000, "width": 3000,
+                                                       "height": 4000}, "ready": True},
+                          "technical_details": [
+                              {"label": "Illumination", "value": "LED 6 nos"},
+                              {"label": "Spray nozzle", "value": "8 nos"},
+                              {"label": "Blower motor hp", "value": "15"}]})["svg"]
+    _fills = set(re.findall(r'fill="([^"]*)"', _svg))
+    _bad = sorted(f for f in _fills if f not in _FILL_OK)
+    check(not _bad, f"{_cat}: every fill value is valid SVG (bad: {_bad})")
+
+
 if FAILS:
     print(f"{len(FAILS)} DRAWING TEST FAIL")
     for f in FAILS:
