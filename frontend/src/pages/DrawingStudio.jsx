@@ -28,7 +28,7 @@ const MAX_ZOOM = 8;
    readout mean something: 100% is A3 at A3, not "as wide as the panel". */
 const MM_PX = 96 / 25.4;
 /* Breathing room left around the sheet when fitting it to the viewport. */
-const FIT_PAD = 34;
+const FIT_PAD = 24;
 // Zoom response per pixel of wheel travel. A mouse notch is 120 px, so this is
 // a ~4% step: deliberately gentle, because a 10-15% step compounded past 300%
 // in a dozen turns and made the sheet impossible to hold steady.
@@ -173,6 +173,25 @@ export function DrawingStudio() {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const drag = useRef(null);
   const viewportRef = useRef(null);
+  const rootRef = useRef(null);
+
+  /* The studio lays itself out from ITS OWN width, not the window's.
+     Media queries got this wrong in a way that was easy to miss: at a 1280px
+     window the app's navigation rail is already taking 264px, so the studio
+     had ~1000px and still tried to hold two side rails and a canvas — the
+     sheet fitted at 24% and was unreadable. */
+  const [deck, setDeck] = useState(1400);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return undefined;
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(([e]) => setDeck(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // Below ~1180 the assistant stacks under the drawing; below ~900 so do the
+  // parameters, because a canvas narrower than that cannot show a sheet.
+  const layout = deck < 900 ? "is-stack" : deck < 1180 ? "is-narrow" : "is-wide";
 
   const [chat, setChat] = useState([]);
   const [ask, setAsk] = useState("");
@@ -184,7 +203,11 @@ export function DrawingStudio() {
      because which rails an engineer wants open is a working preference, not a
      per-visit decision. */
   const [railL, setRailL] = useState(() => localStorage.getItem("vitech_ds_l") !== "0");
-  const [railR, setRailR] = useState(() => localStorage.getItem("vitech_ds_r") !== "0");
+  /* The assistant starts CLOSED. It was 320px of mostly empty rail on open —
+     one paragraph at the top, a composer at the bottom — and it was taking a
+     third of the width away from the sheet, which is the thing this screen is
+     for. It is one click away in the toolbar and stays open once opened. */
+  const [railR, setRailR] = useState(() => localStorage.getItem("vitech_ds_r") === "1");
   const toggleRailL = () => setRailL((v) => { localStorage.setItem("vitech_ds_l", v ? "0" : "1"); return !v; });
   const toggleRailR = () => setRailR((v) => { localStorage.setItem("vitech_ds_r", v ? "0" : "1"); return !v; });
 
@@ -465,7 +488,8 @@ export function DrawingStudio() {
   const sheetCount = drawing?.views?.length ?? 0;
 
   return (
-    <div className={`ds${railL ? "" : " no-l"}${railR ? "" : " no-r"}`}>
+    <div ref={rootRef}
+         className={`ds ${layout}${railL ? "" : " no-l"}${railR ? "" : " no-r"}`}>
       {/* ---------------- top toolbar ----------------
           One dense strip, CAD-fashion: identity, what is on the sheet, the
           layout switches and the export cluster. The scale / sheet / TBD chips
@@ -555,20 +579,23 @@ export function DrawingStudio() {
                     ))}
                   </select>
                 </label>
-                <div className="ds-grid2">
-                  <label className="ds-field">
-                    <span>Drawing type</span>
-                    <select className="ds-select" value={drawingType} onChange={(e) => setDrawingType(e.target.value)}>
-                      {catalog?.drawing_types?.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-                    </select>
-                  </label>
-                  <label className="ds-field">
-                    <span>Sheet</span>
-                    <select className="ds-select" value={sheetSize} onChange={(e) => setSheetSize(e.target.value)}>
-                      {catalog?.sheet_sizes?.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-                    </select>
-                  </label>
-                </div>
+                {/* Full width, not a half each: "General Arrangement (3 views)"
+                    truncated to "General Arrangeme…" in half a 268px rail, and
+                    the half it was sharing held three characters. */}
+                <label className="ds-field">
+                  <span>Drawing type</span>
+                  <select className="ds-select" value={drawingType} onChange={(e) => setDrawingType(e.target.value)}>
+                    {catalog?.drawing_types?.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                  </select>
+                </label>
+                <label className="ds-field">
+                  <span>Sheet size</span>
+                  <select className="ds-select" value={sheetSize} onChange={(e) => setSheetSize(e.target.value)}>
+                    {catalog?.sheet_sizes?.map((s) => (
+                      <option key={s.key} value={s.key}>{s.label || s.key}</option>
+                    ))}
+                  </select>
+                </label>
                 {/* Presets are a one-line starting point rather than fourteen
                     cards: they seed a category's required inputs, and after the
                     first use nobody needs to see the whole catalogue again. */}
@@ -784,7 +811,7 @@ export function DrawingStudio() {
                  style={{
                    width: sheetMm ? `${sheetMm.w}mm` : "100%",
                    height: sheetMm ? `${sheetMm.h}mm` : "100%",
-                   transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
+                   transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom}) translate(-50%, -50%)`,
                  }}
                  dangerouslySetInnerHTML={{ __html: drawing.svg }} />
           </div>
@@ -795,8 +822,10 @@ export function DrawingStudio() {
             <div className="ds-empty-icon"><PenTool size={22} strokeWidth={1.6} /></div>
             <h4>No drawing yet</h4>
             <p>
-              Set the equipment and its dimensions on the left, or ask the
-              assistant — try <kbd>draw a paint booth 5m x 3m x 4m</kbd>.
+              Set the equipment and its dimensions on the left, then Generate.
+              {!railR && <> Or describe it in words — open the
+              <button type="button" className="ds-link" onClick={toggleRailR}>Drawing Assistant</button>
+              and try <kbd>draw a paint booth 5m x 3m x 4m</kbd>.</>}
             </p>
           </div>
         )}

@@ -11,8 +11,8 @@
    ========================================================================== */
 
 .ds {
-  --ds-rail-l: 288px;
-  --ds-rail-r: 320px;
+  --ds-rail-l: 268px;
+  --ds-rail-r: 300px;
   --ds-bar-h: 44px;
   --ds-r: 12px;
   --ds-r-sm: 7px;
@@ -33,8 +33,11 @@
   grid-template-rows: var(--ds-bar-h) minmax(0, 1fr);
   grid-template-areas: "bar bar bar" "params viewport ai";
   gap: 0;
-  height: 100%;
-  min-height: calc(100vh - 116px);
+  /* Fills the workspace exactly, as a flex child — not `100vh` minus a guess
+     at the chrome above it, which is a number that goes stale the moment the
+     shell changes. */
+  flex: 1;
+  min-height: 520px;
   background: var(--ds-panel);
   border: 1px solid var(--ds-line);
   border-radius: var(--ds-r);
@@ -138,8 +141,6 @@
   min-width: 44px; padding: 0 9px;
   font-size: 11.5px; letter-spacing: 0.04em;
 }
-/* Narrow toolbars keep the buttons and drop the word, not the other way round. */
-@media (max-width: 1180px) { .ds-export-label { font-size: 0; gap: 0; margin-right: 0; } }
 
 /* --------------------------------------------------------------------------
    Panels (left parameters, right assistant)
@@ -267,6 +268,7 @@
 .ds-field .req { color: var(--primary); font-style: normal; }
 .ds-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 
+
 .ds-input, .ds-select {
   width: 100%; height: 34px; padding: 0 10px;
   border: 1px solid var(--border-strong); border-radius: var(--ds-r-sm);
@@ -344,14 +346,26 @@
    size it prints. That is what makes Fit a separate, meaningful control:
    before this, "100%" meant "as wide as the panel happens to be", which on a
    tall viewport left the sheet stranded in half a screen of nothing. */
+/* CENTRING AN OVER-SIZED SHEET, which is the normal case: A3 at true size is
+   ~1587 x 1122 px and the viewport is smaller, so neither of the obvious
+   answers works. A grid track sizes to the sheet's max-content and starts at
+   the container's left edge, pushing it off the right. `inset: 0; margin:
+   auto` fails too, but only horizontally — CSS 2.1 §10.3.7 says that when
+   auto side margins would come out NEGATIVE, an ltr box sets margin-left to
+   zero and solves for the right instead, while §10.6.4 gives the vertical
+   axis no such exception. So the sheet is pinned at the centre point and the
+   transform does the rest: the trailing translate(-50%, -50%) is applied to
+   the element's own box FIRST, so the sheet stays centred at every zoom and
+   the pan offset stays 1:1 with the mouse. `transform-origin: 0 0` keeps that
+   composition exactly as written. */
 .ds-stage {
   position: absolute; inset: 0;
-  display: grid; place-items: center;
   pointer-events: none;
 }
 .ds-sheet {
-  flex: none;
-  transform-origin: center center;
+  position: absolute;
+  left: 50%; top: 50%;
+  transform-origin: 0 0;
   background: #fff;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.16), 0 10px 30px rgba(16, 24, 40, 0.14);
   will-change: transform;
@@ -439,6 +453,7 @@
 .ds-empty {
   position: absolute; inset: 0 0 26px; display: grid; place-content: center; justify-items: center;
   gap: 11px; padding: 30px; text-align: center; pointer-events: none;
+  z-index: 2;
 }
 .ds-empty-icon {
   width: 50px; height: 50px; display: grid; place-items: center; border-radius: var(--r-card);
@@ -446,7 +461,14 @@
   color: var(--primary);
 }
 .ds-empty h4 { margin: 0; font-size: 14px; font-weight: 650; color: var(--ds-ink); }
-.ds-empty p { margin: 0; max-width: 320px; font-size: 12.5px; line-height: 1.6; color: var(--ds-faint); }
+.ds-empty p { margin: 0; max-width: 360px; font-size: 12.5px; line-height: 1.7; color: var(--ds-faint); }
+/* The empty state has to be able to point at a rail that is closed by default. */
+.ds-link {
+  pointer-events: auto;
+  border: 0; background: none; padding: 0 2px; cursor: pointer;
+  font: inherit; color: var(--primary); font-weight: 600;
+}
+.ds-link:hover { text-decoration: underline; }
 .ds-empty kbd {
   font-family: var(--font-mono); font-size: 11px; padding: 1.5px 6px; border-radius: 5px;
   background: var(--ds-sunken); border: 1px solid var(--ds-line); color: var(--ds-dim);
@@ -455,7 +477,7 @@
 /* --------------------------------------------------------------------------
    AI assistant rail
    -------------------------------------------------------------------------- */
-.ds-ai-log { flex: 1; min-height: 0; overflow-y: auto; padding: 13px; display: flex; flex-direction: column; gap: 13px; }
+.ds-ai-log { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
 .ds-msg { display: flex; gap: 9px; animation: ds-msg-in 0.26s var(--ds-ease) both; }
 @keyframes ds-msg-in { from { opacity: 0; transform: translateY(5px); } }
 .ds-msg-av {
@@ -480,12 +502,11 @@
 @keyframes ds-blink { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
 
 .ds-composer {
-  flex: none; padding: 11px; border-top: 1px solid var(--ds-line); background: var(--ds-sunken);
-  display: flex; flex-direction: column; gap: 8px;
+  flex: none; padding: 10px; border-top: 1px solid var(--ds-line); background: var(--ds-sunken);
 }
 .ds-composer-in {
-  display: flex; align-items: center; gap: 8px; padding: 5px 5px 5px 11px;
-  background: var(--ds-panel); border: 1px solid var(--border-strong); border-radius: 10px;
+  display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 10px;
+  background: var(--ds-panel); border: 1px solid var(--border-strong); border-radius: var(--r-sm);
   transition: border-color 0.16s var(--ds-ease), box-shadow 0.16s var(--ds-ease);
 }
 .ds-composer-in:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.13); }
@@ -493,12 +514,14 @@
 .ds-composer-in input::placeholder { color: var(--ds-faint); }
 .ds-send {
   width: 30px; height: 30px; flex: none; display: grid; place-items: center;
-  border: none; border-radius: 8px; background: var(--primary); color: #fff; cursor: pointer;
+  border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer;
   transition: filter 0.14s var(--ds-ease), opacity 0.14s var(--ds-ease);
 }
 .ds-send:hover:not(:disabled) { filter: brightness(1.07); }
 .ds-send:disabled { opacity: 0.4; cursor: default; }
-.ds-suggest { display: flex; flex-wrap: wrap; gap: 5px; }
+/* The starters live under the assistant's opening line now, not pinned above
+   the composer with the whole rail empty between the two. */
+.ds-suggest { display: flex; flex-wrap: wrap; gap: 5px; padding-left: 33px; }
 .ds-suggest button {
   font-size: 10.5px; padding: 4px 9px; border-radius: 999px; cursor: pointer;
   background: var(--ds-panel); border: 1px solid var(--ds-line); color: var(--ds-faint);
@@ -513,25 +536,69 @@ body.studio-focus .sidebar,
 body.studio-focus .viewbar { display: none !important; }
 body.studio-focus .shell { max-width: none; padding: 0; }
 body.studio-focus .workspace { padding: 0; gap: 0; }
-body.studio-focus .ds { min-height: 100vh; height: 100vh; padding: 10px; }
+body.studio-focus .workspace-main { padding: 0; }
+body.studio-focus .ds {
+  min-height: 100vh; height: 100vh;
+  border: 0; border-radius: 0; box-shadow: none;
+}
 
 /* --------------------------------------------------------------------------
-   Responsive
+   Responsive — driven by the studio's OWN width (see `layout` in
+   DrawingStudio.jsx), never the window's. The navigation rail beside it means
+   the two are hundreds of pixels apart, and a media query cannot see that.
    -------------------------------------------------------------------------- */
-@media (max-width: 1420px) { .ds { --ds-rail-l: 268px; --ds-rail-r: 306px; } }
-@media (max-width: 1180px) {
-  .ds {
-    grid-template-columns: 264px minmax(0, 1fr);
-    grid-template-rows: 48px minmax(0, 1fr) 240px;
-    grid-template-areas: "bar bar" "params viewport" "params ai";
-  }
+.ds.is-narrow { --ds-rail-l: 250px; }
+
+/* One side rail at a time: the assistant moves under the drawing so the
+   canvas keeps the full width. */
+.ds.is-narrow {
+  grid-template-columns: var(--ds-rail-l) minmax(0, 1fr);
+  grid-template-rows: var(--ds-bar-h) minmax(0, 1fr) 220px;
+  grid-template-areas: "bar bar" "params viewport" "params ai";
 }
-@media (max-width: 860px) {
-  .ds {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 48px 340px minmax(0, 1fr) 240px;
-    grid-template-areas: "bar" "viewport" "params" "ai";
-    min-height: auto;
-  }
-  .ds-bar-sub { display: none; }
+.ds.is-narrow.no-l {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--ds-bar-h) minmax(0, 1fr) 220px;
+  grid-template-areas: "bar" "viewport" "ai";
 }
+.ds.is-narrow.no-r {
+  grid-template-columns: var(--ds-rail-l) minmax(0, 1fr);
+  grid-template-rows: var(--ds-bar-h) minmax(0, 1fr);
+  grid-template-areas: "bar bar" "params viewport";
+}
+.ds.is-narrow.no-l.no-r {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--ds-bar-h) minmax(0, 1fr);
+  grid-template-areas: "bar" "viewport";
+}
+.ds.is-narrow .ds-ai { border-left: 0; border-top: 1px solid var(--ds-line); }
+
+/* Narrower still: everything stacks, and the studio stops filling the window.
+   Four stacked rows do not fit one screen, and `flex: 1` with a `1fr` row for
+   the parameters crushed that row to ~90px — the Generate button printed
+   through the assistant beneath it. Stacked, the page scrolls instead: the
+   drawing keeps a fixed height at the top and the parameters take the height
+   their content needs. */
+.ds.is-stack,
+.ds.is-stack.no-l,
+.ds.is-stack.no-r,
+.ds.is-stack.no-l.no-r {
+  flex: none;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--ds-bar-h) 360px auto 240px;
+  grid-template-areas: "bar" "viewport" "params" "ai";
+}
+.ds.is-stack.no-l { grid-template-rows: var(--ds-bar-h) 360px 240px; grid-template-areas: "bar" "viewport" "ai"; }
+.ds.is-stack.no-r { grid-template-rows: var(--ds-bar-h) 360px auto; grid-template-areas: "bar" "viewport" "params"; }
+.ds.is-stack.no-l.no-r { grid-template-rows: var(--ds-bar-h) 460px; grid-template-areas: "bar" "viewport"; }
+/* Panel bodies stop being their own scrollers once the page is the scroller. */
+.ds.is-stack .ds-panel-body { overflow: visible; }
+.ds.is-stack .ds-params { border-right: 0; border-top: 1px solid var(--ds-line); }
+.ds.is-stack .ds-ai { border-left: 0; border-top: 1px solid var(--ds-line); }
+.ds.is-stack .ds-bar-sub,
+.ds.is-stack .ds-bar-doc { display: none; }
+
+/* Narrow toolbars keep the format buttons and drop the word. */
+.ds.is-narrow .ds-export-label,
+.ds.is-stack .ds-export-label { font-size: 0; gap: 0; margin-right: 0; }

@@ -142,6 +142,27 @@ T_CAPTION = 2.1          # in-view captions (FLOOR LEVEL, CROSS DRAFT)
 BALLOON_R = 3.2
 LEADER_DOT_R = 0.5
 
+# --- how wide text actually is ----------------------------------------------
+# MEASURED by rasterising the sheet's own face, not guessed: a guess of 0.62
+# for bold was low by a tenth and still overflowed a title-block cell. Two
+# pairs, because the two callers want opposite errors:
+#
+#   *_MEASURED  - the real ratio, for ESTIMATING an extent (the QA audit asks
+#                 "does this text overlap that one?", and an inflated ratio
+#                 would report collisions that are not there)
+#   *_SAFE      - with margin, for FITTING text into a fixed box (a layout must
+#                 err towards making text smaller, never towards overflow)
+CHAR_W_BOLD_MEASURED = 0.69
+CHAR_W_REG_MEASURED = 0.63
+CHAR_W_BOLD_SAFE = 0.75
+CHAR_W_REG_SAFE = 0.68
+
+# Below this a drafting text stops being readable at sheet scale. It is the
+# smallest size the type scale offers, and nothing on a sheet may print smaller
+# — including a title-block value that had to be shrunk to fit its cell, which
+# is a real defect and should be reported as one rather than quietly accepted.
+MIN_LEGIBLE_MM = T_TINY
+
 
 # --- dimension hierarchy ----------------------------------------------------
 # Parallel dimension lines are allocated to LANES at fixed offsets from the

@@ -1832,6 +1832,22 @@ def paint_drying_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
         t = min(plan.w, plan.h) * 0.05
         canvas.add(Rect(plan.x + t, plan.y + t, plan.w - 2 * t, plan.h - 2 * t,
                         *PANEL_SEAM))
+        # The plan carried the lining and a conveyor line and nothing else, so
+        # it showed none of the plant the elevation draws. Both are projected
+        # down here: the heating/recirculation unit against the end wall, and
+        # the exhaust stack. Nothing appears in plan that the elevation lacks.
+        px, py, pw, ph = plan.x, plan.y, plan.w, plan.h
+        hu_w, hu_d = pw * 0.18, ph * 0.30
+        canvas.add(Rect(px + t + pw * 0.03, py + t + ph * 0.06, hu_w, hu_d,
+                        *EQUIPMENT))
+        components.blower(canvas, px + t + pw * 0.03 + hu_w / 2,
+                          py + t + ph * 0.06 + hu_d / 2,
+                          min(hu_w, hu_d) * 0.30, discharge="right", motor=False)
+        canvas.add(Circle(px + pw * 0.72, py + ph * 0.18,
+                          min(pw, ph) * 0.045,
+                          EQUIPMENT.layer, EQUIPMENT.width))
+        canvas.add(Text(px + pw * 0.72, py + ph * 0.10, "STACK",
+                        L_TEXT, T_TINY, "middle"))
         cy = plan.y + plan.h * 0.72
         canvas.add(Line(plan.x + t, cy, plan.x + plan.w - t, cy,
                         *CENTRE_LINE))

@@ -262,10 +262,19 @@ class Canvas:
         self.w = width_mm
         self.h = height_mm
         self.shapes: list = []
+        # THE DIMENSIONS AS THEY WERE ASKED FOR, kept alongside the lines they
+        # expand into. A `Dim` becomes extension lines, arrowheads and a text
+        # the moment it is added, so by the time anything looks at `shapes`
+        # there is no way to ask "what did this dimension claim, and over what
+        # distance?" — which is exactly what the QA audit has to ask in order to
+        # catch a dimension attached to geometry that is not at that size.
+        # Purely additive: the emitted SVG does not read this list.
+        self.dims: list = []
 
     def add(self, *shapes):
         for s in shapes:
             if isinstance(s, Dim):
+                self.dims.append(s)
                 self.shapes.extend(s.shapes())
             elif isinstance(s, (list, tuple)) and not hasattr(s, "svg"):
                 self.add(*s)

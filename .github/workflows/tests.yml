@@ -1,8 +1,15 @@
 name: tests
 
-# The offline suites only. Ten of the thirteen need nothing but Python and the
-# repo, so they can gate every push; `tests_auth` and `tests_api_contract` need
-# a running server and a credential, and `tests_pdf` needs the dev extras.
+# The offline suites only. Most need nothing but Python and the repo, so they
+# can gate every push; `tests_auth` and `tests_api_contract` need a running
+# server and a credential, and `tests_pdf` needs the dev extras.
+#
+# `tests_drawing_qa` audits the finished SHEET rather than the code: it builds
+# every category in every drawing state at both sheet sizes and fails on empty
+# views, illegible text, overlapping dimensions, dimensions attached to geometry
+# that is not at that size, section captions with no cutting plane, truncated
+# unresolved schedules, and geometry outside the sheet. Every drawing defect
+# this engine has shipped was invisible in the source and obvious on the paper.
 #
 # WHY THIS EXISTS: the golden tests are the platform's proof that an engine
 # change did not move a customer-facing number, and until now nothing ran them
@@ -44,6 +51,9 @@ jobs:
 
       - name: Drawing
         run: python tests_drawing.py
+
+      - name: Drawing QA (audits every sheet the engine can produce)
+        run: python tests_drawing_qa.py
 
       - name: PDF renderers
         run: python tests_pdf.py

@@ -155,7 +155,7 @@ def _item_table(canvas, x: float, y: float, bom: list,
         y += line_h
         shown += 1
     if shown < len(bom) and y + line_h <= limit_y:
-        canvas.add(Text(x + 6.0, y, f"... and {len(bom) - shown} more",
+        canvas.add(Text(x + 6.0, y, f"... and {len(bom) - shown} more item(s) - see BOM",
                         L_TEXT, T_DIM, "start"))
         y += line_h
     return y + 3.0
@@ -345,7 +345,9 @@ def side_column(canvas, w: float, h: float, legend: list, notes: list,
                 y += line_h
             shown += 1
         if shown < len(tbd) and room():
-            canvas.add(Text(x + 5.0, y, f"... and {len(tbd) - shown} more",
+            canvas.add(Text(x + 5.0, y,
+                            f"... and {len(tbd) - shown} more unresolved item(s)"
+                            " - see specification",
                             L_TEXT, T_SMALL, "start"))
             y += line_h
         y += 3.0
