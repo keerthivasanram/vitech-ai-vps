@@ -55,6 +55,9 @@ jobs:
       - name: Drawing QA (audits every sheet the engine can produce)
         run: python tests_drawing_qa.py
 
+      - name: Requirement state (confirmed inputs never become TBD)
+        run: python tests_requirement_state.py
+
       - name: PDF renderers
         run: python tests_pdf.py
 
