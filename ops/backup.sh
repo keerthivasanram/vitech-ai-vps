@@ -61,10 +61,27 @@ fi
 if command -v pg_dump >/dev/null && [ -n "${POSTGRES_USER:-}" ]; then
   if PGPASSWORD="${POSTGRES_PASSWORD:-}" pg_dump -h localhost -U "$POSTGRES_USER" \
         -d "$POSTGRES_DB" -F p > "$STAGE/postgres/${POSTGRES_DB}.sql" 2>"$STAGE/pg.err"; then
-    flows=$(grep -c "INSERT INTO public.chat_flow" "$STAGE/postgres/${POSTGRES_DB}.sql" 2>/dev/null || echo 0)
-    tools=$(grep -c "INSERT INTO public.tool" "$STAGE/postgres/${POSTGRES_DB}.sql" 2>/dev/null || echo 0)
-    echo "  dumped $(du -h "$STAGE/postgres/${POSTGRES_DB}.sql" | cut -f1) | chatflow rows: $flows | tool rows: $tools"
+    # COUNT THE ROWS INSIDE THE COPY BLOCK, not INSERT statements. A plain
+    # pg_dump writes COPY ... FROM stdin followed by tab-separated rows, so
+    # grepping for "INSERT INTO public.chat_flow" returns 0 on a PERFECTLY GOOD
+    # dump — and this script would then warn that the agents were missing on
+    # every single run. A backup check that cries wolf every time is one nobody
+    # reads on the day it is right.
+    dump=$STAGE/postgres/${POSTGRES_DB}.sql
+    count_copy() {   # rows between "COPY public.<table> (" and the closing \.
+      awk -v tbl="$1" '
+        $0 ~ "^COPY public\\." tbl " \\(" {inblock=1; next}
+        inblock && $0 == "\\."            {inblock=0}
+        inblock                            {n++}
+        END {print n+0}' "$dump"
+    }
+    flows=$(count_copy chat_flow)
+    tools=$(count_copy tool)
+    echo "  dumped $(du -h "$dump" | cut -f1) | chatflow rows: $flows | tool rows: $tools"
     [ "$flows" -gt 0 ] || warn "the dump contains NO chatflow rows — the agents would NOT come back from it"
+    for agent in "Engineering Agent" "Quotation Agent" "Drawing Agent"; do
+      grep -qF "$agent" "$dump" || warn "'$agent' is NOT in the dump"
+    done
   else
     warn "pg_dump failed: $(head -2 "$STAGE/pg.err" | tr '\n' ' ')"
   fi
