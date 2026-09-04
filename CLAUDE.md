@@ -157,6 +157,69 @@ was recorded, `tests_api_contract` is 29/29 with nothing left failing.**
   and the booth BOM cost model / structure weight / margin model remain (the margin multiplier
   needs DQ-7 from Vitech, but the code can take it as an input now).
 
+### ▶ 2026-09-04 — REQUIREMENT STATE. A CONFIRMED INPUT CAN NO LONGER BECOME A TBD.
+
+Reported on a hot air oven stating overall size, panel thickness, door opening, operating AND
+maximum temperature and electric heating: the spec listed the overall dimensions and most of the
+rest under TO BE DETERMINED, **two tables below the same three axes printed as client-given data**.
+**Fourteen of fifteen categories are BYTE-IDENTICAL before and after** (rows and rendered SVG),
+which is the proof the work is scoped to the oven. New suite `tests_requirement_state.py`, in CI.
+- **THREE INDEPENDENT CAUSES, and the reported one was the least serious.**
+  (a) **THE PARSER read three of six stated values.** `max_temp` was ALIASED ONTO `operating_temp`,
+  so "operating 180 / maximum 200" collapsed into one number and whichever was read second won.
+  `understand._labelled_inputs` now reads all six by regex. **Anchored on the WORD, never a bare
+  number** — re-reading an unqualified "200C" would change what every existing oven resolves to,
+  and the golden `K:hot air oven 200C 500kg batch` is byte-identical because of that choice.
+  Added to `_LABELLED_KEYS` so the deterministic read WINS over the model, exactly as the
+  dimension triple already does: what the model gets wrong is precisely the labelling.
+  (b) **THE TEMPLATE matched by LABEL only.** "Overall dimensions (mm)" is composed of three
+  requirement keys and named by none of them, so it could NEVER resolve however complete the
+  requirement was. `spec_template` now supports a `compose` composer; it only REFORMATS confirmed
+  inputs, adds no arithmetic, and is therefore CONFIRMED rather than derived.
+  (c) **THE WORST ONE: reuse silently outranked the customer.** `apply_template` consulted the
+  requirement only when nothing else resolved, so an oven specified ELECTRIC was specified back as
+  "diesel fired hot air generator, 400000 kcal/hr" and one specified with a 100 mm panel got 200 mm
+  of insulation — reused, correctly attributed, and the wrong machine. A stated value now displaces
+  a REUSED one (and records what it superseded); **a rule-computed value is left alone**, because
+  that is engineering that FOLLOWS from the requirement rather than standing in for it.
+- **`validate.demote_contradicted` (NEW) is `demote_unscalable`'s argument applied to a flat
+  disagreement**, which is the sharper case: the size gap is a judgement about similarity, this is
+  a contradiction of a stated fact. It DEMOTES rather than substitutes — the customer gave a
+  THICKNESS, not an insulation construction, and inventing "100mm blanket" from that is exactly the
+  golden-rule-#2 breach this platform exists to avoid. Fires only where the profile DECLARES the
+  pairing (`contradiction_checks`), so it can never guess two fields are about one quantity.
+- **FOUR STATES, a TOTAL partition** (`catalog.ORIGIN_STATES`): CONFIRMED / DERIVED / TBD /
+  INDICATIVE, on every row and summarised as `requirement_state`. `origin` has grown to fifteen
+  values — right for provenance, wrong for the question a reviewer asks. **A test asserts the map
+  covers every origin**; a silently omitted one would put values in no bucket at all.
+- **THE DRAWING SHOWED ONE WALL AT THREE THICKNESSES.** The panel was true-scale in the SECTION and
+  a symbolic `0.05 x min(w,h)` band in the PLAN and SIDE. The door was on the section alone at an
+  arbitrary 30% width and full height, on a machine whose opening the customer had STATED. The
+  forced-air circulation — the thing that makes it a hot AIR oven — was a fan on one view and
+  nothing on the other two. All three now resolve ONCE in model mm and each view converts through
+  its own scale. **Verified by MEASURING the canvas, not by reading labels**: 100 mm = 2.500 sheet
+  mm in all three views at 1:40, the door is 2000x2200 in section / 2000 wide in plan / 2200 high
+  in side, and it **projects to the same x in plan+section and the same y in section+side** — real
+  third-angle correspondence, which is the check that would catch a door drawn twice.
+- **RENDERING FOUND WHAT THE SOURCE DID NOT, again.** Three defects invisible in the code and
+  obvious on the paper: the clear-opening callout ran as a **diagonal leader across the whole
+  section**, through the chamber and the recirculation arrow (now captioned ON the leaf, with a
+  measured width guard); "DOOR" in the side elevation printed **straight through the roof-plant
+  band**, because on a 2200 mm door in a 2500 mm oven that is exactly where the opening top lands;
+  and the plan caption sat on the wall it named.
+- **A BUG I INTRODUCED AND CAUGHT ON THE STUDIO PATH:** `door_opening_mm` is typed numeric from its
+  `_mm` suffix, but it holds a PAIR — so the form rendered a number input and `coerce` DROPPED
+  "2000 x 2200" as unparseable. `fields._PAIR_FIELDS` fixes it; the suffix stays because it is what
+  puts "mm" beside the label.
+- **RE-RECORD `drawing.catalog` ON THE POD.** It is the ONLY contract fingerprint that moves: the
+  oven profile now offers five more optional inputs (max temperature, panel thickness, door
+  opening, door type, heating media) and that endpoint is data-driven from the profiles. **There is
+  no oven case in the 29-case contract suite at all**, and `tools.spec.booth/dust/scrub`,
+  `tools.drawing.booth/dust/scrub` and `package.booth` were all proven byte-identical here.
+- **STILL OPEN and unchanged:** the oven's Chamber, Insulation build-up, airflow, blower HP/nos,
+  heating capacity, control panel, utilities and safety features stay TBD — no rule and no source
+  data answers them, and the point of this work is that they are the only things that do.
+
 ### ▶ 2026-09-03 (studio) — EDIT AS INPUTS, and D1 CONVERSATIONAL STATE. Both DONE.
 
 **The studio was a phase behind the engine.** It read four fields off the render response — `bom`,
