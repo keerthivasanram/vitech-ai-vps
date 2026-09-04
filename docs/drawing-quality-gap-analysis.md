@@ -1,5 +1,38 @@
 # GA Drawing Quality — Gap Analysis
 
+> ## ⚠ STATUS 2026-09-04 — MOSTLY DONE. Read this box before acting on anything below.
+>
+> This analysis drove four sessions of work and is now **substantially out of
+> date**. Its findings were acted on, but the document was never marked up, so
+> read as-is it would send someone to rebuild things that already exist. Each
+> claim below was re-verified against the running engine on 2026-09-04.
+>
+> | Section | Claim then | Verified now |
+> |---|---|---|
+> | §0 **THE BLOCKER** — wet_scrubber draws nothing | empty sheet, `views: []`, NTS | **FIXED 2026-08-05.** The anchor case renders 3 views at 1:25 with `Ø750`. Re-verified by rendering. |
+> | §2 Component library, "ten remaining categories" | 2 of 14 glyphs on the library | **DONE 2026-09-03.** All fourteen migrated; zero raw line widths remain in `symbols.py`. |
+> | §3 **Diameter / radius symbols — "❌ no Ø"** | absent | **DONE.** A circular footprint dimensions as `Ø750`, from the RESOLVED equipment type rather than a label guess. |
+> | §3 Critical dimensions | none | **PARTLY, and the rest was DECLINED ON PURPOSE.** The panel bay is dimensioned at Vitech's real 750 module; the filter cell is NOT, because the bank is drawn view-width-over-count rather than at true pitch — the value would be real and the geometry it labels would not. That is the fabrication trap one step removed. See the Phase C entry in CLAUDE.md. |
+> | Section markers, break lines, level datums, material hatching, detail bubbles | absent | **DONE Phase C** — `app/drawing/detailing.py`. |
+> | Isometric | absent | **DONE** — `drawing_type="ga_iso"`, envelope only, explicitly NOT TO SCALE. |
+>
+> **What the engine now says about itself:** `tests_drawing_qa.py` audits all
+> **126** sheet combinations (14 categories × 3 drawing states × 2 sheet sizes,
+> plus the isometric type) with seven detectors, each proven to fire against a
+> canvas built to trip it. As of 2026-09-04 it reports **0 errors and 0
+> warnings** with only two declared exceptions, both genuinely correct (a
+> conveyor and a duct seen end-on ARE their section).
+>
+> **THE ONE REAL GAP LEFT IS THE ONE THIS DOCUMENT ALREADY CALLED HONEST:**
+> component **setting-out rules from Vitech**. Every check above proves the
+> drawing is well formed and self-consistent; none can say whether a component
+> belongs where it is drawn. Vitech have not yet answered
+> `docs/Vitech_Engineering_Knowledge_Request.pdf`, which leads with it as
+> **B1 [HIGHEST PRIORITY]**. Until they do, component positions stay indicative
+> and the sheet keeps saying so — and **no amount of further drafting work
+> substitutes for it.** Chase that document; it is the gate on a
+> fabrication-grade GA.
+
 **Date:** 2026-08-05 · **Scope:** `backend/app/drawing/` (2,939 lines) measured against a
 production industrial general-arrangement sheet.
 
