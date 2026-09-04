@@ -10,11 +10,31 @@ to its two rules: never block engineering, never log a customer requirement.
 import json
 import os
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
 
-from app.observability import artifacts, context, jobs, logs, metrics, store, trace, writer
+# THIS SUITE MUST NOT WRITE INTO THE LIVE DATA STORE, and until 2026-09-04 it
+# did. `ops.db`, `data/jobs/` and the audit trail are declared PERMANENT and are
+# never purged, so every run left behind a fake job row, a fake job folder, and
+# — because one check deliberately tampers an artifact to prove corruption is
+# caught — a permanently CORRUPT file in the artifact store.
+#
+# Two consequences, both real: the job history an engineer reads in Package
+# Center filled up with test rows, and an integrity check over the artifact
+# store reported dozens of corrupt documents that were all test residue. A
+# monitor that always reports corruption is one nobody believes on the day the
+# corruption is real.
+#
+# The overrides must be set BEFORE the app modules are imported: `ARTIFACT_ROOT`
+# and `LOG_DIR` are read at module import, not per call.
+_ISOLATED = tempfile.mkdtemp(prefix="vitech-obs-test-")
+os.environ["OPS_DB"] = os.path.join(_ISOLATED, "ops.db")
+os.environ["ARTIFACT_DIR"] = os.path.join(_ISOLATED, "jobs")
+os.environ["LOG_DIR"] = os.path.join(_ISOLATED, "logs")
+
+from app.observability import artifacts, context, jobs, logs, metrics, store, trace, writer  # noqa: E402
 
 BASE = "http://localhost:8000"
 FAILS: list[str] = []
@@ -24,6 +44,17 @@ def check(cond, label):
     print(("OK   " if cond else "FAIL ") + label)
     if not cond:
         FAILS.append(label)
+
+
+# The isolation above is load-bearing, so assert it rather than trust it: if an
+# app module is ever imported before the overrides are set, these silently
+# revert to the live store and this suite starts corrupting real records again.
+check(str(artifacts.ARTIFACT_ROOT).startswith(_ISOLATED),
+      f"artifacts are isolated from the live store ({artifacts.ARTIFACT_ROOT})")
+check(str(store.db_path()).startswith(_ISOLATED),
+      f"the job database is isolated from the live store ({store.db_path()})")
+check(str(logs.LOG_DIR).startswith(_ISOLATED),
+      f"logs are isolated from the live store ({logs.LOG_DIR})")
 
 
 # --- request ids -------------------------------------------------------------

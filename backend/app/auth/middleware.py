@@ -18,6 +18,7 @@ import time
 from fastapi.responses import JSONResponse
 
 from . import policy
+from .. import ratelimit
 from .store import ANONYMOUS, Principal, resolve_service, resolve_session, write_audit
 
 # Audit noise control: successful reads of these are high-volume and low value.
@@ -85,15 +86,45 @@ async def auth_middleware(request, call_next):
                            "This account does not have access to that resource.")}
         return JSONResponse(body, status_code=status)
 
-    started = time.perf_counter()
-    response = await call_next(request)
-    elapsed = int((time.perf_counter() - started) * 1000)
-
-    # Audit every non-public request. Reads included: the point of an audit
-    # trail is answering "who looked at that", not only "who changed it".
-    if not (path in _QUIET_PATHS and response.status_code < 400):
+    # --- runaway guards, AFTER authorization ---------------------------------
+    # Order matters: an unauthorized caller is refused before it can consume a
+    # rate-limit slot, so a bad credential in a loop cannot exhaust the budget
+    # of the principal it is impersonating.
+    limited, why, retry_after = ratelimit.check(principal, path)
+    if not limited:
         write_audit(actor_kind=principal.kind, actor=principal.name or "-",
                     role=principal.role, action=f"{method} {path}",
-                    target=path, status=response.status_code,
-                    ip=_client_ip(request), detail=f"{elapsed}ms")
-    return response
+                    target=path, status=429, ip=_client_ip(request),
+                    detail=f"rate limited: {why}")
+        return JSONResponse(
+            {"error": "rate_limited",
+             "detail": "Too many requests. This limit exists to keep the "
+                       "engineering engines responsive; it is set far above "
+                       "normal use, so this usually means a client is looping."},
+            status_code=429, headers={"Retry-After": str(retry_after)})
+
+    with ratelimit.slot(path) as expensive_slot:
+        if not expensive_slot.acquired:
+            write_audit(actor_kind=principal.kind, actor=principal.name or "-",
+                        role=principal.role, action=f"{method} {path}",
+                        target=path, status=429, ip=_client_ip(request),
+                        detail="rejected: expensive-route concurrency ceiling")
+            return JSONResponse(
+                {"error": "busy",
+                 "detail": "The engineering engines are at capacity. Retry "
+                           "shortly — this ceiling keeps the API answerable "
+                           "instead of letting every request stall together."},
+                status_code=429, headers={"Retry-After": "5"})
+
+        started = time.perf_counter()
+        response = await call_next(request)
+        elapsed = int((time.perf_counter() - started) * 1000)
+
+        # Audit every non-public request. Reads included: the point of an audit
+        # trail is answering "who looked at that", not only "who changed it".
+        if not (path in _QUIET_PATHS and response.status_code < 400):
+            write_audit(actor_kind=principal.kind, actor=principal.name or "-",
+                        role=principal.role, action=f"{method} {path}",
+                        target=path, status=response.status_code,
+                        ip=_client_ip(request), detail=f"{elapsed}ms")
+        return response

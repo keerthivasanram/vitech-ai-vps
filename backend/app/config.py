@@ -105,9 +105,28 @@ RETRIEVE_CACHE_TTL = int(os.getenv("RETRIEVE_CACHE_TTL", "900"))    # 15 min
 # Bearer <this>). Left empty by default so nothing breaks on a trusted LAN/pod;
 # set it before any non-LAN exposure. Health check stays open for probes.
 API_KEY = os.getenv("VITECH_API_KEY", "").strip()
-# Comma-separated allowed CORS origins, or "*" (default) for any. Lock this to
-# the real frontend origin(s) alongside setting API_KEY.
-CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+# Comma-separated allowed CORS origins. Defaults to the local development
+# origins ONLY — never "*".
+#
+# It was "*" until 2026-09-04, which the readiness review recorded as S3. With
+# `allow_credentials` unset FastAPI does not echo cookies back, so this was not
+# immediately exploitable, but "*" means any page on the internet can script a
+# logged-in engineer's browser against this API and read engineering data out
+# of the responses. A permissive default is also the kind that survives to
+# production unnoticed, because nothing fails while it is wrong.
+#
+# Set CORS_ORIGINS to the real frontend origin(s) on any real deployment.
+CORS_ORIGINS = [o.strip() for o in os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000",
+).split(",") if o.strip()]
+
+# --- Runaway guards on the expensive routes (see app/ratelimit.py) ----------
+# Set well above any real human or agent workload: these stop a loop, they do
+# not ration engineering. RATE_LIMIT_ENABLED=0 turns both off.
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "1").lower() not in ("0", "false", "no")
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "120"))
+MAX_CONCURRENT_EXPENSIVE = int(os.getenv("MAX_CONCURRENT_EXPENSIVE", "12"))
 # Restricted document categories -> the roles allowed to see them. A principal's
 # role is read from the `X-Role` header (default "engineer"). Empty map = the
 # current behaviour (everyone sees everything); this is the wired hook for a

@@ -13,6 +13,7 @@ import time
 from typing import Any
 
 from . import logs, store, writer
+from .. import ratelimit
 
 # In-process counters. The cache they describe is in-process, so persisting
 # these would describe a cache that no longer exists.
@@ -119,4 +120,7 @@ def summary(window_hours: int = 24) -> dict[str, Any]:
         "telemetry_writer": writer.stats(),
         "store": store.stats(),
         "logs": logs.file_stats(),
+        # A ceiling nobody can see is a ceiling nobody tunes — and a rising
+        # rejection count is the first sign a client is looping.
+        "limits": ratelimit.stats(),
     }

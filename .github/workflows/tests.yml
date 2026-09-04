@@ -81,3 +81,9 @@ jobs:
 
       - name: Site placement
         run: python tests_siting.py
+
+      # The runaway guards on the LLM routes. Offline on purpose: exhausting a
+      # live rate limit would 429 every other HTTP suite for the rest of the
+      # minute.
+      - name: Rate and concurrency limits
+        run: python tests_limits.py
