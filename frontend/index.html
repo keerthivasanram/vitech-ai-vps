@@ -8,14 +8,38 @@
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 
-    <!-- Inter, per the design system. preconnect so the font isn't a render
-         cliff; body falls back to the system stack if fonts are blocked. -->
+    <!-- Inter as a VARIABLE font, and JetBrains Mono for the engineering
+         read-outs.
+
+         The static cut (400;500;600;700) was the wrong file for this design
+         system: eighteen rules across the app ask for 550 or 650, and with
+         only four discrete weights on hand the browser snapped every one of
+         them to the nearest neighbour. So the "650" that separates a heading
+         from its body text was rendering as a plain 700 bold, and the 550 on
+         a studio field label as an ordinary 500. The axis makes those weights
+         real rather than aspirational.
+
+         LOADED WITHOUT BLOCKING RENDER. A stylesheet link is render-blocking,
+         so on a factory LAN with no route to fonts.googleapis.com the whole
+         application waited on a DNS timeout before painting anything. Fetched
+         as `media="print"` the browser downloads it at low priority and never
+         blocks on it; the onload promotes it to `all` the moment it arrives.
+         With no network it simply never arrives and the system stack — which
+         every family below falls back to — is what renders. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=JetBrains+Mono:wght@400..600&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=JetBrains+Mono:wght@400..600&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
 
     <title>Vitech AI — Engineering Assistant</title>
   </head>

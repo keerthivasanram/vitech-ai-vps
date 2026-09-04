@@ -77,7 +77,8 @@
   display: flex; align-items: center; gap: 6px;
   min-width: 0; overflow: hidden;
   padding-left: 10px; border-left: 1px solid var(--ds-line);
-  font-size: 11.5px; color: var(--ds-dim); white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--ds-dim); white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .ds-bar-doc b { color: var(--ds-ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
@@ -165,6 +166,25 @@
   flex: 1; min-height: 0; overflow-y: auto;
   padding: 12px; display: flex; flex-direction: column; gap: 16px;
 }
+/* A tab pane announces the switch rather than one set of controls silently
+   becoming another. Opacity only: the pane is the panel's scroller, and moving
+   it would drag the scrollbar with it. */
+.ds-tabpane { animation: ds-pane-in 0.18s var(--ds-ease) both; }
+@keyframes ds-pane-in { from { opacity: 0; } }
+
+/* A rail opening is a change of shape, and the grid cannot tween one (the
+   track COUNT changes when a rail closes), so the panel itself carries the
+   motion — it slides in from the edge it belongs to. */
+.ds-params { animation: ds-rail-l-in 0.24s var(--ds-ease) both; }
+.ds-ai     { animation: ds-rail-r-in 0.24s var(--ds-ease) both; }
+@keyframes ds-rail-l-in { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes ds-rail-r-in { from { opacity: 0; transform: translateX(10px); } }
+/* Stacked, the rails arrive from BELOW — sliding sideways would read as a
+   sideways layout that is not what the reader is looking at. */
+.ds.is-stack .ds-params,
+.ds.is-stack .ds-ai,
+.ds.is-narrow .ds-ai { animation-name: ds-rail-up-in; }
+@keyframes ds-rail-up-in { from { opacity: 0; transform: translateY(8px); } }
 .ds-panel-foot {
   flex: none; padding: 10px 12px;
   border-top: 1px solid var(--ds-line); background: var(--ds-sunken);
@@ -238,7 +258,11 @@
 .ds-group-h .ds-count + .ds-caret { margin-left: 6px; }
 .ds-group-h .ds-caret:only-of-type { margin-left: auto; }
 .ds-group.is-closed .ds-caret { transform: rotate(-90deg); }
-.ds-group-body { display: flex; flex-direction: column; gap: 9px; }
+.ds-group-body {
+  display: flex; flex-direction: column; gap: 9px;
+  animation: ds-group-in 0.2s var(--ds-ease) both;
+}
+@keyframes ds-group-in { from { opacity: 0; transform: translateY(-4px); } }
 
 /* Parameter / value pair rows for manually added specification lines. */
 .ds-pair { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; }
@@ -275,6 +299,9 @@
   background: var(--ds-sunken); color: var(--ds-ink);
   font-size: 12.5px; outline: none;
   font-variant-numeric: tabular-nums;
+  /* A dimension typed into a field is read back against the dimension printed
+     on the sheet, so the two are set in the same numerals. Text fields keep
+     the UI face — a material or a process is prose, not a measurement. */
   transition: border-color 0.16s var(--ds-ease), box-shadow 0.16s var(--ds-ease), background 0.16s var(--ds-ease);
 }
 .ds-select { cursor: pointer; padding-right: 26px; }
@@ -283,7 +310,11 @@
   border-color: var(--primary); background: var(--ds-panel);
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.14);
 }
-.ds-input::placeholder { color: var(--ds-faint); opacity: 0.75; }
+.ds-input::placeholder { color: var(--ds-faint); opacity: 0.75; font-family: var(--font); }
+.ds-input[type="number"] {
+  font-family: var(--font-mono);
+  font-size: 12px; letter-spacing: -0.01em;
+}
 
 /* Toggles */
 .ds-toggle {
@@ -305,10 +336,15 @@
   display: inline-grid; place-items: center; flex: none;
   width: 17px; height: 17px; border-radius: 50%;
   border: 1px solid var(--primary); color: var(--primary);
-  font-size: 9.5px; font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 600;
 }
 
 .ds-note { font-size: 10.5px; line-height: 1.55; color: var(--ds-faint); }
+
+/* The shape of the form, while the catalogue that defines it is in flight. */
+.ds-skel { display: flex; flex-direction: column; gap: 9px; }
+.ds-skel .skeleton { display: block; width: 100%; border-radius: var(--ds-r-sm); }
 .ds-alert {
   display: flex; gap: 7px; padding: 9px 10px; border-radius: var(--ds-r-sm);
   font-size: 11.5px; line-height: 1.45;
@@ -316,6 +352,41 @@
 }
 :root[data-theme="dark"] .ds-alert { color: #fca5a5; background: rgba(252, 165, 165, 0.09); border-color: rgba(252,165,165,0.2); }
 .ds-alert svg { flex: none; margin-top: 1px; }
+.ds-alert-retry {
+  margin-left: auto; flex: none; align-self: flex-start;
+  padding: 3px 9px; border-radius: 5px; cursor: pointer;
+  font-size: 11px; font-weight: 650;
+  background: transparent; color: inherit;
+  border: 1px solid currentColor; opacity: 0.85;
+}
+.ds-alert-retry:hover:not(:disabled) { opacity: 1; }
+.ds-alert-retry:disabled { opacity: 0.5; cursor: default; }
+
+/* The same message on the canvas, for when the rail that normally carries it
+   is closed. Sits clear of the status line rather than over it. */
+.ds-canvas-alert {
+  position: absolute; z-index: 8;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--ds-chrome-bottom) + 12px);
+  display: flex; align-items: center; gap: 8px;
+  max-width: min(560px, calc(100% - 24px));
+  padding: 8px 8px 8px 12px; border-radius: 8px;
+  font-size: 11.5px; line-height: 1.4;
+  background: #fdecec; color: #7a1f1f; border: 1px solid #e2a2a2;
+  box-shadow: var(--shadow-lg);
+  animation: ds-busy-in 0.2s var(--ds-ease) both;
+}
+:root[data-theme="dark"] .ds-canvas-alert {
+  background: #2a1616; color: #fca5a5; border-color: rgba(252, 165, 165, 0.28);
+}
+.ds-canvas-alert svg { flex: none; }
+.ds-canvas-alert button {
+  flex: none; width: 20px; height: 20px; line-height: 1;
+  display: grid; place-items: center;
+  border: 0; border-radius: 5px; cursor: pointer;
+  background: transparent; color: inherit; font-size: 15px; opacity: 0.6;
+}
+.ds-canvas-alert button:hover { opacity: 1; background: rgb(0 0 0 / 8%); }
 
 /* Progress bar shown while the engine runs */
 .ds-progress { height: 2px; border-radius: 99px; background: var(--ds-line); overflow: hidden; }
@@ -327,7 +398,15 @@
    -------------------------------------------------------------------------- */
 .ds-viewport {
   grid-area: viewport;
+  /* How much of the canvas is painted OVER by chrome. The top is MEASURED in
+     DrawingStudio.jsx (the overlay is one row with no revisions and two with a
+     drawing-state banner); the foot is the status line's own height. */
+  --ds-chrome-top: 46px;
+  --ds-chrome-bottom: 26px;
   position: relative; overflow: hidden;
+  /* The canvas owns its gestures: without this the browser pans and pinches
+     the PAGE while the sheet sits still under the finger. */
+  touch-action: none;
   background:
     radial-gradient(circle at 1px 1px, rgba(125, 135, 145, 0.16) 1px, transparent 0) 0 0 / 22px 22px,
     var(--ds-sunken);
@@ -340,7 +419,12 @@
     #0b0f15;
 }
 
-/* The stage centres; the SHEET carries the transform.
+/* THE STAGE IS THE VIEWPORT MINUS ITS CHROME, and it is the box that both
+   `fit()` and zoom-to-cursor measure. Fitting against the whole viewport
+   parked the foot of every sheet behind the status line painted over it — on
+   a general arrangement that is the TITLE BLOCK, the one part of a drawing a
+   reviewer always reads. The stage centres; the SHEET carries the transform.
+
    The sheet is laid out at its true millimetre size (A3 is 420mm x 297mm of
    real CSS millimetres), so `scale(1)` is genuinely 100% — the drawing at the
    size it prints. That is what makes Fit a separate, meaningful control:
@@ -359,7 +443,9 @@
    the pan offset stays 1:1 with the mouse. `transform-origin: 0 0` keeps that
    composition exactly as written. */
 .ds-stage {
-  position: absolute; inset: 0;
+  position: absolute;
+  top: var(--ds-chrome-top); right: 0;
+  bottom: var(--ds-chrome-bottom); left: 0;
   pointer-events: none;
 }
 .ds-sheet {
@@ -369,7 +455,11 @@
   background: #fff;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.16), 0 10px 30px rgba(16, 24, 40, 0.14);
   will-change: transform;
+  /* Opacity only — the transform carries the pan and zoom, so animating it
+     here would fight the view state and make the sheet jump. */
+  animation: ds-sheet-in 0.26s var(--ds-ease) both;
 }
+@keyframes ds-sheet-in { from { opacity: 0; } }
 :root[data-theme="dark"] .ds-sheet {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 12px 34px rgba(0, 0, 0, 0.5);
 }
@@ -380,12 +470,37 @@
 .ds-sheet svg text { fill: currentColor; }
 
 /* --------------------------------------------------------------------------
-   Revision strip — every sheet generated this session, top-left of the canvas.
+   Canvas chrome — the layer painted OVER the sheet.
+
+   The revision strip, the tool cluster and the drawing-state banner used to be
+   positioned independently: strip top-left at up to 46% width, banner centred
+   at up to 78%, cluster top-right. A schematic sheet WITH revisions therefore
+   drew the banner straight through the thumbnails, and both were reachable, so
+   whichever painted last simply swallowed the other. They are one flow now, and
+   the stage is inset by its MEASURED height so the sheet never sits under it.
    -------------------------------------------------------------------------- */
+.ds-chrome {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 10px;
+  /* Chrome is a frame around the drawing, not a lid on it: only the controls
+     themselves take the pointer, so panning still works between them. */
+  pointer-events: none;
+}
+.ds-chrome-row { display: flex; align-items: flex-start; gap: 8px; width: 100%; }
+.ds-chrome-gap { flex: 1; min-width: 8px; }
+/* Only the two control clusters take the pointer. The row spans the full
+   width, so leaving IT interactive would have made the top band of the canvas
+   undraggable — the sheet would refuse to pan anywhere near its own top edge
+   for no reason a user could see. The state banner stays inert on purpose:
+   it is a statement about the drawing, not a control. */
+.ds-chrome, .ds-chrome-row, .ds-chrome-gap { pointer-events: none; }
+.ds-revs, .ds-tools { pointer-events: auto; }
+
+/* Revision strip — every sheet generated this session, newest last. */
 .ds-revs {
-  position: absolute; top: 10px; left: 10px; z-index: 6;
   display: flex; align-items: center; gap: 5px;
-  max-width: min(46%, 460px); padding: 4px;
+  min-width: 0; max-width: min(60%, 520px); padding: 4px;
   overflow-x: auto; overflow-y: hidden;
   background: var(--ds-panel); border: 1px solid var(--ds-line);
   border-radius: 9px; box-shadow: var(--shadow-sm);
@@ -400,21 +515,35 @@
 }
 .ds-rev:hover { border-color: var(--border-strong); }
 .ds-rev.is-on { border-color: var(--primary); box-shadow: 0 0 0 1.5px rgba(var(--primary-rgb), 0.3); }
-/* The thumbnail is the real sheet SVG scaled down, so a revision is recognised
-   by its drawing rather than by a label nobody reads. */
-.ds-rev-thumb { position: absolute; inset: 0; display: block; pointer-events: none; }
-.ds-rev-thumb svg { width: 100%; height: 100%; color: #1c2430; }
+/* The thumbnail is the real sheet, so a revision is recognised by its drawing
+   rather than by a label nobody reads — but as an IMAGE, not a second live
+   drawing. Inlined, each thumbnail put a few hundred nodes of SVG into the
+   canvas, so a working session of a dozen revisions carried a dozen full
+   sheets it never showed, and every one of them re-laid-out on each render.
+
+   ONE BEHAVIOUR CHANGES WITH IT, and it is the right way round: the layer
+   switches no longer reach into a thumbnail, so a thumbnail shows the revision
+   AS IT WAS DRAWN rather than as the canvas is currently filtered. `hidden`
+   resets on every revision switch anyway, so the filtered view was never a
+   property of the revision. */
+.ds-rev-thumb {
+  position: absolute; inset: 2px;
+  display: block; width: calc(100% - 4px); height: calc(100% - 4px);
+  object-fit: contain; pointer-events: none;
+  background: #fff;
+}
 .ds-rev-n {
   position: absolute; bottom: 0; right: 0;
   min-width: 14px; padding: 0 3px;
-  font-size: 9px; font-weight: 700; line-height: 12px; text-align: center;
+  font-family: var(--font-mono);
+  font-size: 8.5px; font-weight: 600; line-height: 12px; text-align: center;
   color: #fff; background: rgba(28, 36, 48, 0.8); border-top-left-radius: 4px;
 }
 .ds-rev.is-on .ds-rev-n { background: var(--primary); }
 
-/* Floating tool cluster */
+/* Tool cluster — the right-hand end of the chrome row. */
 .ds-tools {
-  position: absolute; top: 10px; right: 10px; z-index: 6;
+  flex: none;
   display: flex; align-items: center; gap: 2px; padding: 3px;
   background: var(--ds-panel); border: 1px solid var(--ds-line);
   border-radius: 9px; box-shadow: var(--shadow-sm);
@@ -427,8 +556,9 @@
 }
 .ds-tools button:hover { background: var(--ds-sunken); color: var(--ds-ink); }
 .ds-tools .ds-zoom {
-  width: auto; min-width: 48px; padding: 0 7px;
-  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  width: auto; min-width: 52px; padding: 0 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums;
 }
 .ds-tools i.sep { width: 1px; height: 16px; background: var(--ds-line); margin: 0 2px; }
 
@@ -439,7 +569,12 @@
   display: flex; align-items: center; gap: 9px;
   height: 26px; padding: 0 12px;
   background: var(--ds-panel); border-top: 1px solid var(--ds-line);
-  font-size: 11px; color: var(--ds-faint);
+  /* The draughtsman's read-out is set in the technical mono: scale, sheet,
+     envelope and revision are numbers read at a glance and compared between
+     sheets, and a proportional face makes 1:50 and 1:100 different widths. */
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: -0.005em;
+  color: var(--ds-faint);
   font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; pointer-events: none;
 }
@@ -449,9 +584,38 @@
 :root[data-theme="dark"] .ds-status .warn { color: #fbbf24; }
 .ds-status-r { margin-left: auto; padding-left: 12px; }
 
+/* The engine is running. This lived only as a 2px bar in the foot of the
+   parameter rail — a rail that can be closed, and is closed by default in the
+   focus layout — so a chat-driven or edit-driven re-resolve gave the canvas no
+   feedback at all and the sheet simply changed some seconds later. */
+.ds-busy {
+  position: absolute;
+  top: var(--ds-chrome-top); right: 0; bottom: var(--ds-chrome-bottom); left: 0;
+  display: grid; place-items: center;
+  z-index: 7; pointer-events: none;
+}
+.ds-busy-card {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 9px 15px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: var(--ds-dim);
+  background: var(--ds-panel); border: 1px solid var(--ds-line);
+  box-shadow: var(--shadow-lg);
+  animation: ds-busy-in 0.2s var(--ds-ease) both;
+}
+@keyframes ds-busy-in { from { opacity: 0; transform: translateY(4px) scale(0.97); } }
+.ds-busy-spin {
+  width: 13px; height: 13px; flex: none; border-radius: 50%;
+  border: 2px solid rgba(var(--primary-rgb), 0.22);
+  border-top-color: var(--primary);
+  animation: ds-spin 0.7s linear infinite;
+}
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+
 /* Empty state */
 .ds-empty {
-  position: absolute; inset: 0 0 26px; display: grid; place-content: center; justify-items: center;
+  position: absolute;
+  top: var(--ds-chrome-top); right: 0; bottom: var(--ds-chrome-bottom); left: 0;
+  display: grid; place-content: center; justify-items: center;
   gap: 11px; padding: 30px; text-align: center; pointer-events: none;
   z-index: 2;
 }
@@ -543,6 +707,60 @@ body.studio-focus .ds {
 }
 
 /* --------------------------------------------------------------------------
+   PRINT — a drawing studio that could not print the drawing.
+
+   Ctrl+P used to put the application on paper: the navigation rail, the
+   parameter panel, the assistant, and the sheet cropped to whatever the
+   viewport happened to be showing at whatever zoom it happened to be at. A
+   general arrangement is a document people print, and printing it is how a
+   sheet reaches a fabricator who has never heard of this studio.
+
+   Scoped with `:has()` so it only reshapes a page the studio is actually on;
+   where `:has()` is unsupported the whole block is dropped and printing simply
+   behaves as it did before, which is the safe way to fail.
+   -------------------------------------------------------------------------- */
+@media print {
+  /* `@page` cannot be scoped with `:has()`, so this applies to every printed
+     page in the app. Accepted deliberately: the one artefact this product
+     exists to put on paper is a landscape drawing sheet, and a portrait page
+     would print it at roughly half the size. Everything else here IS scoped. */
+  @page { size: landscape; margin: 8mm; }
+
+  body:has(.ds) { background: #fff !important; }
+  body:has(.ds) .sidebar,
+  body:has(.ds) .viewbar,
+  body:has(.ds)::before { display: none !important; }
+  body:has(.ds) .shell,
+  body:has(.ds) .workspace,
+  body:has(.ds) .workspace-main { max-width: none; padding: 0; gap: 0; }
+
+  /* Everything that is studio rather than drawing. */
+  .ds-bar, .ds-params, .ds-ai, .ds-chrome, .ds-status, .ds-busy, .ds-edit,
+  .ds-empty, .ds-canvas-alert, .ds-skel { display: none !important; }
+
+  .ds {
+    display: block; border: 0; border-radius: 0; box-shadow: none;
+    min-height: 0; overflow: visible; background: #fff;
+    animation: none;
+  }
+  .ds-viewport { position: static; overflow: visible; background: #fff; }
+  .ds-stage { position: static; }
+
+  /* The pan/zoom transform is an inline style, so overriding it needs
+     `!important` — and it MUST be overridden, or the printer is handed the
+     sheet at whatever scale and offset the screen was showing. */
+  .ds-sheet {
+    position: static !important;
+    left: auto !important; top: auto !important;
+    transform: none !important;
+    width: 100% !important; height: auto !important;
+    box-shadow: none; animation: none;
+  }
+  .ds-sheet svg { width: 100%; height: auto; color: #000; }
+  /* A hidden layer stays hidden on paper — the engineer chose that. */
+}
+
+/* --------------------------------------------------------------------------
    Responsive — driven by the studio's OWN width (see `layout` in
    DrawingStudio.jsx), never the window's. The navigation rail beside it means
    the two are hundreds of pixels apart, and a media query cannot see that.
@@ -586,12 +804,16 @@ body.studio-focus .ds {
   flex: none;
   min-height: 0;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--ds-bar-h) 360px auto 240px;
+  /* 420, not the 360 this used to be. The canvas now reserves ~56px at the top
+     for the chrome painted over it and 26 at the foot for the status line, and
+     those come out of the SHEET's share — at 360 a fitted A3 landed around a
+     fifth of true size, which is not a drawing anyone can read. */
+  grid-template-rows: var(--ds-bar-h) 420px auto 240px;
   grid-template-areas: "bar" "viewport" "params" "ai";
 }
-.ds.is-stack.no-l { grid-template-rows: var(--ds-bar-h) 360px 240px; grid-template-areas: "bar" "viewport" "ai"; }
-.ds.is-stack.no-r { grid-template-rows: var(--ds-bar-h) 360px auto; grid-template-areas: "bar" "viewport" "params"; }
-.ds.is-stack.no-l.no-r { grid-template-rows: var(--ds-bar-h) 460px; grid-template-areas: "bar" "viewport"; }
+.ds.is-stack.no-l { grid-template-rows: var(--ds-bar-h) 420px 240px; grid-template-areas: "bar" "viewport" "ai"; }
+.ds.is-stack.no-r { grid-template-rows: var(--ds-bar-h) 420px auto; grid-template-areas: "bar" "viewport" "params"; }
+.ds.is-stack.no-l.no-r { grid-template-rows: var(--ds-bar-h) 520px; grid-template-areas: "bar" "viewport"; }
 /* Panel bodies stop being their own scrollers once the page is the scroller. */
 .ds.is-stack .ds-panel-body { overflow: visible; }
 .ds.is-stack .ds-params { border-right: 0; border-top: 1px solid var(--ds-line); }
@@ -620,17 +842,20 @@ body.studio-focus .ds {
 .ds-sheet.is-editable [data-edit] { cursor: pointer; pointer-events: auto; }
 .ds-sheet.is-editable [data-edit]:hover { fill: var(--ds-accent, #1d6fb8); font-weight: 700; }
 
-/* The sheet's own status, over the canvas. */
+/* The sheet's own status. Its own row UNDER the strip and the cluster, so it
+   can never overlap either whatever it says or how many revisions exist. */
 .ds-state {
-  position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
   display: flex; gap: 8px; align-items: center;
-  max-width: min(560px, 78%);
+  max-width: min(560px, 100%);
   padding: 7px 12px; border-radius: 7px;
   font-size: 12px; line-height: 1.35;
   background: #fff7e6; color: #6b4a05; border: 1px solid #e8c877;
   box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
-  z-index: 6; pointer-events: none;
+  pointer-events: none;
+  animation: ds-state-in 0.28s var(--ds-ease) both;
 }
+@keyframes ds-state-in { from { opacity: 0; transform: translateY(-5px); } }
+.ds-state svg { flex: none; }
 .ds-state.is-schematic { background: #fdecec; color: #7a1f1f; border-color: #e2a2a2; }
 .ds-state b { font-weight: 700; }
 
@@ -647,13 +872,19 @@ body.studio-focus .ds {
 .ds-edit-h { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
 .ds-edit-row { display: flex; align-items: center; gap: 6px; }
 .ds-edit-row .ds-input { flex: 1; }
-.ds-edit-unit { font-size: 11px; opacity: 0.7; }
+.ds-edit-unit { font-family: var(--font-mono); font-size: 10.5px; opacity: 0.7; }
 .ds-edit-acts { display: flex; gap: 6px; margin-top: 8px; }
 .ds-edit-acts .ds-btn {
   flex: 1; justify-content: center; font-size: 11px;
   white-space: nowrap;   /* "Apply & re-resolve" wrapped to two lines at 232px */
 }
 .ds-edit-note { margin: 7px 0 0; font-size: 10.5px; line-height: 1.35; opacity: 0.72; }
+
+/* A dimension along the top edge of the sheet has no room above it, so the
+   panel opens downward from the dimension's foot instead of off-screen. */
+.ds-edit.is-below { transform: translate(-50%, 12px); }
+.ds-edit { animation: ds-edit-in 0.16s var(--ds-ease) both; }
+@keyframes ds-edit-in { from { opacity: 0; } }
 
 /* Unresolved parameters, with the action that clears each one. */
 .ds-unres {

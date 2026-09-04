@@ -29,11 +29,34 @@ const MAX_ZOOM = 8;
 const MM_PX = 96 / 25.4;
 /* Breathing room left around the sheet when fitting it to the viewport. */
 const FIT_PAD = 24;
+/* The status line is painted OVER the foot of the canvas. Fitting against the
+   full viewport therefore parked the bottom ~26px of every sheet behind it —
+   on an A3 general arrangement that is the title block, which is the one part
+   of the drawing a reviewer always looks at. The stage is inset by the chrome
+   instead, so "fit" means the whole sheet is visible. */
+const STATUS_H = 26;
 // Zoom response per pixel of wheel travel. A mouse notch is 120 px, so this is
 // a ~4% step: deliberately gentle, because a 10-15% step compounded past 300%
 // in a dozen turns and made the sheet impossible to hold steady.
 const ZOOM_SENSITIVITY = 0.00033;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/* The requirement editor's own box, used to keep it inside the window. The
+   height is the tallest the panel gets (label, field, two buttons, note); it
+   only decides whether the panel opens above or below, so being a few pixels
+   generous is the safe direction. */
+const EDIT_W = 264;
+const EDIT_H = 176;
+
+/* Which requirement input each clickable dimension maps onto. Only the OVERALL
+   dimensions appear here, and that is the whole contract: a component dimension
+   has no input to send the reader to, so making it look editable would promise
+   an edit the engine cannot honour. */
+const AXIS_INPUT = { length: "length_m", width: "width_m", height: "height_m" };
+
+/** A revision thumbnail as an image source rather than a second live drawing. */
+const svgThumb = (svg) =>
+  `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg || "")}`;
 
 /** The sheet's true size in mm, read from the SVG's own viewBox. */
 function sheetSizeMm(svg) {
@@ -173,7 +196,18 @@ export function DrawingStudio() {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const drag = useRef(null);
   const viewportRef = useRef(null);
+  /* The STAGE, not the viewport, is the frame the sheet is centred and fitted
+     in: it is the viewport minus the chrome painted over it (the revision
+     strip and tool cluster at the top, the status line at the foot). Zoom-to-
+     cursor measures against the same box, so the two can never disagree. */
+  const stageRef = useRef(null);
+  const chromeRef = useRef(null);
   const rootRef = useRef(null);
+
+  /* How much of the canvas the top overlay actually covers, measured rather
+     than assumed — the strip is one row with no revisions and two with a
+     drawing-state banner, and a guessed constant is wrong in one of them. */
+  const [chromeTop, setChromeTop] = useState(46);
 
   /* The studio lays itself out from ITS OWN width, not the window's.
      Media queries got this wrong in a way that was easy to miss: at a 1280px
@@ -223,7 +257,10 @@ export function DrawingStudio() {
   }, [focus]);
   useEffect(() => {
     if (!focus) return undefined;
-    const onKey = (e) => e.key === "Escape" && setFocus(false);
+    // Escape closes the requirement editor first. Both listeners are on the
+    // window, so without this one press would dismiss the editor AND collapse
+    // the workspace back out of focus mode.
+    const onKey = (e) => { if (e.key === "Escape" && !editOpen.current) setFocus(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [focus]);
@@ -231,19 +268,27 @@ export function DrawingStudio() {
   useEffect(() => { logEnd.current?.scrollIntoView({ block: "end", behavior: "smooth" }); },
     [chat, thinking]);
 
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/drawing/catalog")
-      .then((r) => r.json())
+  /* The catalog IS the form: with no categories, no fields and no sheet sizes
+     there is nothing to fill in, so a failure here is not a warning in a
+     corner — it is the whole screen. It is therefore retryable rather than
+     needing a page reload, because the usual cause is a backend that is a few
+     seconds behind the browser. */
+  const [loadingCatalog, setLoadingCatalog] = useState(true);
+  const loadCatalog = useCallback(() => {
+    setLoadingCatalog(true);
+    setError("");
+    return fetch("/api/drawing/catalog")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => {
-        if (!alive) return;
         setCatalog(d);
         setSheetSize(d.default_sheet || "A3");
         if (d.categories?.[0]) { setCategory(d.categories[0].key); setValues({}); }
       })
-      .catch(() => alive && setError("Could not load the equipment catalog. Is the backend running?"));
-    return () => { alive = false; };
+      .catch(() => setError("Could not load the equipment catalogue. Is the backend running?"))
+      .finally(() => setLoadingCatalog(false));
   }, []);
+
+  useEffect(() => { loadCatalog(); }, [loadCatalog]);
 
   const activeCategory = useMemo(
     () => catalog?.categories?.find((c) => c.key === category) || null, [catalog, category]);
@@ -265,7 +310,9 @@ export function DrawingStudio() {
   /** Append a drawing as the next revision and make it the active one. */
   const pushRevision = useCallback((d, req, label) => {
     setRevisions((prev) => {
-      const next = [...prev, { drawing: d, source: req, label, at: Date.now() }];
+      const next = [...prev, {
+        drawing: d, source: req, label, at: Date.now(), thumb: svgThumb(d.svg),
+      }];
       setActiveRev(next.length - 1);
       return next;
     });
@@ -332,8 +379,11 @@ export function DrawingStudio() {
    * A component dimension has no input to send the reader to, and making it
    * look clickable would promise an edit the engine cannot honour.
    */
-  const AXIS_INPUT = { length: "length_m", width: "width_m", height: "height_m" };
   const [edit, setEdit] = useState(null);
+  // Read by the focus-mode Escape handler, which is registered before `edit`
+  // exists and must not re-subscribe on every keystroke in the editor.
+  const editOpen = useRef(false);
+  useEffect(() => { editOpen.current = !!edit; }, [edit]);
   // The requirement the current sheet was drawn from, carried across chat turns
   // so a follow-up can be read as a correction to it. A ref, not state: nothing
   // renders from it, and it must be readable by the very next request.
@@ -347,14 +397,31 @@ export function DrawingStudio() {
     if (!key) return;
     const field = (activeCategory?.fields || []).find((f) => f.key === key);
     const box = hit.getBoundingClientRect();
+    /* The panel is anchored in VIEWPORT coordinates, so it has to be kept
+       inside the window itself. A dimension along the top edge of the sheet
+       opened the panel above the window and a dimension near either margin
+       clipped it — in both cases the control simply was not there. */
+    const below = box.top - EDIT_H - 12 < 8;
     setEdit({
-      axis, key,
+      axis, key, below,
       label: field?.label || `Overall ${axis}`,
       unit: field?.unit || "m",
       value: values[key] ?? "",
-      x: box.left + box.width / 2, y: box.top,
+      x: clamp(box.left + box.width / 2, EDIT_W / 2 + 8,
+               window.innerWidth - EDIT_W / 2 - 8),
+      y: below ? box.bottom : box.top,
     });
   }, [activeCategory, values]);
+
+  /* Escape closes the editor wherever focus is — the field's own handler only
+     fires while the field itself has focus, and pressing Apply then Escape is
+     an ordinary thing to do. */
+  useEffect(() => {
+    if (!edit) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setEdit(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [edit]);
 
   const commitEdit = useCallback(() => {
     if (!edit) return;
@@ -447,8 +514,11 @@ export function DrawingStudio() {
       e.preventDefault();
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
       const delta = clamp(e.deltaY * unit, -120, 120);
+      // The editor is anchored to a point on the sheet; zooming moves the sheet
+      // and leaves it pointing at nothing, so it closes rather than lying.
+      setEdit(null);
       const step = Math.exp(-delta * ZOOM_SENSITIVITY);
-      const rect = el.getBoundingClientRect();
+      const rect = (stageRef.current || el).getBoundingClientRect();
       const cx = e.clientX - rect.left - rect.width / 2;
       const cy = e.clientY - rect.top - rect.height / 2;
       setView((v) => {
@@ -461,10 +531,92 @@ export function DrawingStudio() {
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  const onDown = (e) => { if (e.button === 0) drag.current = { x: e.clientX - view.x, y: e.clientY - view.y }; };
+  const onDown = (e) => {
+    // Pressing anywhere on the canvas dismisses the requirement editor; the
+    // editor itself stops the event so its own controls stay usable.
+    setEdit(null);
+    if (e.button === 0) drag.current = { x: e.clientX - view.x, y: e.clientY - view.y };
+  };
   const onMove = (e) => { if (drag.current) setView((v) => ({ ...v, x: e.clientX - drag.current.x, y: e.clientY - drag.current.y })); };
   const onUp = () => { drag.current = null; };
   const nudge = (f) => setView((v) => ({ ...v, zoom: clamp(v.zoom * f, MIN_ZOOM, MAX_ZOOM) }));
+
+  /* TOUCH. A drawing gets reviewed on a tablet on a shop floor as often as at
+     a desk, and there the canvas was inert: no wheel to zoom with and no mouse
+     drag to pan with, so the sheet could only ever be seen at whatever scale
+     Fit chose. One finger pans, two pinch about their own midpoint — the same
+     zoom-to-a-point arithmetic the wheel uses, so both gestures land the sheet
+     in the same place. */
+  const pinch = useRef(null);
+  const touchMid = (t0, t1, rect) => ({
+    x: (t0.clientX + t1.clientX) / 2 - rect.left - rect.width / 2,
+    y: (t0.clientY + t1.clientY) / 2 - rect.top - rect.height / 2,
+  });
+  const touchGap = (t0, t1) =>
+    Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+
+  const onTouchStart = (e) => {
+    setEdit(null);
+    if (e.touches.length === 2) {
+      const rect = (stageRef.current || viewportRef.current)?.getBoundingClientRect();
+      if (!rect) return;
+      drag.current = null;
+      pinch.current = {
+        gap: touchGap(e.touches[0], e.touches[1]) || 1,
+        mid: touchMid(e.touches[0], e.touches[1], rect),
+        zoom: view.zoom, x: view.x, y: view.y,
+      };
+      return;
+    }
+    if (e.touches.length === 1) {
+      pinch.current = null;
+      const t = e.touches[0];
+      drag.current = { x: t.clientX - view.x, y: t.clientY - view.y };
+    }
+  };
+
+  const onTouchMove = (e) => {
+    if (pinch.current && e.touches.length === 2) {
+      const p = pinch.current;
+      const k = clamp((touchGap(e.touches[0], e.touches[1]) || 1) / p.gap,
+                      MIN_ZOOM / p.zoom, MAX_ZOOM / p.zoom);
+      setView({
+        zoom: clamp(p.zoom * k, MIN_ZOOM, MAX_ZOOM),
+        x: p.mid.x - (p.mid.x - p.x) * k,
+        y: p.mid.y - (p.mid.y - p.y) * k,
+      });
+      return;
+    }
+    if (drag.current && e.touches.length === 1) {
+      const t = e.touches[0];
+      setView((v) => ({ ...v, x: t.clientX - drag.current.x, y: t.clientY - drag.current.y }));
+    }
+  };
+
+  const onTouchEnd = (e) => {
+    if (e.touches.length === 0) { drag.current = null; pinch.current = null; }
+    // Lifting one finger of a pinch must not resume a pan from a stale origin.
+    else if (e.touches.length === 1) {
+      pinch.current = null;
+      const t = e.touches[0];
+      drag.current = { x: t.clientX - view.x, y: t.clientY - view.y };
+    }
+  };
+
+  /* The revision strip is a tablist, so it navigates like one: the arrows move
+     between revisions and only the current tab is in the tab order. Without
+     this a keyboard user tabbed through every revision to reach the canvas. */
+  const onRevKey = (e) => {
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    const to = e.key === "Home" ? 0
+             : e.key === "End" ? revisions.length - 1
+             : step ? activeRev + step : -1;
+    if (to < 0 || to > revisions.length - 1) return;
+    e.preventDefault();
+    setActiveRev(to);
+    setHidden(new Set());
+    e.currentTarget.children[to]?.focus?.();
+  };
 
   /* The sheet is laid out at its TRUE millimetre size, so it has a fixed
      pixel footprint the viewport can be measured against. */
@@ -479,9 +631,10 @@ export function DrawingStudio() {
    * to it, which is what every CAD package means by the word.
    */
   const fit = useCallback(() => {
-    const el = viewportRef.current;
+    const el = stageRef.current || viewportRef.current;
     if (!el || !sheetMm) { setView({ zoom: 1, x: 0, y: 0 }); return; }
     const box = el.getBoundingClientRect();
+    if (box.width < 2 || box.height < 2) return;   // laid out but not yet sized
     const zoom = clamp(
       Math.min((box.width - FIT_PAD * 2) / (sheetMm.w * MM_PX),
                (box.height - FIT_PAD * 2) / (sheetMm.h * MM_PX)),
@@ -492,14 +645,30 @@ export function DrawingStudio() {
   /* Refit whenever the sheet changes or the space around it does — collapsing
      a rail or entering focus mode gives the viewport a different shape, and a
      sheet that stayed at the old scale would be the obvious wrong answer. */
-  useEffect(() => { fit(); }, [fit, railL, railR, focus]);
+  useEffect(() => { fit(); }, [fit, railL, railR, focus, chromeTop]);
   useEffect(() => {
-    const el = viewportRef.current;
+    const el = stageRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
     const ro = new ResizeObserver(() => fit());
     ro.observe(el);
     return () => ro.disconnect();
   }, [fit]);
+
+  /* The top overlay's height is a layout input, so it is measured rather than
+     assumed. Without this the stage would be inset by a guess that is wrong
+     the moment a drawing-state banner appears above the sheet. */
+  useEffect(() => {
+    const el = chromeRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    // offsetHeight, not contentRect: the overlay carries 10px of padding, and
+    // the content box would inset the stage 20px short of what is painted over
+    // it — which is exactly the error this measurement exists to avoid.
+    const measure = () => setChromeTop(el.offsetHeight);
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, []);
 
   /* F fits, 0 goes to true printed size. Both ignored while typing. */
   useEffect(() => {
@@ -518,11 +687,21 @@ export function DrawingStudio() {
     const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
+  /* An anchor that is not IN the document does not fire its default action in
+     Firefox, and revoking the object URL in the same tick can cancel the save
+     before the browser has read it. Both cost the engineer the export with no
+     error to explain it. */
   const download = (blob, name) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = name;
-    a.click(); URL.revokeObjectURL(url);
+    a.href = url;
+    a.download = name;
+    a.rel = "noopener";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   /**
@@ -641,8 +820,27 @@ export function DrawingStudio() {
           ))}
         </div>
 
-        <div className="ds-panel-body">
-          {tab === "setup" && (
+        {/* `key={tab}` remounts the pane, so switching tabs replays the fade
+            instead of one set of controls being swapped for another with no
+            acknowledgement that the panel changed under the reader. */}
+        <div className="ds-panel-body ds-tabpane" key={tab}
+             role="tabpanel" aria-label={`${tab} parameters`}>
+          {tab === "setup" && !catalog && (
+            /* The catalogue IS the form. Until it arrives the selects are three
+               empty boxes, which reads as an application with no equipment in
+               it rather than one still loading — so the panel says which it
+               is. */
+            <div className="ds-skel" aria-hidden="true">
+              <span className="skeleton" style={{ height: 11, width: "44%" }} />
+              <span className="skeleton" style={{ height: 34 }} />
+              <span className="skeleton" style={{ height: 11, width: "38%" }} />
+              <span className="skeleton" style={{ height: 34 }} />
+              <span className="skeleton" style={{ height: 11, width: "30%" }} />
+              <span className="skeleton" style={{ height: 34 }} />
+            </div>
+          )}
+
+          {tab === "setup" && catalog && (
             <>
               <section className="ds-group">
                 <div className="ds-group-h">Equipment</div>
@@ -884,7 +1082,18 @@ export function DrawingStudio() {
             )
           )}
 
-          {error && <div className="ds-alert"><AlertTriangle size={14} /> <span>{error}</span></div>}
+          {error && (
+            <div className="ds-alert" role="alert">
+              <AlertTriangle size={14} />
+              <span>{error}</span>
+              {!catalog && (
+                <button type="button" className="ds-alert-retry"
+                        onClick={loadCatalog} disabled={loadingCatalog}>
+                  {loadingCatalog ? "Retrying…" : "Retry"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="ds-panel-foot">
@@ -902,14 +1111,27 @@ export function DrawingStudio() {
       </aside>
       )}
 
-      {/* ---------------- viewport ---------------- */}
+      {/* ---------------- viewport ----------------
+          Everything painted OVER the canvas is chrome, and the stage is inset
+          by it. The three overlays used to be positioned independently — the
+          revision strip top-left, the tool cluster top-right, the drawing-state
+          banner centred between them — so a schematic sheet WITH revisions drew
+          the banner straight through the thumbnails. They are one flow now. */}
       <section className="ds-viewport" ref={viewportRef}
-               onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
+               aria-label="Drawing canvas"
+               style={{ "--ds-chrome-top": `${chromeTop}px`, "--ds-chrome-bottom": `${STATUS_H}px` }}
+               onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+               onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {layerCss && <style>{layerCss}</style>}
 
-        {drawing && (
-          <div className="ds-stage">
-            <div className="ds-sheet is-editable"
+        <div className="ds-stage" ref={stageRef}>
+          {drawing && (
+            /* `key` on the revision makes React mount a NEW sheet rather than
+               patching the old one, so the paper genuinely fades in when the
+               engine returns a revision instead of the drawing changing under
+               the reader with no acknowledgement that anything happened. */
+            <div key={`${activeRev}:${revisions.length}`}
+                 className="ds-sheet is-editable"
                  onClick={onSheetClick}
                  style={{
                    width: sheetMm ? `${sheetMm.w}mm` : "100%",
@@ -917,32 +1139,87 @@ export function DrawingStudio() {
                    transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom}) translate(-50%, -50%)`,
                  }}
                  dangerouslySetInnerHTML={{ __html: drawing.svg }} />
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* The sheet's own claim about itself, over the canvas. A schematic
-            says NOT FOR FABRICATION on the paper; without this the studio
-            around it said nothing, so the state was invisible until you read
-            the drawing. */}
-        {drawing?.state && drawing.state !== "fully_dimensioned" && (
-          <div className={`ds-state is-${drawing.state}`}>
-            <AlertTriangle size={13} strokeWidth={2} />
-            <div>
-              <b>{drawing.state_label}</b>
-              {drawing.missing_axes?.length > 0 && (
-                <span> — overall {drawing.missing_axes.join(", ")} not yet engineered</span>
-              )}
+        {/* Top chrome: the revision strip and the tool cluster share one row,
+            and the sheet's own claim about itself sits under them. Measured,
+            because the stage is inset by whatever height this comes to. */}
+        <div className="ds-chrome" ref={chromeRef}>
+          <div className="ds-chrome-row">
+            {revisions.length > 0 && (
+              <div className="ds-revs" role="tablist" aria-label="Drawing revisions"
+                   onKeyDown={onRevKey}>
+                {revisions.map((r, i) => (
+                  <button key={r.at} type="button" role="tab"
+                          className={`ds-rev${i === activeRev ? " is-on" : ""}`}
+                          aria-selected={i === activeRev}
+                          tabIndex={i === activeRev ? 0 : -1}
+                          onClick={() => { setActiveRev(i); setHidden(new Set()); }}
+                          title={`Rev ${i}: ${r.label}`}>
+                    {/* An <img> of the sheet, not the sheet itself. Inlining the
+                        SVG put a few hundred live nodes per revision into the
+                        canvas, so a working session of a dozen revisions was
+                        carrying a dozen full drawings it never showed. */}
+                    <img className="ds-rev-thumb" src={r.thumb} alt="" aria-hidden="true"
+                         draggable="false" loading="lazy" />
+                    <span className="ds-rev-n">{i}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="ds-chrome-gap" />
+
+            <div className="ds-tools">
+              <button type="button" onClick={() => nudge(1 / 1.25)} title="Zoom out" aria-label="Zoom out"><Minus size={15} /></button>
+              <button type="button" className="ds-zoom" onClick={() => setView((v) => ({ ...v, zoom: 1 }))}
+                      title="True printed size (0)">{Math.round(view.zoom * 100)}%</button>
+              <button type="button" onClick={() => nudge(1.25)} title="Zoom in" aria-label="Zoom in"><Plus size={15} /></button>
+              <i className="sep" />
+              <button type="button" onClick={fit} title="Fit sheet to view (F)" aria-label="Fit sheet to view"><Scan size={15} /></button>
             </div>
+          </div>
+
+          {/* A schematic says NOT FOR FABRICATION on the paper; without this the
+              studio around it said nothing, so the state was invisible until
+              you read the drawing. */}
+          {drawing?.state && drawing.state !== "fully_dimensioned" && (
+            <div className={`ds-state is-${drawing.state}`} role="status">
+              <AlertTriangle size={13} strokeWidth={2} />
+              <div>
+                <b>{drawing.state_label}</b>
+                {drawing.missing_axes?.length > 0 && (
+                  <span> — overall {drawing.missing_axes.join(", ")} not yet engineered</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* The engine is running. The progress bar for this lived in the foot of
+            the parameter rail, which is a rail that can be closed — so a
+            chat-driven or edit-driven re-resolve gave the canvas no feedback at
+            all and the sheet simply changed some seconds later. */}
+        {busy && (
+          <div className="ds-busy" role="status" aria-live="polite">
+            <span className="ds-busy-card">
+              <i className="ds-busy-spin" aria-hidden="true" />
+              Resolving the engineering…
+            </span>
           </div>
         )}
 
         {/* Editing a dimension edits the INPUT behind it, never the sheet. */}
         {edit && (
-          <div className="ds-edit" style={{ left: edit.x, top: edit.y }}
+          <div className={`ds-edit${edit.below ? " is-below" : ""}`}
+               style={{ left: edit.x, top: edit.y }}
+               onMouseDown={(e) => e.stopPropagation()}
                onClick={(e) => e.stopPropagation()}>
             <div className="ds-edit-h">{edit.label}</div>
             <div className="ds-edit-row">
               <input className="ds-input" autoFocus type="number" step="any"
+                     aria-label={`${edit.label} in ${edit.unit}`}
                      value={edit.value}
                      onChange={(e) => setEdit((p) => ({ ...p, value: e.target.value }))}
                      onKeyDown={(e) => {
@@ -964,7 +1241,19 @@ export function DrawingStudio() {
           </div>
         )}
 
-        {!drawing && (
+        {/* The rail carries the error next to the Generate button that caused it
+            — but the rail closes, and in the focus layout it starts closed, so
+            a failed render could report itself to nobody. It is repeated on the
+            canvas ONLY where the rail is not there to say it. */}
+        {error && !railL && (
+          <div className="ds-canvas-alert" role="alert">
+            <AlertTriangle size={14} strokeWidth={2} />
+            <span>{error}</span>
+            <button type="button" onClick={() => setError("")} aria-label="Dismiss">×</button>
+          </div>
+        )}
+
+        {!drawing && !busy && (
           <div className="ds-empty">
             <div className="ds-empty-icon"><PenTool size={22} strokeWidth={1.6} /></div>
             <h4>No drawing yet</h4>
@@ -976,33 +1265,6 @@ export function DrawingStudio() {
             </p>
           </div>
         )}
-
-        {/* Revision strip: every sheet generated this session, newest last.
-            Small and out of the way — it is a way back, not the subject. */}
-        {revisions.length > 0 && (
-          <div className="ds-revs" role="tablist" aria-label="Drawing revisions">
-            {revisions.map((r, i) => (
-              <button key={r.at} type="button" role="tab"
-                      className={`ds-rev${i === activeRev ? " is-on" : ""}`}
-                      aria-selected={i === activeRev}
-                      onClick={() => { setActiveRev(i); setHidden(new Set()); }}
-                      title={`Rev ${i}: ${r.label}`}>
-                <span className="ds-rev-thumb"
-                      dangerouslySetInnerHTML={{ __html: r.drawing.svg }} />
-                <span className="ds-rev-n">{i}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="ds-tools">
-          <button type="button" onClick={() => nudge(1 / 1.25)} title="Zoom out" aria-label="Zoom out"><Minus size={15} /></button>
-          <button type="button" className="ds-zoom" onClick={() => setView((v) => ({ ...v, zoom: 1 }))}
-                  title="True printed size (0)">{Math.round(view.zoom * 100)}%</button>
-          <button type="button" onClick={() => nudge(1.25)} title="Zoom in" aria-label="Zoom in"><Plus size={15} /></button>
-          <i className="sep" />
-          <button type="button" onClick={fit} title="Fit sheet to view (F)" aria-label="Fit sheet to view"><Scan size={15} /></button>
-        </div>
 
         {/* Status bar — the draughtsman's read-out, spanning the foot of the
             canvas rather than floating in a corner of it. */}

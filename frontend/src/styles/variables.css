@@ -94,7 +94,13 @@
   /* ---- Type ---- */
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
           Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+  /* The engineering read-outs (dimensions, scales, zoom, schedules) are set in
+     a technical mono so a column of numbers lines up and 0/O and 1/l cannot be
+     confused — on a drawing studio that is a correctness property, not a
+     stylistic one. The system stack behind it is what renders if the webfont
+     never arrives. */
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Code",
+               Consolas, monospace;
 
   --fs-hero:   clamp(21px, 1.6vw, 27px);
   --fs-section: 21px;
@@ -188,6 +194,11 @@ body {
   letter-spacing: var(--lsp-tight);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Inter is loaded on its weight AXIS, so the 550 and 650 the design system
+     asks for in eighteen places are real weights rather than a snap to the
+     nearest static cut. Optical sizing follows the size where the face
+     supports it. */
+  font-optical-sizing: auto;
   transition: color var(--t);
 }
 
