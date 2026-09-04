@@ -441,6 +441,70 @@ check("full_down_draft" not in fs.FACE_BASED_BOOTH_TYPES
       and "pressurized" not in fs.FACE_BASED_BOOTH_TYPES,
       "the types their table does not describe are out of scope by construction")
 
+# --- booth works cost, against the client's OWN costed sheet ----------------
+# These are the anchors that matter most in this file, because until the cropped
+# first row of that sheet was recovered NOTHING here could be validated: the
+# visible lines came to Rs 5,68,534 against a stated Rs 6,49,264 and Rs 80,730
+# was unexplained. With the row recovered (MS 18 SWG, 621 kg, Rs 80,730) the
+# total reconciles and the cost model can be checked line by line.
+#
+# The booth is the client's own worked example: 3.0 L x 2.25 W x 2.4 H.
+from app.engineering import booth_cost as bcost                    # noqa: E402
+
+_c = bcost.works_cost(3.0, 2.25, 2.4, blower_model="CLP-4-10-9000", motor_hp=10)
+_q = _c["quantities"]
+_line = {l["item"]: l for l in _c["lines"]}
+
+check(_q["panels"] == 27, f"panel count reproduces the sheet ({_q['panels']} = 27)")
+check(_q["panel_weight_kg"] == 621,
+      f"panel weight reproduces the sheet ({_q['panel_weight_kg']:g} = 621 kg)")
+check(_q["structure_kg"] == 446,
+      f"structure weight reproduces the sheet ({_q['structure_kg']:g} = 126+308+12 kg)")
+check(_q["structure_kg"] + _q["plate_and_frames_kg"] == 696,
+      "structural steel line reproduces the sheet's 696 kg (sections + plate + frames)")
+check(_q["painting_sqft"] == 1134,
+      f"painting area reproduces the sheet ({_q['painting_sqft']:g} = 1050 + 84 sq.ft)")
+
+# The two lines that reproduce TO THE RUPEE. These are the proof the formulas
+# and the rate card are both right where they overlap.
+check(_line["Enclosure panels"]["cost"] == 80730,
+      f"MS sheet line is exact: Rs {_line['Enclosure panels']['cost']:,.0f} = the recovered row")
+check(_line["Painting"]["cost"] == 39690,
+      f"painting line is exact: Rs {_line['Painting']['cost']:,.0f}")
+
+# THE GAPS ARE PINNED TOO, deliberately. A cost model that quietly drifts toward
+# the client's total would be worse than one that is short by a known amount:
+# these two numbers are the size of what Vitech have not yet priced, and if they
+# move, something changed that nobody decided.
+_struct = _line["MS structure"]["cost"] + _line["Blower plate and filter frames"]["cost"]
+check(_struct == 88250,
+      f"structural steel prices at Rs {_struct:,.0f} against the sheet's Rs 93,968")
+# The client's own structure line implies about Rs 135/kg where their rate note
+# states Rs 125 (75 material + 50 labour). It is NOT a clean Rs 135 either
+# (93,968 / 696 = 135.011), so the line is not a single rate applied to a single
+# weight, and its composition cannot be derived from what has been transcribed.
+# Asserted as a RANGE, because claiming an exact rate here would be inventing a
+# precision the source does not carry - which is the failure this whole file
+# exists to prevent.
+_implied = 93968 / 696
+check(134.0 < _implied < 136.0 and abs(_implied - 125.0) > 5.0,
+      f"the sheet's structure line implies ~Rs {_implied:.1f}/kg against the stated "
+      "Rs 125 (75+50) - unexplained, and a question for Vitech rather than a bug to 'fix'")
+
+_bought = sum(l["cost"] or 0 for l in _c["lines"]
+              if l["item"] not in ("Enclosure panels", "MS structure",
+                                   "Blower plate and filter frames", "Painting"))
+check(_bought == 326450,
+      f"bought-outs price at Rs {_bought:,.0f} against the sheet's Rs 4,34,876 - "
+      "the rate card does not yet carry fasteners, tracks, rollers or handles")
+
+# The contract that keeps this honest.
+check(_c["is_partial"] is True, "the cost declares itself PARTIAL, never a quotation")
+check(_c["open_items"], "the unpriced items are NAMED rather than absorbed into a total")
+check(_c["priced_total"] < 649264,
+      f"the total is SHORT of the client's Rs 6,49,264 (ours Rs {_c['priced_total']:,.0f}) "
+      "and says so - it never rounds up to meet their figure")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} ENGINEERING TEST FAIL")
