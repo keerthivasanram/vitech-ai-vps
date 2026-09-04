@@ -159,17 +159,78 @@ def _mm_on_sheet(text, v, cap_frac: float = 0.12):
     Capped at a fraction of the view so an implausible parse (a "2000 mm"
     read out of some other phrase) can never swallow the machine.
     """
-    if not text or not v or not v.model_w or not v.model_h:
+    if not text:
         return None
     m = _MM_RE.search(str(text))
-    if not m:
+    return _view_mm(float(m.group(1)), v, cap_frac) if m else None
+
+
+def _view_mm(mm, v, cap_frac: float = 0.12, axis: str = "min"):
+    """MODEL millimetres as SHEET millimetres in this view.
+
+    The half of `_mm_on_sheet` that does the arithmetic, split out because a
+    thickness the SPEC states must be drawn at the same real size in every view
+    that shows it. Each view carries its own model extents, so the same 100 mm
+    is a different number of sheet millimetres in the plan and the section — and
+    converting once per view from the SAME model figure is exactly what makes
+    the three views agree about the machine.
+
+    `axis` picks which of the view's two scales to use. They are equal for a
+    uniformly scaled view; naming it keeps a width scaled by the width and a
+    height by the height, so a stated door opening lands on its true proportion
+    of each view rather than on a near-miss.
+    """
+    if mm is None or not v or not v.model_w or not v.model_h:
         return None
-    mm = float(m.group(1))
-    per_mm = min(v.w / float(v.model_w), v.h / float(v.model_h))
-    t = mm * per_mm
+    sx, sy = v.w / float(v.model_w), v.h / float(v.model_h)
+    per_mm = sx if axis == "x" else sy if axis == "y" else min(sx, sy)
+    t = float(mm) * per_mm
     if t < 0.35 or t > min(v.w, v.h) * cap_frac:
         return None
     return t
+
+
+def _panel_thickness_mm(rows):
+    """The insulated panel thickness in MODEL millimetres, or None.
+
+    The CONFIRMED input row is consulted first and the reused insulation
+    DESCRIPTION only after it. That order is the point: the customer states a
+    panel thickness as a number on its own row, while the description is a
+    build-up carried over from whichever oven was nearest ("175mm blanket
+    96 kg/m3 + 25mm ceramic wool"). Reading the description first drew a wall
+    two hundred millimetres thick on a machine specified at a hundred.
+    """
+    stated = _find(rows, "panel thickness")
+    if stated:
+        m = re.search(r"(\d+(?:\.\d+)?)", str(stated))
+        if m:
+            return float(m.group(1))
+    m = _MM_RE.search(str(_find(rows, "insulation") or ""))
+    return float(m.group(1)) if m else None
+
+
+def _door_opening_mm(rows):
+    """The stated clear door opening as (width_mm, height_mm), or None."""
+    text = _find(rows, "door opening")
+    if not text:
+        return None
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(?:mm)?\s*[x\u00d7*]\s*(\d+(?:\.\d+)?)", str(text))
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def _num_mm(mm) -> str:
+    return str(int(mm)) if float(mm).is_integer() else str(mm)
+
+
+# Character width as a fraction of the font size, MEASURED by rasterising the
+# face rather than guessed — the title block learned this the expensive way,
+# where a guess of 0.62 was low by a tenth and still overflowed the cell.
+_CHAR_W = 0.63
+
+
+def _fits(text: str, width: float, size: float) -> bool:
+    """Will this caption print inside `width` sheet millimetres?"""
+    return len(str(text)) * size * _CHAR_W <= width
 
 
 def _resolved(value) -> bool:
@@ -517,7 +578,8 @@ def _fan(canvas, v, depth: float, legend: list, label: str) -> None:
 
 
 def _side_enclosure(canvas, v, extract: bool = True, roof_plant: bool = False,
-                    lining: bool = False, opening: bool = False) -> None:
+                    lining: bool = False, opening: bool = False,
+                    lining_mm=None) -> None:
     """The enclosure seen from the side: floor, base, panel courses, extract face.
 
     WHY THIS EXISTS. Nine of the fourteen glyphs drew NOTHING in the side
@@ -538,7 +600,12 @@ def _side_enclosure(canvas, v, extract: bool = True, roof_plant: bool = False,
     _panel_joints(canvas, v)
 
     if lining:
-        t = min(v.w, v.h) * 0.05
+        # `lining_mm` is the MODEL thickness the other views drew, converted
+        # through this view's own scale. Without it the side fell back to a
+        # symbolic 5% band while the section drew the same wall true-scale, so
+        # one sheet showed the panel at two thicknesses. Callers that state no
+        # thickness keep the symbolic band, unchanged.
+        t = _view_mm(lining_mm, v) or min(v.w, v.h) * 0.05
         canvas.add(Rect(v.x + t, v.y + t, v.w - 2 * t, v.h - 2 * t, *PANEL_SEAM))
 
     if extract:
@@ -1048,7 +1115,21 @@ def wet_scrubber(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
 # --------------------------------------------------------------------------
 def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     """Hot air oven GA: insulated chamber lining, door, heater bank,
-    circulation blower, heating zones and the conveyor opening."""
+    circulation blower, heating zones and the conveyor opening.
+
+    THE THREE VIEWS AGREE ABOUT THE MACHINE, which they did not.
+    The panel thickness was drawn at its TRUE thickness in the section and as a
+    symbolic `0.05 x min(w, h)` band in the plan and the side, so one sheet
+    showed the same wall at three different thicknesses. The door was drawn on
+    the section alone, at an arbitrary 30% of the view width and full height,
+    on a machine whose door opening the customer had STATED. And the forced-air
+    circulation — the thing that makes it a hot AIR oven — appeared as a blower
+    on the section and nothing at all on the other two views.
+
+    Everything below now resolves ONCE, in model millimetres, and each view
+    converts that same figure through its own scale. Positions stay indicative
+    and the sheet's standing note still says so; the SIZES are the customer's.
+    """
     legend: list[tuple[str, str]] = []
     insulation = _find(rows, "insulation") or ""
     heating = _find(rows, "heating source") or _find(rows, "heating mode") or ""
@@ -1057,18 +1138,25 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
     zones = _int(_find(rows, "zones"), 0)
     conveyor = _find(rows, "conveyor") or ""
 
+    # ONE resolution, in model mm, shared by every view (see the docstring).
+    panel_mm = _panel_thickness_mm(rows)
+    door_mm = _door_opening_mm(rows)
+    door_kind = (_find(rows, "door type") or "").strip()
+    leaves = 1 if "single" in door_kind.lower() else 2
+
     front = views.get("front")
     plan = views.get("plan")
+    side = views.get("side")
 
     if front:
         x, y, w, h = front.x, front.y, front.w, front.h
-        # THE LINING IS DRAWN AT ITS REAL THICKNESS WHENEVER THE SPEC STATES
-        # ONE. "100 mm rockwool" at 1:50 is 2 mm of sheet — perfectly drawable —
-        # and a wall drawn to its stated thickness, hatched as lagging, is a
-        # real engineering statement rather than a symbolic band. When no
-        # thickness is stated it falls back to the schematic band it always
-        # was: indicative, unhatched, and never dimensioned.
-        t_real = _mm_on_sheet(insulation, front)
+        # THE LINING IS DRAWN AT ITS REAL THICKNESS WHENEVER ONE IS STATED.
+        # "100 mm" at 1:50 is 2 mm of sheet — perfectly drawable — and a wall
+        # drawn to its stated thickness, hatched as lagging, is a real
+        # engineering statement rather than a symbolic band. With no thickness
+        # it falls back to the schematic band it always was: indicative,
+        # unhatched, and never dimensioned.
+        t_real = _view_mm(panel_mm, front)
         t = t_real or min(w, h) * 0.05
         canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
         if t_real:
@@ -1083,11 +1171,9 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             # an engineered value. It is called out on a leader rather than
             # dimensioned: at 2 mm of sheet there is no room between witness
             # lines, and this is the convention for exactly that case.
-            mm = _MM_RE.search(str(insulation))
-            if mm:
-                detailing.note_leader(
-                    canvas, x + w * 0.34, y + t / 2, x + w * 0.44, y - 5.5,
-                    f"{mm.group(1)} THK INSULATION")
+            detailing.note_leader(
+                canvas, x + w * 0.34, y + t / 2, x + w * 0.44, y - 5.5,
+                f"{_num_mm(panel_mm)} THK INSULATED PANEL")
         # Dropped clear of the blower balloon, which sits in the roof band at
         # 0.20h; on a short view the two circles overlapped. A leader is what
         # lets it move without losing which feature it names.
@@ -1095,19 +1181,41 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
              f"Insulated panel lining {insulation}".strip(),
              to=(x + t, y + h * 0.42))
 
-        # Full-height double-leaf door on the loading face.
-        dw = w * 0.30
-        dx = x + w * 0.60
-        dy = y + t
-        dh = h - 2 * t
-        canvas.add(Rect(dx, dy, dw, dh, *DOOR))
-        canvas.add(Line(dx + dw / 2, dy, dx + dw / 2, dy + dh, *PANEL_SEAM))
-        # Hinge ticks on both stiles.
-        for hx in (dx, dx + dw):
-            for f in (0.25, 0.75):
-                canvas.add(Line(hx - 1.2, dy + dh * f, hx + 1.2, dy + dh * f,
-                                *SYMBOL_DETAIL))
-        item(canvas, legend, dx + dw * 0.25, dy + dh * 0.30, "Insulated door, double leaf")
+        # THE DOOR AT ITS STATED CLEAR OPENING. Drawn to the true width and
+        # height when the requirement gives them, so the section shows the
+        # aperture a component actually has to pass through; otherwise the old
+        # proportional door, which claims nothing.
+        dw = _view_mm(door_mm[0], front, cap_frac=0.95, axis="x") if door_mm else None
+        dh = _view_mm(door_mm[1], front, cap_frac=0.95, axis="y") if door_mm else None
+        true_door = dw is not None and dh is not None
+        if not true_door:
+            dw, dh = w * 0.30, h - 2 * t
+        # Centred on the face and standing on the inner floor. The POSITION is
+        # indicative — Vitech have supplied no setting-out rule — so it is not
+        # dimensioned; the SIZE is the customer's own and is called out.
+        dx = x + (w - dw) / 2
+        dy = y + h - t - dh
+        components.access_door(canvas, dx, dy, dw, dh, leaves=leaves)
+        if true_door:
+            # ON the door, not on a leader. The first attempt took the callout
+            # out to the right-hand end of the view, and rendering it showed a
+            # leader running diagonally across the whole section — through the
+            # chamber, the recirculation arrow and the outline. A door leaf is
+            # the roomiest surface on the view and captioning an opening on the
+            # opening is ordinary drafting practice. Only when the text
+            # genuinely fits: `_fits` measures it against the leaf rather than
+            # assuming, because a narrow door on a large oven would print the
+            # caption straight through both jambs.
+            note = f"{_num_mm(door_mm[0])} x {_num_mm(door_mm[1])} CLEAR OPENING"
+            # High on the leaf: the view's horizontal centre line runs through
+            # the middle of a full-height door, and the recirculation arrow sits
+            # just under it, so the middle third is the one band on the leaf
+            # that is already occupied.
+            if _fits(note, dw * 0.92, T_CAPTION):
+                canvas.add(Text(dx + dw * 0.5, dy + dh * 0.16, note,
+                                L_TEXT, T_CAPTION, "middle"))
+        item(canvas, legend, dx + dw * 0.24, dy + dh * 0.30,
+             f"Insulated door, {door_kind or ('double leaf' if leaves == 2 else 'single leaf')}")
 
         # Heater bank along the floor of the chamber.
         hb_h = h * 0.07
@@ -1118,27 +1226,58 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             canvas.add(Line(hx, hb_y, hx, hb_y + hb_h, *PANEL_SEAM))
         item(canvas, legend, x + w * 0.28, hb_y - 5.0, f"Heater bank - {heating}".strip(" -") or "Heater bank")
 
-        # Circulation blower on the roof, with its delivery duct into the chamber.
+        # FORCED-AIR CIRCULATION, drawn as a circuit rather than as a fan.
+        # A hot air oven is defined by the air it moves, and the blower alone
+        # says nothing about where the air goes; the arrows show the supply
+        # down one side, across the load and back up the other, which is the
+        # arrangement every one of these ovens uses. Direction only — no
+        # position is dimensioned and no velocity is claimed.
         br = min(w, h) * 0.055
         bcx, bcy = x + w * 0.24, y + t + br * 1.7 + 2.0
-        # Discharges DOWN into the chamber it recirculates through — the duct
-        # is hidden because it runs behind the panel the elevation cuts.
         port = components.blower(canvas, bcx, bcy, br, discharge="down", motor=True)
         canvas.add(Line(port[0], port[1], port[0], y + h * 0.42, *HIDDEN_LINE))
+        sup_x, ret_x = x + t + w * 0.10, x + w - t - w * 0.10
+        airflow(canvas, [(sup_x, y + h * 0.30), (sup_x, y + h * 0.62)])
+        airflow(canvas, [(sup_x + w * 0.04, y + h * 0.66), (ret_x - w * 0.04, y + h * 0.66)])
+        airflow(canvas, [(ret_x, y + h * 0.62), (ret_x, y + h * 0.30)], "RETURN")
         qty = f" ({blower_qty} nos)" if blower_qty else ""
         item(canvas, legend, bcx - br - 5.0, bcy,
-             f"Recirculation blower {blower_hp}{qty}".strip(),
+             f"Forced-air recirculation blower {blower_hp}{qty}".strip(),
              to=(bcx - br * 0.707, bcy + br * 0.707))
 
     if plan:
         x, y, w, h = plan.x, plan.y, plan.w, plan.h
-        t = min(w, h) * 0.05
+        # The SAME panel, converted through the plan's own scale.
+        t = _view_mm(panel_mm, plan) or min(w, h) * 0.05
         canvas.add(Rect(x + t, y + t, w - 2 * t, h - 2 * t, *PANEL_SEAM))
         if zones:
             for i in range(1, min(zones, 6)):
                 zx = x + w * i / min(zones, 6)
                 canvas.add(Line(zx, y + t, zx, y + h - t, *HIDDEN_LINE))
             item(canvas, legend, x + w * 0.30, y + h * 0.20, f"Heating zone division ({zones} zones)")
+
+        # THE SAME DOOR, in the front wall. Third angle puts the plan above the
+        # front elevation, so the edge nearest it — the BOTTOM of the plan — is
+        # the face the section draws the door on. Shown as a void through the
+        # panel with its meeting stile, which is what a double leaf reads as in
+        # plan; it is the same aperture, not a second one.
+        dw_p = _view_mm(door_mm[0], plan, cap_frac=0.95, axis="x") if door_mm else None
+        if dw_p:
+            dx = x + (w - dw_p) / 2
+            canvas.add(Rect(dx, y + h - t, dw_p, t, *OPENING))
+            if leaves == 2:
+                canvas.add(Line(dx + dw_p / 2, y + h - t, dx + dw_p / 2, y + h,
+                                *SYMBOL_DETAIL))
+            canvas.add(Text(x + w * 0.5, y + h - t - 3.4, "DOOR OPENING",
+                            L_TEXT, T_CAPTION, "middle"))
+
+        # The recirculation circuit in plan: supply along one long wall, return
+        # along the other, so the two elevations and the plan describe one
+        # airflow rather than three unrelated fragments.
+        airflow(canvas, [(x + w * 0.30, y + t + h * 0.14), (x + w * 0.70, y + t + h * 0.14)])
+        airflow(canvas, [(x + w * 0.70, y + h - t - h * 0.14), (x + w * 0.30, y + h - t - h * 0.14)],
+                "RECIRCULATION")
+
         if conveyor:
             # Inside the outline: the right-hand side carries the height dim.
             cy = y + h * 0.72
@@ -1146,11 +1285,37 @@ def hot_air_oven(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             canvas.add(Text(x + w * 0.5, cy - 2.0, "CONVEYOR CENTRE LINE",
                             L_TEXT, T_CAPTION, "middle"))
             item(canvas, legend, x + w * 0.16, cy + 5.5, f"Conveyor opening - {conveyor}"[:70])
-    if views.get("side"):
+
+    if side:
         # The oven end: insulated lining, roof-mounted recirculation plant, and
-        # the conveyor aperture when the spec states one.
-        _side_enclosure(canvas, views["side"], extract=False, roof_plant=True,
-                        lining=True, opening=bool(conveyor))
+        # the conveyor aperture when the spec states one. The lining is passed
+        # the same model thickness the other two views drew.
+        _side_enclosure(canvas, side, extract=False, roof_plant=True,
+                        lining=True, opening=bool(conveyor), lining_mm=panel_mm)
+        # The door is on the FRONT face, which in a third-angle right-side view
+        # is the LEFT edge — so this view shows its clear HEIGHT, edge-on. That
+        # is the third statement about one opening, and the reason a reader can
+        # check the section against the side and find they agree.
+        dh_s = _view_mm(door_mm[1], side, cap_frac=0.95, axis="y") if door_mm else None
+        if dh_s:
+            ts = _view_mm(panel_mm, side) or min(side.w, side.h) * 0.05
+            void_top = side.y + side.h - ts - dh_s
+            canvas.add(Rect(side.x, void_top, ts, dh_s, *OPENING))
+            # Left-anchored at the edge the void is on. Centred, it printed
+            # across the middle of the view and straight through the roof-plant
+            # band — a caption for a feature on the left-hand edge, sitting
+            # nowhere near it and on top of something else.
+            # Beside the void and BELOW the roof-plant band. Above it, the
+            # caption printed straight through the plant deck, which on a
+            # 2200 mm door in a 2500 mm oven is exactly where the top of the
+            # opening lands.
+            canvas.add(Text(side.x + ts + 1.5, void_top + dh_s * 0.36, "DOOR",
+                            L_TEXT, T_CAPTION, "start"))
+        # The air the roof plant moves, so the side is part of the same circuit.
+        airflow(canvas, [(side.x + side.w * 0.30, side.y + side.h * 0.22),
+                         (side.x + side.w * 0.30, side.y + side.h * 0.60)])
+        airflow(canvas, [(side.x + side.w * 0.70, side.y + side.h * 0.60),
+                         (side.x + side.w * 0.70, side.y + side.h * 0.22)])
     return legend
 
 
