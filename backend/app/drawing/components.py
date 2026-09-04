@@ -89,7 +89,18 @@ def _pleat(canvas, x: float, y: float, w: float, h: float, vertical: bool,
     run = h if vertical else w          # along the fold direction
     depth = w if vertical else h        # across it
     if folds <= 0:
-        folds = max(2, min(12, int(round(run / max(depth, 0.35) / 2.0)) or 2))
+        # PITCH IS SET IN SHEET MILLIMETRES, not as a ratio of the cell.
+        # Tying it to the cell's depth alone gave a bank cell of 14 x 7 mm just
+        # two folds - a 3.5 mm sawtooth that reads as CROSS BRACING, which is
+        # exactly what a filter bank must not look like on a GA. Real pleated
+        # media seen edge-on is a fine, dense zig-zag; the eye reads the
+        # TEXTURE, not the individual folds.
+        #
+        # 1.1 mm is the printed pitch that survives A3 without turning grey:
+        # finer and adjacent folds merge into a smudge at 300 dpi, coarser and
+        # the sawtooth reappears. Clamped so a very tall cell cannot emit
+        # hundreds of segments for a texture nobody can resolve.
+        folds = max(3, min(28, int(round(run / (2.0 * 1.1)))))
     pts = []
     if vertical:
         for i in range(folds * 2 + 1):
@@ -100,6 +111,61 @@ def _pleat(canvas, x: float, y: float, w: float, h: float, vertical: bool,
             t = i / (folds * 2)
             pts.append((x + w * t, y + (h if i % 2 else 0)))
     canvas.add(poly(pts, SYMBOL_DETAIL.layer, HATCH_LINE.width, closed=False))
+
+
+# --------------------------------------------------------------------------
+# Electrical
+# --------------------------------------------------------------------------
+def control_panel(canvas, x: float, y: float, w: float, h: float) -> None:
+    """A floor-standing control panel / MCC cubicle.
+
+    It was a plain rectangle with one line across it, which is equally true of
+    a cupboard, a tank or a radiator. What makes a panel read as a PANEL on a
+    GA is the door: a split line down one side, a handle on it, and the
+    indicator cluster above. None of that asserts any engineering - the spec
+    already names the panel and its rating; this only draws the item it names.
+
+    DETAIL DEGRADES RATHER THAN SMUDGES. Below the legibility floor the extra
+    lines would print as a grey block, so the plain enclosure is drawn instead.
+    A symbol too small to resolve is better plain than muddy - the same
+    discipline `_mm_on_sheet` applies to a hatched band.
+    """
+    canvas.add(Rect(x, y, w, h, *EQUIPMENT))
+    if w < 1.8 or h < 3.0:
+        return
+    # Door: the split is offset, because a cubicle door is not half the panel.
+    dx = x + w * 0.72
+    canvas.add(Line(dx, y, dx, y + h, *PANEL_SEAM))
+    # Handle on the door's leading edge.
+    hy = y + h * 0.52
+    canvas.add(Line(dx - w * 0.16, hy, dx - w * 0.16, hy + h * 0.08, *SYMBOL_DETAIL))
+    # Indicator lamps / meter cluster on the upper door face.
+    if h >= 5.0:
+        r = min(w * 0.09, h * 0.022)
+        for i in range(3):
+            canvas.add(Circle(x + w * (0.16 + 0.20 * i), y + h * 0.12, r,
+                              INTERNAL_DETAIL.layer, INTERNAL_DETAIL.width))
+    # Gland plate at the base, where the cables enter.
+    gy = y + h * 0.92
+    canvas.add(Line(x, gy, x + w, gy, *SYMBOL_DETAIL))
+
+
+def luminaire(canvas, cx: float, cy: float, w: float, h: float) -> None:
+    """A weatherproof LED fitting seen in elevation.
+
+    A bare rectangle reads as a duct stub or a nameplate. A fitting reads as a
+    fitting when it has a body, a diffuser and end caps - three lines, and the
+    difference between "there is something there" and "that is a light".
+    """
+    x, y = cx - w / 2, cy - h / 2
+    canvas.add(Rect(x, y, w, h, *SYMBOL_DETAIL))
+    if w < 1.2 or h < 0.7:
+        return
+    # End caps, then the diffuser running between them.
+    for fx in (x + w * 0.12, x + w * 0.88):
+        canvas.add(Line(fx, y, fx, y + h, *INTERNAL_DETAIL))
+    canvas.add(Line(x + w * 0.12, y + h * 0.5, x + w * 0.88, y + h * 0.5,
+                    *INTERNAL_DETAIL))
 
 
 # --------------------------------------------------------------------------

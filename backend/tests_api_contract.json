@@ -15,8 +15,8 @@
     "status": 200
   },
   "drawing.render": {
-    "bytes": 55932,
-    "sha256": "9381586c2e99060e3cd7078e7bfbbb4ad5a7e064bfbdc50b99740562487146f9",
+    "bytes": 58524,
+    "sha256": "66fe1d9afbb155a5e09600cfba3741dba1c7c0e4b9fa84f80fa3dee885d8b79f",
     "status": 200
   },
   "guard.bom": {
@@ -76,7 +76,7 @@
   },
   "package.booth": {
     "bytes": 76362,
-    "sha256": "37abd9daaf992fb60fbbf02231589c87bca7b6b8c08e034969c94f27f6d07150",
+    "sha256": "e9aabaa584d804cd4977960388d68e5f9c9ed267097a151aa75d35bef81e34fc",
     "status": 200
   },
   "records": {
@@ -85,18 +85,18 @@
     "status": 200
   },
   "tools.drawing.booth": {
-    "bytes": 56202,
-    "sha256": "1d622e9cf97eef528164e8cccab4310afb0c3b08b4370bebb13003a04923db6c",
+    "bytes": 59157,
+    "sha256": "cbc67897c24e2ba3c9e52b7577e33025aec159bdae8381b18a04340a5b30dbf4",
     "status": 200
   },
   "tools.drawing.dust": {
-    "bytes": 40152,
-    "sha256": "d8507331354a2ff87c43d30001ce7aa9d869e51e8127ef20d9cb77192a9098cd",
+    "bytes": 40133,
+    "sha256": "07986787e5dccf3d5ae42263821edfd7ae88da78262c550d580aa402c4c3964c",
     "status": 200
   },
   "tools.drawing.scrub": {
-    "bytes": 41001,
-    "sha256": "45898d0ceeba8fb29da7841fe4dea1506942aafeec0ae1e05d6c83273b2b168a",
+    "bytes": 40951,
+    "sha256": "26cd5b9fcb8ad6626743bccdccda1a8b29ec617e24857e50ca43ce11dbf5e531",
     "status": 200
   },
   "tools.filters": {

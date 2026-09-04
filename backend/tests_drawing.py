@@ -66,7 +66,12 @@ check('fill="currentColor"' in svg and 'stroke="currentColor"' in svg,
 # --- Dimensions come from the envelope, never invented ---------------------
 check(">5000<" in svg and ">3000<" in svg and ">4000<" in svg,
       "the real envelope dimensions are printed on the sheet")
-check(a["scale"] == "1:50" and a["scale_divisor"] == 50, f"a standard scale is chosen ({a['scale']})")
+# 1:40, not 1:50, since 2026-09-04: the scale ladder jumped 1:25 -> 1:50 and
+# this booth fell all the way down, drawing at half the size the paper could
+# carry. The value is asserted rather than merely "is a standard scale" because
+# the scale is what every dimension on the sheet is true AT — a silent change
+# here would rescale the whole drawing.
+check(a["scale"] == "1:40" and a["scale_divisor"] == 40, f"a standard scale is chosen ({a['scale']})")
 check([v["key"] for v in a["views"]] == ["plan", "front", "side"],
       "third-angle layout places plan, front and side")
 

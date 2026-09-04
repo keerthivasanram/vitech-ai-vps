@@ -26,10 +26,56 @@ from .style import DIM_LANE_COMPONENT, DIM_LANE_OVERALL, T_VIEW_TITLE
 
 # Preferred drafting scales, largest first. The engine picks the first that
 # fits — a real drawing office uses these, not an arbitrary ratio.
-STANDARD_SCALES = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500]
+#
+# 1:30 and 1:40 were added 2026-09-04 because the ladder jumped 1:25 -> 1:50,
+# and that gap was wasting a third of the sheet. A 5 x 3 x 4 m booth needs
+# 342 mm of width at 1:25 and only 238 mm exists beside the notes column, so it
+# fell all the way to 1:50 and drew at HALF the size the paper could carry. At
+# 1:40 the same booth needs 222 mm — it fits, and every view is 25% larger.
+#
+# These are drawing-office scales, not invented ratios: 1:30 and 1:40 are in
+# routine industrial use, and the ladder already carried 1:25, which is no more
+# ISO-preferred than they are. The RULE that matters is unchanged — a view is
+# drawn at a stated standard scale and every dimension is true at it, which is
+# what `dimension_not_true` in the QA gate verifies for whatever scale is
+# chosen.
+STANDARD_SCALES = [1, 2, 5, 10, 20, 25, 30, 40, 50, 100, 200, 500]
 
-VIEW_GAP = 22.0        # mm between views on the sheet
+VIEW_GAP = 18.0        # mm between views on the sheet
 LABEL_DROP = 6.0       # mm below a view for its caption
+
+# Room that must exist to the RIGHT of the right-hand view, for annotation that
+# lives OUTSIDE the view rectangle: the overall dimension lane (7 mm), its text,
+# and the level datum caption beyond that ("FFL 0.000" is ~12 mm at caption
+# size).
+#
+# WHY THIS EXISTS. `choose_scale` used to measure the view rectangles ALONE, so
+# a scale could "fit" while the marks that belong to it did not. At 1:50 there
+# was enough slack that nothing showed; the moment a larger scale used that
+# slack, the level datums ran past the notes-column rule and printed over the
+# legend. The views fitted and the drawing did not — and the QA gate did not
+# catch it, because its reserved-column check reads geometry rather than the
+# extent of a text run. Measured off a render, not guessed.
+ANNOTATION_GUTTER = 20.0
+
+
+def annotation_gutter(avail_w: float) -> float:
+    """The right-hand annotation reserve for a drawing area this wide.
+
+    Reserved only where it can actually do its job. On A4 the notes column
+    takes 148 mm of a 297 mm sheet, leaving a 115 mm drawing column — and there
+    the datum captions overrun the column rule at 1:100 WHETHER OR NOT the
+    gutter is reserved (measured, both ways). All reserving it achieves is
+    dropping A4 to 1:200, which halves every view and thins the powder plant's
+    plan below the QA gate's sparse threshold. A reserve that fails to protect
+    the annotation AND destroys the drawing is the worst of both.
+
+    So it applies on sheets with room to benefit, and a cramped sheet keeps the
+    behaviour it already had. A4's real problem is the width of the notes
+    column, not this reserve, and that is a separate decision about what an A4
+    sheet is for.
+    """
+    return ANNOTATION_GUTTER if avail_w >= 150.0 else 0.0
 
 
 class View(NamedTuple):
@@ -57,8 +103,10 @@ def choose_scale(env: dict, avail_w: float, avail_h: float) -> int:
     H = env.get("height") or 0
     span_x = (L + W) / 1000.0 * 1000  # mm model
     span_y = (H + W) / 1000.0 * 1000
+    gutter = annotation_gutter(avail_w)
     for s in STANDARD_SCALES:
-        if span_x / s + VIEW_GAP <= avail_w and span_y / s + VIEW_GAP + LABEL_DROP * 2 <= avail_h:
+        if (span_x / s + VIEW_GAP + gutter <= avail_w
+                and span_y / s + VIEW_GAP + LABEL_DROP * 2 <= avail_h):
             return s
     return STANDARD_SCALES[-1]
 
@@ -117,7 +165,12 @@ def layout(env: dict, ox: float, oy: float, avail_w: float, avail_h: float,
     elif sL is not None:
         row_w = sL
     block_w = max(row_w, sL or 0.0)
-    ox += max(0.0, (avail_w - block_w) / 2)
+    # Centre within the width MINUS the annotation gutter, not the full width.
+    # Reserving the gutter in `choose_scale` alone achieved nothing: the block
+    # was then centred in the whole area, which handed half the reserved space
+    # back to the left margin and pushed the right-hand level datums over the
+    # notes-column rule again. The reservation and the placement have to agree.
+    ox += max(0.0, (avail_w - annotation_gutter(avail_w) - block_w) / 2)
 
     y_cursor = top
     if sL is not None and plan_h is not None:

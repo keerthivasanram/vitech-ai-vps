@@ -465,8 +465,8 @@ def _lights(canvas, v, count: int, legend: list, label: str) -> None:
     for i in range(shown):
         lx = v.x + v.w * (0.14 + 0.72 * (i / max(1, shown - 1)))
         xs.append(lx)
-        canvas.add(Rect(lx - v.w * 0.035, v.y + v.h * 0.06, v.w * 0.07,
-                        v.h * 0.04, *SYMBOL_DETAIL))
+        components.luminaire(canvas, lx, v.y + v.h * 0.08,
+                             v.w * 0.07, v.h * 0.04)
     # The leader lands on a REAL fitting. Aimed at the view's mid-point it fell
     # in the gap between two of an even-numbered row, pointing at nothing.
     item(canvas, legend, v.x + v.w * 0.5, v.y + v.h * 0.16,
@@ -659,8 +659,7 @@ def paint_booth(canvas, views: dict, rows: list) -> list[tuple[str, str]]:
             # over it, two components occupying the same 20 mm of sheet.
             px = (x + w - fb_w - pw - w * 0.02) if _bank_right else x + w * 0.905
             py = y + h * 0.52
-            canvas.add(Rect(px, py, pw, ph, *EQUIPMENT))
-            canvas.add(Line(px, py + ph * 0.3, px + pw, py + ph * 0.3, *SYMBOL_DETAIL))
+            components.control_panel(canvas, px, py, pw, ph)
             item(canvas, legend, px - 6.0, py + ph * 0.5, _clip(f"Control panel {panel}"),
                  to=(px + pw * 0.5, py + ph * 0.5))
 
