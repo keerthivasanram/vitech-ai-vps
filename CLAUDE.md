@@ -42,6 +42,52 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-04 (audit) — A GA WAS AUDITED AGAINST ITS REQUIREMENT. TWO CRITICALS, BOTH FOR VITECH.
+
+A technical audit of a generated paint-booth GA (`5m x 3m x 4m liquid cross draft`). **Nothing was
+changed as a result** — both criticals need Vitech, not code, and are now **B9 and B10** in
+`docs/Vitech_Engineering_Knowledge_Request.pdf`.
+- **THE AIRFLOW NUMBER IS RIGHT AND ITS BASIS MAY NOT BE, AND THE COINCIDENCE HID IT.** The engine
+  computes the face as open front x the 1.5 m effective filter opening: 5.0 x 1.5 = 7.5 m2 ->
+  13,500 m3/h. A second basis in circulation reads the face as 3.0 x 2.5 — **also 7.5 m2, also
+  13,500**. They agree on a 5 m booth and on nothing else: 6 m gives 16,200 vs 13,500, 3 m gives
+  8,100 vs 13,500. **Airflow sizes the blower, the duct AND the filter count**, so the two bases
+  specify different machines for every booth but that one. DQ-10 was closed by the product owner
+  on the 1.5 m reading; this is a request to CONFIRM it, since a second reading is evidently
+  still circulating.
+- **THE BLOWER CANNOT BE VALIDATED AT ALL, and that is a gap in the engine rather than a defect.**
+  Airflow adequacy passes (CLP-4-10-9000 delivers 15,430 m3/h against 13,500). But **no system
+  static pressure is computed anywhere** — no filter, duct, bend, plenum or damper resistance —
+  so there is nothing to check the fan against. The 89 mmwc is the CATALOGUE figure at the fan's
+  rated point, not a duty point matched on the curve, and Vitech's own workbook rule says never
+  to select on CFM alone. **An audit item that cannot be answered is worth more than one answered
+  wrongly**: this is asked as B10 rather than papered over with a default allowance.
+- **VERIFIED SOUND, so nobody re-audits them:** envelope 5000/3000/4000 all `given` and true at
+  scale; duct **Ø550 is genuinely CALCULATED** (`source='calculation'`, 515 mm -> standard 550,
+  and Ø630 appears nowhere); filters 11 x 600x600 = 3.96 m2 at **0.947 m/s** media velocity,
+  physically fitting as 5 across x 3 rows in the 3000 x 4000 end wall; illumination 3 nos is
+  traceable (15 m2 x 750 lux / 4400 lm); balloons 1-11 each drawn exactly once; panel joints
+  measured at the real **750 mm** module; left-right correspondence between PLAN and SECTION A-A
+  holds (filter bank at x-fraction 0.910 in both).
+- **A FALSE POSITIVE I NEARLY REPORTED.** My first count found FOUR luminaires against a stated
+  three. The extra rectangles were the view outline and the filter bank — the three fittings sit
+  exactly where `_lights` places them. **A detector's first finding is as likely to be wrong as
+  the drawing.** Same lesson as the QA gate's rotated-text extent, and it cost one check to avoid
+  filing a defect that did not exist.
+- **WARNINGS, recorded not fixed:** the lux formula has **no utilisation or maintenance factor**,
+  so 3 fittings deliver ~590 lux against a 750 lux target once real factors apply — the count may
+  genuinely be short, and that is Vitech's lighting basis to set; the **payload labels the view
+  `FRONT ELEVATION` while the sheet prints `SECTION A-A`**, so an API consumer and a sheet reader
+  disagree; the 1.5 m effective opening in the airflow formula does not correspond to the 1800 mm
+  of bank the cell count implies.
+- **SIX VALUES CARRY origin `kept`/`reused`** — Construction (MS 1.6mm), air intake filter, blower
+  MOC, finish, paint arresting, carbon chamber — i.e. copied from the nearest historical offer,
+  not engineered for this size, while reading on the sheet as engineered fact. Nothing is
+  fabricated, but that distinction is invisible to a reader of the PDF.
+- **The audit brief referenced Ø630, 4 x 40 W lights, a 50 mm sandwich panel and a 3000 x 2500
+  face. NONE of those appear on this sheet** — a reminder to check which artifact is being
+  audited before accepting its premises.
+
 ### ▶ 2026-09-04 — PRODUCTION HARDENING. Backups, ceilings, and RETRIEVAL IS REPRODUCIBLE.
 
 Vitech have still not answered the engineering knowledge request, so this session cleared the

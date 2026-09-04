@@ -448,6 +448,11 @@ def part2(p: Doc):
     band(p, "One item below - B1, component setting-out - is now the single largest gap between "
             "what the platform produces and a drawing Vitech could issue. Everything else in the "
             "drawing is finished.")
+    band(p, "Two further items, B9 and B10, were added after a technical audit of a generated "
+            "booth drawing. Both sit on the AIRFLOW CHAIN, where one unconfirmed basis changes "
+            "the blower, the duct and the filter count together - so although they are numbered "
+            "last, they rank immediately after B1.",
+         fill=(252, 243, 235))
 
     h2(p, "B1. Component setting-out rules  [HIGHEST PRIORITY]")
     body(p, "Where components sit INSIDE the machine: filter bank offset from the rear wall, "
@@ -528,6 +533,50 @@ def part2(p: Doc):
             "and implemented. Still needed: the standard margin policy, and how bought-out items "
             "are marked up - bought-out items dominate the cost of a booth, so this is the "
             "single largest factor in pricing accuracy.")
+
+    # B9 and B10 came out of a technical audit of a generated booth GA on
+    # 2026-09-04. Both sit on the AIRFLOW CHAIN - airflow sizes the blower, the
+    # duct and the filter count - so an unconfirmed answer to either changes a
+    # number that reaches a customer. They are appended rather than renumbered
+    # in ahead of B2-B8 so that anyone holding an earlier copy of this document
+    # still finds the same item under the same number.
+    h2(p, "B9. Which face governs booth airflow  [BLOCKS A CUSTOMER-FACING NUMBER]")
+    body(p, "The platform computes the extract volume as the OPEN FRONT (the booth's length) x "
+            "an EFFECTIVE FILTER OPENING of 1.5 m x 0.5 m/s x 3600. On your published "
+            "VT/3.0/DTPB/OP this reproduces 8,100 m3/h exactly, which is why it was adopted.")
+    body(p, "A second basis is also in circulation, taking the face as roughly 3.0 x 2.5 m. On a "
+            "5 m booth the two agree - 5.0 x 1.5 and 3.0 x 2.5 are both 7.5 m2, so both give "
+            "13,500 m3/h. That agreement is a coincidence of one size, and it hides the "
+            "disagreement rather than settling it:")
+    w = [avail(p) * 0.30, avail(p) * 0.35, avail(p) * 0.35]
+    table(p, w,
+          ["Booth length", "Open front x 1.5 m", "A 3.0 x 2.5 m face"],
+          [["5.0 m", "13,500 m3/h", "13,500 m3/h  (agree)"],
+           ["6.0 m", "16,200 m3/h", "13,500 m3/h  (20% apart)"],
+           ["3.0 m", "8,100 m3/h", "13,500 m3/h  (67% apart)"],
+           ["8.0 m", "21,600 m3/h", "13,500 m3/h  (60% apart)"]])
+    note(p, "Effect today: airflow sizes the blower, the duct diameter and the filter count, so "
+            "the two bases specify different machines for every booth except a 5 m one. We have "
+            "implemented the 1.5 m opening because it reproduces your own published figure, and "
+            "we are not changing it on our own judgement.")
+    body(p, "Please confirm: which face governs, and whether the 1.5 m effective opening is "
+            "fixed or varies with booth height or model.")
+
+    h2(p, "B10. Static pressure basis for blower selection  [BLOCKS A CUSTOMER-FACING NUMBER]")
+    body(p, "Your workbooks carry the rule: never select a blower from CFM alone - use the "
+            "manufacturer fan curve at the calculated duty point. We can only follow half of it. "
+            "The platform selects a real catalogue model by AIRFLOW, pinned to the CLP-4 pressure "
+            "class you build booths around, because no system resistance is calculated anywhere: "
+            "there is no allowance for filter loading, duct run, bends, plenum or dampers.")
+    note(p, "Effect today: a selected blower can be shown to deliver the required volume, but "
+            "NOT that it delivers it against the system it is connected to. On the audited booth "
+            "the selected CLP-4-10-9000 gives 15,430 m3/h against 13,500 required, and its 89 "
+            "mmwc is the catalogue figure at the fan's rated point - not a duty point matched on "
+            "the curve.")
+    body(p, "Please supply whichever you actually use: a standard static pressure allowance per "
+            "booth type, or the resistance build-up an engineer works through - and the clean "
+            "versus dirty filter allowance, since that decides whether the fan still holds duty "
+            "at the end of a filter's life.")
 
 
 # --------------------------------------------------------------- part 3 ----
@@ -649,6 +698,8 @@ def appendix(p: Doc):
         "B6. Reference documents for the knowledge base",
         "B7. Additional offers: water-wash booths, powder coating plants, ovens (incl. LPG)",
         "B8. Margin policy and bought-out mark-up",
+        "B9. Which face governs booth airflow - BLOCKS A CUSTOMER-FACING NUMBER",
+        "B10. Static pressure basis for blower selection - BLOCKS A CUSTOMER-FACING NUMBER",
     ])
 
     h2(p, "Part 3 - Readiness questions")
