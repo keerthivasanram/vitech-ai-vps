@@ -82,6 +82,12 @@ SESSION_HISTORY = int(os.getenv("SESSION_HISTORY", "12"))   # messages kept for 
 # Over-fetch this many candidates from the vector store before reranking, so the
 # reranker has a real pool to reorder (top-k after reranking is the caller's k).
 RETRIEVE_CANDIDATES = int(os.getenv("RETRIEVE_CANDIDATES", "24"))
+# Below this many chunks, retrieval scores the WHOLE corpus instead of asking
+# HNSW for an approximate shortlist — which is what makes the same question
+# return the same sources after a restart. See rag/retrieve._candidate_search.
+# Raise it as the corpus grows, within reason: the cost is one similarity
+# comparison per chunk per query.
+RETRIEVE_EXHAUSTIVE_MAX = int(os.getenv("RETRIEVE_EXHAUSTIVE_MAX", "2000"))
 # Hybrid reranker: fuse dense (vector) rank with sparse (lexical) rank via
 # Reciprocal Rank Fusion, plus a metadata-match boost. Weights are relative.
 RERANK_ENABLED = os.getenv("RERANK_ENABLED", "1").lower() not in ("0", "false", "no")

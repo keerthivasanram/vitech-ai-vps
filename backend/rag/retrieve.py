@@ -62,8 +62,32 @@ def _to_hits(result: dict) -> list[dict[str, Any]]:
 def _candidate_search(collection, question, filters, count, broaden):
     """Vector search that OVER-FETCHES a candidate pool (for the reranker),
     keeping the original graceful-broaden fallback so a too-specific filter
-    degrades to fewer constraints rather than to zero results."""
-    n = min(max(config.RETRIEVE_CANDIDATES, 1), count)
+    degrades to fewer constraints rather than to zero results.
+
+    THE CANDIDATE POOL DECIDES REPRODUCIBILITY, which is why the size is not
+    just a quality knob. ChromaDB's HNSW is an APPROXIMATE index: its traversal
+    depends on process state, so asking for the nearest 24 of 178 chunks
+    returned a slightly different 24 after a restart. The swapping hits were
+    closely scored (0.213 / 0.218 / 0.262) — right at the cut — so the agent
+    could cite different sources for the same question depending on when it was
+    asked, and `tools.retrieve` fingerprinted at five different sizes across
+    restarts.
+
+    Below `RETRIEVE_EXHAUSTIVE_MAX` chunks the fix is simply to stop
+    approximating: ask for the whole corpus, and the candidate set is complete
+    by construction — every chunk is scored, and no traversal can omit one.
+    The reranker then decides the order deterministically. At the current 178
+    chunks this is exact and costs a few milliseconds.
+
+    Above that ceiling it falls back to the bounded over-fetch and is
+    approximate again. That is a real limit, stated rather than hidden: the
+    durable fix at scale is a deterministic index (roadmap D1, Qdrant), and
+    this is what makes the platform reproducible until then.
+    """
+    if count <= config.RETRIEVE_EXHAUSTIVE_MAX:
+        n = count
+    else:
+        n = min(max(config.RETRIEVE_CANDIDATES, 1), count)
 
     def _run(where):
         res = collection.query(

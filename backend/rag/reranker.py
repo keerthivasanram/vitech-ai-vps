@@ -63,6 +63,23 @@ def _rank_map(order: list[int]) -> dict[int, int]:
     return {idx: r + 1 for r, idx in enumerate(order)}
 
 
+def _identity(hit: dict) -> tuple:
+    """A stable identity for a chunk, used ONLY to break ties.
+
+    Every sort below keyed on score alone. Python's sort is stable, so equal
+    scores kept the order the candidates arrived in — and that order comes from
+    ChromaDB's HNSW traversal, which is approximate and depends on process
+    state. So two runs of the SAME query could rank two equally-scored chunks
+    differently, and the agent would cite different sources for one question.
+
+    Ranking must be a property of the documents, never of the order they
+    happened to be fetched in.
+    """
+    return (str(hit.get("source_file") or ""), hit.get("page") or 0,
+            str(hit.get("section") or ""), str(hit.get("id") or ""),
+            str(hit.get("text") or "")[:200])
+
+
 def rerank(query: str, hits: list[dict], top_k: int,
            filters: dict | None = None) -> list[dict]:
     """Return the top_k hits reordered by fused relevance. Each returned hit
@@ -76,11 +93,11 @@ def rerank(query: str, hits: list[dict], top_k: int,
     idxs = list(range(len(hits)))
 
     # dense order = the order Chroma already returned (by descending score)
-    dense_order = sorted(idxs, key=lambda i: -(hits[i].get("score") or 0.0))
+    dense_order = sorted(idxs, key=lambda i: (-(hits[i].get("score") or 0.0), _identity(hits[i])))
     dense_rank = _rank_map(dense_order)
 
     lex = _bm25_lite_scores(query, hits)
-    lexical_order = sorted(idxs, key=lambda i: -lex[i])
+    lexical_order = sorted(idxs, key=lambda i: (-lex[i], _identity(hits[i])))
     lexical_rank = _rank_map(lexical_order)
     lex_max = max(lex) or 1.0             # normalise magnitude to [0,1]
 
@@ -97,7 +114,7 @@ def rerank(query: str, hits: list[dict], top_k: int,
                 boost += config.RERANK_META_BOOST
         fused.append((i, rrf + boost))
 
-    fused.sort(key=lambda p: -p[1])
+    fused.sort(key=lambda p: (-p[1], _identity(hits[p[0]])))
     out = []
     for i, sc in fused[:top_k]:
         h = dict(hits[i])

@@ -120,8 +120,8 @@
     "status": 200
   },
   "tools.retrieve": {
-    "bytes": 10080,
-    "sha256": "b8ca268b90af4d27e42dd6cd5dab5184ed8a084be90c1bdacf650ea2dfe3e159",
+    "bytes": 8960,
+    "sha256": "d1793691b77c3e27bf411aa61a799154b1e2ca0d3b770694e1d3d6952ebec058",
     "status": 200
   },
   "tools.spec.booth": {

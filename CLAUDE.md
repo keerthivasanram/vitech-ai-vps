@@ -42,6 +42,75 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-04 — PRODUCTION HARDENING. Backups, ceilings, and RETRIEVAL IS REPRODUCIBLE.
+
+Vitech have still not answered the engineering knowledge request, so this session cleared the
+work that is NOT blocked on them. **Fifteen suites green and, for the first time since the flap
+was recorded, `tests_api_contract` is 29/29 with nothing left failing.**
+- **`retrieve_knowledge` IS REPRODUCIBLE NOW — the open issue from 2026-09-02 is CLOSED.**
+  Two causes, and the second was invisible until the first was fixed. (a) The candidate pool was
+  an approximate HNSW shortlist of **24 out of 178 chunks**, and the swapping hits scored
+  0.213 / 0.218 / 0.262 — right at the cut. Below `RETRIEVE_EXHAUSTIVE_MAX` (2000) retrieval now
+  scores the WHOLE corpus, so the candidate set is complete **by construction** and no traversal
+  can omit a chunk; above it, the bounded over-fetch returns and it is approximate again, which
+  is stated rather than hidden. (b) **Every sort in `reranker.py` keyed on score ALONE**, and
+  Python's sort is stable — so equally-scored chunks kept whatever order the index handed back.
+  Ranking must be a property of the documents, never of the order they were fetched in.
+- **PROVEN, not assumed: identical across THREE backend restarts WITH REDIS FLUSHED each time.**
+  The flush matters — the retrieval cache survives a restart, so measuring without it would have
+  shown a stability that was really just a cache hit. **All goldens byte-identical**, which is
+  the proof this moved retrieval ORDER and no engineering number.
+- **A verification error worth recording: I first "proved" stability against the WRONG QUERY.**
+  The contract case is `{"question": "face velocity"}` and I measured a longer sentence I had
+  guessed, got a stable answer, and recorded it — the suite then failed with a third value. The
+  fingerprint is only meaningful for the exact payload the case sends. **`tools.retrieve` is now
+  recorded at 8,960 bytes and is expected to STAY there**; if it moves again, that is a real
+  regression and no longer "the documented flap".
+- **THE BACKUP GAP WAS THE MOST SERIOUS FINDING.** `pg-backup.sh` covers Postgres only, and the
+  disaster-recovery audit's "there is no fifth bucket" was true when written and then quietly
+  false for a month. **`auth.db` (accounts + the PERMANENT audit trail), `ops.db` (a row per
+  document ever issued) and `data/jobs/` (the issued documents themselves) were in NO backup at
+  all** and nothing regenerates them. **`ops/backup.sh` + `ops/restore.sh` (NEW)** take all five
+  irreplaceable things. Both SQLite stores go through SQLite's **online backup API, never `cp`** —
+  the backend holds them open and a live copy can capture a torn write that only reveals itself
+  on the day you restore. The copy is read back and integrity-checked; every artifact is verified
+  against its recorded digest. **`restore.sh` puts `auth.db` back FIRST**, because the restored
+  Flowise tool rows carry a service key that is only a credential if a matching principal exists.
+- **THE BACKUP'S OWN VERIFICATION EARNED ITSELF IMMEDIATELY AND FOUND A REAL DEFECT:** 64 of 78
+  artifacts failed their digest. Not customer documents — **`tests_observability.py` was writing
+  into the LIVE store**, and one check deliberately tampers an artifact to prove a corrupt file
+  is refused. Good check, wrong store: every run left a permanently corrupt file and a fake job
+  row in a store that is never purged. **A corruption monitor that always fires is one nobody
+  believes on the day it fires for real.** The suite now isolates itself to a temp dir AND
+  asserts that it did (the overrides must be set before the app modules import).
+  **`ops/prune-test-residue.py` removes the 64 — RUN IT** (`--apply`); it was left unrun here
+  because deleting from a permanent store is the user's call. Signature is four-part and narrow.
+- **CEILINGS ON THE LLM ROUTES (S5, P2).** `app/ratelimit.py` — a per-PRINCIPAL rate limit stops
+  one caller looping; a concurrency ceiling stops many arrivals eating the thread pool, which is
+  what takes `/api/health` down with everything else. Defaults (120/min, 12 concurrent) sit far
+  above real use: **runaway guards, not quotas.**
+  **THE FIRST VERSION REINTRODUCED THE BUG IT WAS WRITTEN TO PREVENT** — the slot took no path
+  and counted EVERY request, so `/api/health` would have sat behind the same ceiling as a package
+  build and 429'd the monitor under load. **Caught by reading `in_flight` in the live metrics
+  while only cheap requests were running, not by reading the code.** Pinned in `tests_limits.py`
+  (NEW, in CI), verified by reintroducing the bug and watching the suite fail.
+- **CORS was `*`** and now defaults to the local dev origins only; **uploads** gained a 50 MB cap
+  streamed in chunks and an extension **allow-list** (the existing table labelled files for
+  display but never decided whether to accept one), partial file removed on refusal.
+- **THREE DOCS WERE DESCRIBING A PLATFORM THAT STOPPED EXISTING A MONTH AGO** and would have cost
+  real time on the production move: `production-deployment.md` still called frontend-only auth the
+  top blocker and told the reader to set `API_KEY` (which no longer exists — setting it does
+  nothing while reading as though the API were protected). **Two steps that BRICK a fresh deploy
+  were in no runbook**: there is no default account (an empty user table locks everyone out), and
+  the agents need a service principal that exists in *this* deployment's `auth.db` — without it
+  all three fail with "I don't have the ability to call external tools", which is exactly what
+  they say when the backend is down.
+- **STILL OPEN and NOT blocked on Vitech:** HTTPS + reverse proxy is now the top production item;
+  `docker-compose.prod.yml` has still never been executed (no Docker on the pod) and is the
+  biggest unknown in the move; 35 endpoints still take a raw `dict` body with no Pydantic model;
+  and the booth BOM cost model / structure weight / margin model remain (the margin multiplier
+  needs DQ-7 from Vitech, but the code can take it as an input now).
+
 ### ▶ 2026-09-03 (studio) — EDIT AS INPUTS, and D1 CONVERSATIONAL STATE. Both DONE.
 
 **The studio was a phase behind the engine.** It read four fields off the render response — `bom`,
@@ -516,7 +585,9 @@ warning below. The 7 commits are ARCHITECTURE.md + SHARING_GUIDE.md and no code.
   materials listing a 10 HP engineered motor beside a 5 HP published one. **Found by rendering
   the drawing and reading its BOM, not by reading the source** (the standing lesson, again).
   The published figures now ride in the basis trail, where they inform without being orderable.
-- **NEW OPEN ISSUE — `retrieve_knowledge` IS NOT REPRODUCIBLE ACROSS RESTARTS.** The same
+- **[CLOSED 2026-09-04 — see the entry at the top of this queue. Retrieval is reproducible;
+  `tools.retrieve` is recorded at 8,960 bytes and must STAY there.]**
+  **~~NEW OPEN ISSUE — `retrieve_knowledge` IS NOT REPRODUCIBLE ACROSS RESTARTS.~~** The same
   question returns a **different document set** after a backend restart (stable within a
   process, and `tools.retrieve` fingerprinted at 10081 / 10080 / 9140 bytes across restarts).
   The swapping hits are closely scored (0.213 / 0.218 / 0.262), which is **ChromaDB's HNSW being

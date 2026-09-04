@@ -117,6 +117,44 @@ _snapshot = list(offer_records())
 sorted(offer_records(), key=lambda r: str(r.get("id")))     # must not mutate
 check("reading does not reorder the shared cache", offer_records() == _snapshot)
 
+# --- ranking must not depend on the order candidates arrived in -------------
+# `retrieve_knowledge` was NOT reproducible across restarts: the same question
+# returned a different document set, and `tools.retrieve` fingerprinted at five
+# different sizes. Two causes, both fixed — the candidate pool was an
+# approximate HNSW shortlist that varied with process state, and every sort in
+# the reranker keyed on score ALONE. Python's sort is stable, so equally-scored
+# chunks kept whatever order the index happened to hand back.
+#
+# This pins the second one, which is the part that is testable offline: rank a
+# candidate set, then rank a REVERSED copy of it, and require the same answer.
+# An engineering platform that cites different sources for the same question
+# depending on when it was asked is not one an engineer can defend.
+from rag import reranker                                          # noqa: E402
+
+_cands = [
+    {"id": "a", "source_file": "a.pdf", "page": 1, "score": 0.50,
+     "text": "face velocity for a paint booth is measured across the open face"},
+    {"id": "b", "source_file": "b.pdf", "page": 2, "score": 0.50,
+     "text": "face velocity for a paint booth is measured across the open face"},
+    {"id": "c", "source_file": "c.pdf", "page": 3, "score": 0.50,
+     "text": "face velocity for a paint booth is measured across the open face"},
+    {"id": "d", "source_file": "d.pdf", "page": 4, "score": 0.42,
+     "text": "booth airflow and blower selection notes"},
+]
+_q = "paint booth face velocity"
+_fwd = [h["id"] for h in reranker.rerank(_q, list(_cands), 4)]
+_rev = [h["id"] for h in reranker.rerank(_q, list(reversed(_cands)), 4)]
+check("ranking is identical when the candidates arrive in a different order "
+      f"(forward {_fwd} vs reversed {_rev})", _fwd == _rev)
+
+# Deliberately identical text AND identical score: nothing but the tie-break
+# can separate these, so this is the check that fails if it is ever removed.
+_tied = [{"id": x, "source_file": f"{x}.pdf", "page": 1, "score": 0.5,
+          "text": "identical chunk text"} for x in ("z", "y", "x", "w")]
+_a = [h["id"] for h in reranker.rerank("identical", list(_tied), 4)]
+_b = [h["id"] for h in reranker.rerank("identical", list(reversed(_tied)), 4)]
+check(f"fully-tied candidates rank deterministically ({_a})", _a == _b)
+
 print()
 if _fail:
     print(f"{_fail} RETRIEVAL TEST(S) FAILED")
