@@ -96,16 +96,36 @@ if existing_tool:
     print(f"tool '{NEW_TOOL}' already exists: {draw_tool_id}")
 else:
     draw_tool_id = str(uuid.uuid4())
-    schema = json.dumps([{"id": 0, "property": "question",
-                          "description": "The equipment requirement, in the user's own words, "
-                                         "keeping every dimension and unit",
-                          "type": "string", "required": True}])
+    # TWO inputs, and the split is load-bearing. A paper size used to have
+    # nowhere to go but inside the requirement string, and under conversational
+    # pressure the model began substituting the PAPER's dimensions for the
+    # MACHINE's - a paint booth came back as "420 x 297 x 4000 mm", which is A2.
+    # See ops/flowise/drawing-tool-sheet-size.py for the full reproduction.
+    schema = json.dumps([
+        {"id": 0, "property": "question", "type": "string", "required": True,
+         "description": ("The EQUIPMENT requirement in the user's own words, keeping every "
+                         "dimension and unit exactly. This describes the MACHINE only. "
+                         "A paper size (A4, A3, A2, A1) is NOT part of the requirement - "
+                         "it goes in sheet_size. Never put a paper size here.")},
+        {"id": 1, "property": "sheet_size", "type": "string", "required": False,
+         "description": ("The PAPER size to draw on: A4, A3, A2 or A1. Send it only when "
+                         "the user asks for a particular sheet. This is the size of the "
+                         "PAPER, never the size of the equipment. Omit it otherwise.")},
+    ])
     # Strip the SVG: it is for the canvas, not the model. See the module docstring.
+    # An OPTIONAL property the model omits is UNDEFINED inside the NodeVM, and
+    # reading it bare throws a ReferenceError - the agent then sees an empty
+    # tool result and INVENTS an answer, which looks successful from outside.
     func = ("const fetch = require('node-fetch');\n"
+            "const sheet = (typeof $sheet_size !== 'undefined' ? $sheet_size : null);\n"
+            "const body = { question: $question };\n"
+            "if (sheet && /^A[1-4]$/i.test(String(sheet).trim())) {\n"
+            "    body.sheet_size = String(sheet).trim().toUpperCase();\n"
+            "}\n"
             "const res = await fetch('http://localhost:8000/api/tools/drawing', {\n"
             "    method: 'POST',\n"
             "    headers: { 'Content-Type': 'application/json' },\n"
-            "    body: JSON.stringify({ question: $question })\n"
+            "    body: JSON.stringify(body)\n"
             "});\n"
             "const data = await res.json();\n"
             "delete data.svg;\n"
