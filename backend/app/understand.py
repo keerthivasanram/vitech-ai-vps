@@ -86,6 +86,109 @@ _CATEGORY_KEYWORDS = {
 }
 _PAINTS = ["powder", "liquid", "solvent", "water-based", "water based"]
 
+# --------------------------------------------------------------------------
+# EXPLICITLY LABELLED INPUTS.
+#
+# Every pattern below is anchored on the WORD the customer wrote, never on a
+# bare number. That is the whole design: a requirement that says "operating
+# temperature 180 deg C, maximum temperature 200 deg C" states two DIFFERENT
+# engineering values, and only the label distinguishes them. Reading an
+# unqualified "200C" here as well would change what every existing oven
+# requirement resolves to, so these fire only on the labelled form and leave
+# everything else exactly as it was.
+#
+# They exist because these values were reaching the specification through the
+# LLM or not at all. A stated dimension, temperature, panel thickness, door
+# opening or heating medium is the most authoritative fact in the system and
+# golden rule #2 says it must be read by code, not by an 8B model.
+# --------------------------------------------------------------------------
+_DEG_C = r"\s*(?:deg(?:ree)?s?\.?\s*)?(?:c\b|celsius|centigrade|\u00b0\s*c?)?"
+_LEAD = r"\s*(?:of\s+|is\s+|at\s+|[:=-]\s*)?"
+
+_OPERATING_TEMP_C = re.compile(
+    rf"\b(?:operating|working|process)\s+temp(?:erature)?{_LEAD}(\d+(?:\.\d+)?){_DEG_C}", re.I)
+# A MAXIMUM temperature is a distinct value from the operating one; it is the
+# design ceiling. Collapsing the two (which `_PARAM_ALIASES` still does for the
+# model's contribution, where only one is ever offered) loses whichever the
+# customer wrote second.
+_MAX_TEMP_C = re.compile(
+    rf"\b(?:max(?:imum)?|peak|design)\s+temp(?:erature)?{_LEAD}(\d+(?:\.\d+)?){_DEG_C}", re.I)
+
+# "insulated panel thickness 100 mm", "panel thickness: 100mm", "100 mm
+# insulated panel", "100mm PUF panel".
+_PANEL_THICKNESS_MM = re.compile(
+    r"\b(?:insulat(?:ed|ion)\s+)?(?:panel|wall|sandwich)\s+thickness" + _LEAD + r"(\d+(?:\.\d+)?)\s*mm"
+    r"|\b(\d+(?:\.\d+)?)\s*mm\s+(?:thick\s+)?(?:insulated\s+|puf\s+|rockwool\s+|mineral\s+wool\s+)?panel\b",
+    re.I)
+
+# "double leaf door opening 2000 x 2200 mm", "door size 2000x2200".
+_DOOR_OPENING = re.compile(
+    r"\bdoor\s*(?:opening|size|aperture|clear\s+opening)?" + _LEAD +
+    r"(\d+(?:\.\d+)?)\s*(mm|m)?\s*[x\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|m)?", re.I)
+_DOOR_TYPE = re.compile(
+    r"\b(double[\s-]?leaf|single[\s-]?leaf|bi[\s-]?parting|two[\s-]?leaf|"
+    r"sliding|hinged|roller\s+shutter|guillotine|vertical\s+lift)\b(?=[^.]{0,40}\bdoor\b)"
+    r"|\bdoor\b[^.]{0,40}?\b(double[\s-]?leaf|single[\s-]?leaf|bi[\s-]?parting|two[\s-]?leaf|"
+    r"sliding|hinged|roller\s+shutter|guillotine|vertical\s+lift)\b", re.I)
+
+# The heating MEDIUM, read only in an unambiguous form: either "<media> fired /
+# heating / heated", or "heating media/mode/source: <media>". A bare "gas" or
+# "electric" anywhere in a sentence is not enough to put a fuel on a
+# specification.
+_MEDIA = (r"electric(?:al)?|diesel|lpg|png|natural\s+gas|gas|steam|thermic\s+fluid|"
+          r"hot\s+water|furnace\s+oil|light\s+diesel\s+oil|ldo|coal|biomass|briquette")
+_HEATING_MEDIA = re.compile(
+    rf"\b({_MEDIA})\b[\s-]*(?:fired|heating|heated|heater|burner)\b"
+    rf"|\bheat(?:ing)?\s*(?:media|medium|mode|source|type|fuel|by)?{_LEAD}({_MEDIA})\b", re.I)
+
+
+def _mm(value: float, unit: str | None) -> float:
+    """A stated length in millimetres. A door written in metres ("2 x 2.2 m")
+    is the same opening as one written in millimetres; the spec and the drawing
+    both work in mm, so the unit is resolved once, here."""
+    return value * 1000.0 if (unit or "").lower().startswith("m") and not (unit or "").lower().startswith("mm") else value
+
+
+def _labelled_inputs(q: str) -> dict:
+    """Values the customer LABELLED, read deterministically.
+
+    THE DEFECT THIS CLOSES. A hot air oven stating overall size, panel
+    thickness, door opening, operating and maximum temperature and electric
+    heating had exactly three of those six read by code. The rest arrived, if at
+    all, through the model — and `maximum temperature` was then aliased onto
+    `operating_temp`, so the two collapsed into one and whichever was read
+    second won. Everything that could not be read became "To be determined" on
+    a specification the customer had just supplied the answers for, which is the
+    one thing a requirement engine must never do.
+    """
+    out: dict = {}
+    if m := _OPERATING_TEMP_C.search(q):
+        out["operating_temp"] = _round(m.group(1))
+    if m := _MAX_TEMP_C.search(q):
+        out["max_temp_c"] = _round(m.group(1))
+    if m := _PANEL_THICKNESS_MM.search(q):
+        out["panel_thickness_mm"] = _round(m.group(1) or m.group(2))
+    if m := _DOOR_OPENING.search(q):
+        w = _mm(float(m.group(1)), m.group(2) or m.group(4))
+        h = _mm(float(m.group(3)), m.group(4) or m.group(2))
+        out["door_opening_mm"] = f"{_int(w)} x {_int(h)}"
+    if m := _DOOR_TYPE.search(q):
+        out["door_type"] = re.sub(r"[\s-]+", " ", (m.group(1) or m.group(2))).lower()
+    if m := _HEATING_MEDIA.search(q):
+        out["heating_mode"] = re.sub(r"\s+", " ", (m.group(1) or m.group(2))).lower()
+    return out
+
+
+def _int(v: float) -> str:
+    return str(int(v)) if float(v).is_integer() else str(v)
+
+
+def _round(text: str):
+    """180, not 180.0 — a temperature is written the way an engineer writes it,
+    and the spec, the drawing title block and the PDF all print this verbatim."""
+    v = float(text)
+    return int(v) if v.is_integer() else v
+
 
 # Map the many ways an LLM/user names a field to our canonical schema keys.
 _PARAM_ALIASES = {
@@ -300,6 +403,10 @@ def _fallback(question: str) -> QueryUnderstanding:
     mt = re.search(r"operating temperature[:\s]+([a-z]+)", q)
     if mt:
         params["operating_temp"] = mt.group(1)
+    # Values the customer LABELLED, read by code rather than by the model. Last,
+    # so an explicit "operating temperature 180 deg C" wins over the word form
+    # above ("ambient"), which is the only other writer of this key.
+    params.update(_labelled_inputs(q))
     if "direct drive" in q or "direct-drive" in q:
         params["blower_mounting"] = "direct drive"
     if (b := _BOOTH_TYPE.search(q)):
@@ -415,6 +522,16 @@ def _llm_understand(question: str) -> QueryUnderstanding | None:
 # trustworthy as a set, because its meaning is positional.
 _DIM_AXES = ("length_m", "width_m", "height_m")
 
+# Keys the DETERMINISTIC parser owns outright when it read them, for the same
+# reason the dimension triple is owned: each is read from a phrase the customer
+# LABELLED, and what the model gets wrong is precisely the labelling. Asked for
+# "operating temperature 180 deg C, maximum temperature 200 deg C" it returns a
+# single temperature; `_PARAM_ALIASES` then folds `max_temp` onto `operating_temp`
+# and the two become one number with no way to tell which survived. Where the
+# regex read the labelled form there is nothing left for the model to improve.
+_LABELLED_KEYS = ("operating_temp", "max_temp_c", "panel_thickness_mm",
+                  "door_opening_mm", "door_type", "heating_mode")
+
 # Keys any category may legitimately carry even when its own profile does not
 # declare them: the overall envelope, which a duty-specified category (ducting,
 # dust collector, conveyor) leaves out on purpose but the drawing layer still
@@ -500,6 +617,10 @@ def understand(question: str) -> QueryUnderstanding:
         # envelope draws a wrong GA (golden rule #2).
         if all(k in fb_params for k in _DIM_AXES):
             for k in _DIM_AXES:
+                params[k] = fb_params[k]
+        # ...and likewise every explicitly LABELLED value (see _LABELLED_KEYS).
+        for k in _LABELLED_KEYS:
+            if k in fb_params:
                 params[k] = fb_params[k]
     # A stated correction wins over the value it corrects — applied BEFORE the
     # unit fill so a corrected airflow recomputes its partner unit.

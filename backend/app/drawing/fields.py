@@ -26,6 +26,17 @@ _UNIT_BY_SUFFIX = {
 # Numeric fields with no unit suffix.
 _UNITLESS_NUMBERS = {"qty", "ach"}
 
+# Fields that carry a unit suffix but hold a PAIR rather than one number.
+#
+# A door opening is "2000 x 2200" — two dimensions of one aperture, and the spec
+# and the drawing both consume it as a pair. Typed from the `_mm` suffix alone it
+# came out as a single-number field, so the studio rendered a numeric input the
+# value could not be typed into and `coerce` then DROPPED it: `float("2000 x
+# 2200")` raises, and the honest "unparseable number is not supplied" rule threw
+# away a value the customer had actually given. It keeps its suffix because the
+# suffix is what puts "mm" beside the label.
+_PAIR_FIELDS = {"door_opening_mm"}
+
 
 def unit_for(key: str) -> str:
     """Unit string for an input key, or "" when it carries none."""
@@ -41,6 +52,8 @@ def is_number(key: str) -> bool:
     Driven by the key, never by the value: a text field stays text even when the
     user happens to type digits into it.
     """
+    if key in _PAIR_FIELDS:
+        return False
     return bool(unit_for(key)) or key in _UNITLESS_NUMBERS
 
 

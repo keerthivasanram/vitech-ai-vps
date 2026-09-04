@@ -23,9 +23,10 @@ from .engineering.engineering_planner import _fmt, _given, _num, _tech, generate
 from .ledger import build_ledger
 from .schema import QueryUnderstanding
 from .spec_schema import ATS
-from .spec_template import apply_template
+from .spec_template import apply_states, apply_template, state_summary
 from .release_gate import assess as assess_release
-from .validate import cross_validate, demote_unscalable, validate
+from .validate import (cross_validate, demote_contradicted,
+                       demote_unscalable, validate)
 
 _STRUCTURED = {"specification", "quotation"}
 
@@ -114,7 +115,15 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         # machine's answer. Demote it to an honest gap BEFORE the template runs,
         # so it is scheduled as TBD rather than asserted as engineered fact.
         technical = demote_unscalable(technical, params, chosen, profile)
+        # ...and refuse a reused value the customer's own requirement
+        # contradicts. Before the template, so the demoted row is an honest gap
+        # by the time the template decides what is resolved and what is not.
+        technical = demote_contradicted(technical, params, profile)
         technical = apply_template(profile, technical, offers, params)
+        # Every row now declares which of the four buckets it is in. Stamped
+        # last, so it reads the provenance AFTER every demotion and template
+        # decision has been made.
+        apply_states(technical)
 
     assumptions, missing = _assumptions_and_missing(profile, params, offers) if structured else ([], [])
     validation = ((validate(category, params)
@@ -138,7 +147,12 @@ def analyze(question: str, hits: list[dict[str, Any]], u: QueryUnderstanding,
         "nearest_match": nearest["id"] if nearest else None,
         "match": match,                       # dimension/process/driver/historical/overall (%)
         "rules": rules_list,
-        "technical_details": technical,       # each: label,value,origin,origin_label,source,reason
+        "technical_details": technical,       # each: label,value,origin,origin_label,source,reason,state
+        # The four-way partition, by label: CONFIRMED / DERIVED / TBD /
+        # INDICATIVE. Every row is in exactly one bucket and the counts sum to
+        # the row count, so "what did the customer actually give us, and what is
+        # still open?" is answerable without reading the table.
+        "requirement_state": state_summary(technical),
         "ledger": build_ledger(technical),    # traceable audit trail of every value
         "knowledge_used": knowledge_used,     # counts of offers/rules/standards/components
         "knowledge_contribution": knowledge_contribution,  # % per source

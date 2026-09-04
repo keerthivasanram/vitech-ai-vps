@@ -144,6 +144,75 @@ ORIGIN_LABELS = {
     "recommended": "Recommended",
 }
 
+# --------------------------------------------------------------------------
+# REQUIREMENT STATE — the four-way partition an engineer reads the spec by.
+#
+# `origin` records HOW a value was produced and has grown to fifteen values, which
+# is the right granularity for provenance and the wrong one for the question a
+# reviewer actually asks: may I build from this, or must someone still answer it?
+# STATE answers that, and every row carries exactly one:
+#
+#   CONFIRMED   the customer or the engineer stated it. Never recomputed, never
+#               overwritten, and never listed as missing.
+#   DERIVED     produced deterministically by the platform and traceable to its
+#               rule, standard or cited source project.
+#   TBD         genuinely unknown, or the customer's own decision to make.
+#   INDICATIVE  geometry that is DRAWN but not engineered, because Vitech have
+#               supplied no setting-out rule for it. It is shown so the machine
+#               reads as a machine and it is dimensioned nowhere.
+#
+# The map is TOTAL over ORIGIN_LABELS and a test asserts it stays that way — a
+# state that silently omitted an origin would put values in no bucket at all,
+# and the whole point is that every parameter lands in exactly one.
+# --------------------------------------------------------------------------
+CONFIRMED, DERIVED, TBD, INDICATIVE = "confirmed", "derived", "tbd", "indicative"
+
+ORIGIN_STATES = {
+    # The customer's own words, or the engineer's. Authoritative.
+    "given": CONFIRMED,
+    # Engineering the platform performed and can show its working for. Reuse
+    # sits here rather than in a bucket of its own: it is deterministic and it
+    # cites the project it came from, and the row's own `origin_label` still
+    # says "Reused from nearest design" for a reader who needs the distinction.
+    "rule": DERIVED,
+    "standard": DERIVED,
+    "advisory": DERIVED,
+    "interpolated": DERIVED,
+    "scaled": DERIVED,
+    "consistent": DERIVED,
+    "reused": DERIVED,
+    "kept": DERIVED,
+    "adapted": DERIVED,
+    "existing": DERIVED,
+    "recommended": DERIVED,
+    # Open. A customer decision is a QUESTION rather than an engineering gap,
+    # but it is equally not something anyone may build from yet.
+    "tbd": TBD,
+    "customer_decision": TBD,
+    # Drawn, not engineered.
+    "indicative": INDICATIVE,
+}
+
+STATE_LABELS = {
+    CONFIRMED: "Confirmed input",
+    DERIVED: "Derived",
+    TBD: "Engineering input required",
+    INDICATIVE: "Indicative - no approved setting-out rule",
+}
+
+
+def state_for(origin: str | None) -> str:
+    """The bucket this value belongs in. An origin the map does not know is
+    reported as TBD, not as derived: a value whose provenance we cannot name is
+    not one anybody should build from. The completeness test means this branch
+    should be unreachable."""
+    return ORIGIN_STATES.get(str(origin or ""), TBD)
+
+
+def state_label(state: str) -> str:
+    return STATE_LABELS.get(state, STATE_LABELS[TBD])
+
+
 # Map internal origin -> the decision-type shown in the reasoning summary.
 DECISION_TYPES = {
     "rule": "Engineering Rule",
@@ -352,13 +421,46 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             ("height_m", "Chamber height"),
             ("operating_temp", "Operating temperature"),
         ],
-        "optional_inputs": [("qty", "Quantity")],
+        # Inputs a customer routinely STATES on an oven enquiry and the profile
+        # did not declare, so they had nowhere to live: they were dropped as
+        # undeclared, or (worse) folded onto a neighbouring key — `max_temp` was
+        # aliased onto the operating temperature, so an oven specified 180 deg C
+        # operating / 200 deg C maximum kept one of the two and silently lost
+        # which. Declared as OPTIONAL, never required: an oven enquiry that omits
+        # them is still complete, so routing and completeness are unchanged.
+        "optional_inputs": [
+            ("qty", "Quantity"),
+            ("max_temp_c", "Maximum temperature"),
+            ("panel_thickness_mm", "Insulated panel thickness"),
+            ("door_opening_mm", "Door opening"),
+            ("door_type", "Door type"),
+            ("heating_mode", "Heating media"),
+        ],
         "expected_inputs": [
             ("length_m", "Chamber length"), ("width_m", "Chamber width"),
             ("height_m", "Chamber height"), ("operating_temp", "Operating temperature"),
-            ("qty", "Quantity"),
+            ("max_temp_c", "Maximum temperature"),
+            ("panel_thickness_mm", "Insulated panel thickness"),
+            ("door_opening_mm", "Door opening"), ("door_type", "Door type"),
+            ("heating_mode", "Heating media"), ("qty", "Quantity"),
         ],
-        "scalable": [], "from_given": {}, "rules": None, "field_rules": None,
+        "scalable": [],
+        # A STATED heating medium fills the offer's `heating` field instead of
+        # the nearest design's. Without this an oven the customer specified as
+        # ELECTRIC was specified back to them as "diesel fired hot air generator,
+        # 400000 kcal/hr" — reused, correctly attributed, and the wrong machine.
+        # `from_given` is the seam the planner already honours as authoritative.
+        "from_given": {"heating_mode": "heating"},
+        # A reused insulation build-up that disagrees with the panel thickness
+        # the customer STATED is a different oven's answer. Declared explicitly,
+        # because only the profile can say that "Insulation" and
+        # `panel_thickness_mm` describe the same quantity. See
+        # `validate.demote_contradicted`.
+        "contradiction_checks": [
+            {"input": "panel_thickness_mm", "label": "Insulation",
+             "quantity": "an insulated panel thickness", "unit": "mm"},
+        ],
+        "rules": None, "field_rules": None,
         "rule_covers": [],
         # CASE-BASED: ovens have no closed-form sizing rules, but Vitech has real
         # oven offers to reuse. Rather than consulting from scratch (which left the
@@ -375,22 +477,44 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
                          "circulation_fan_hp": "Circulation fan (HP)",
                          "no_of_zones": "No. of heating zones", "conveyor": "Conveyor",
                          "door": "Door", "motorized_trolley": "Motorized trolley",
-                         "heating_mode": "Heating mode", "finish": "Finish"},
+                         "heating_mode": "Heating media", "finish": "Finish",
+                         # Confirmed customer inputs, labelled so the spec
+                         # template can find them in the requirement.
+                         "max_temp_c": "Maximum temperature (deg C)",
+                         "panel_thickness_mm": "Insulated panel thickness (mm)",
+                         "door_opening_mm": "Door opening (mm)",
+                         "door_type": "Door type"},
         # SPEC TEMPLATE — the sections a complete oven spec must cover (the ones
         # the client asks for). Each field resolves to given/calc/reuse or an
         # explicit TBD. Labels for reused fields match field_labels so history
         # fills them; the rest (dimensions, control panel, utilities, safety)
         # stay TBD until an engineering calc / the client's data supplies them.
+        # Ordered as an oven data sheet reads: what the customer CONFIRMED
+        # first, then what follows from it, then what is still open. The
+        # confirmed block used to be scattered — "Operating temperature" was not
+        # a template field at all, so it was appended after the TBD schedule,
+        # and the overall size had no way of being found (see `compose` below).
         "spec_template": [
             {"label": "Oven type", "kind": "standard"},
-            {"label": "Overall dimensions (mm)", "kind": "geometry"},
+            # COMPOSED from the three confirmed axes. Matching by label alone,
+            # this field could never resolve: no requirement key and no offer
+            # key is called "overall_dimensions_mm", so a fully dimensioned oven
+            # printed its own size as "To be determined".
+            {"label": "Overall dimensions (mm)", "kind": "geometry",
+             "compose": "dims_mm"},
             {"label": "Chamber", "kind": "standard"},
-            {"label": "Airflow (m3/h)", "kind": "computed"},
-            {"label": "Circulation blower (HP)", "kind": "computed"},
-            {"label": "Baking time (min)", "kind": "computed"},
+            {"label": "Insulated panel thickness (mm)", "kind": "geometry"},
             {"label": "Insulation", "kind": "computed"},
+            {"label": "Door type", "kind": "standard"},
+            {"label": "Door opening (mm)", "kind": "geometry"},
+            {"label": "Operating temperature", "kind": "standard"},
+            {"label": "Maximum temperature (deg C)", "kind": "standard"},
             {"label": "Heating source", "kind": "computed"},
             {"label": "Heating capacity (kcal/hr)", "kind": "computed"},
+            {"label": "Airflow (m3/h)", "kind": "computed"},
+            {"label": "Circulation blower (HP)", "kind": "computed"},
+            {"label": "Circulation blower (nos)", "kind": "computed"},
+            {"label": "Baking time (min)", "kind": "computed"},
             {"label": "Conveyor", "kind": "standard"},
             {"label": "Control panel", "kind": "standard"},
             {"label": "Utilities", "kind": "standard"},

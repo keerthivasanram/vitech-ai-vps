@@ -200,6 +200,12 @@ def _spec_for_drawing(q: str, analysis: Optional[dict] = None) -> dict:
         "technical_details": [
             {"label": t.get("label"), "value": t.get("value"),
              "origin": t.get("origin"), "kind": t.get("kind"),
+             # The requirement STATE travels with the row. It is a reading of
+             # the provenance the row already carries, so dropping it here only
+             # forced every consumer to re-derive the same partition from
+             # `origin` — and the drawing layer, which decides what it may put a
+             # dimension on, is exactly the consumer that must not guess.
+             "state": t.get("state"),
              # `parts` carries a composite field's real sub-values (a powder
              # plant's booth / oven / conveyor module sizes). Dropping it here
              # would force the glyph to re-parse them back out of the display

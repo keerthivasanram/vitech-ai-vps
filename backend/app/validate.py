@@ -271,3 +271,96 @@ def demote_unscalable(items: list[dict], params: dict, chosen,
             it["source"] = None
         out.append(it)
     return out
+
+
+# --------------------------------------------------------------------------
+# CONTRADICTION between a CONFIRMED input and a REUSED value.
+#
+# `demote_unscalable` refuses a reused value carried across a SIZE gap. This is
+# the same argument applied to a value the customer has already CONTRADICTED,
+# and it is the sharper case of the two, because the size gap is a judgement
+# about similarity while this is a flat disagreement with a stated fact.
+#
+# The oven that prompted it: the customer specified a 100 mm insulated panel and
+# the specification came back reading "175mm blanket 96 kg/m3 + 25mm ceramic
+# wool" — 200 mm of insulation, reused from a 230 deg C conveyorised oven,
+# correctly attributed, and not this machine. A reader takes a stated value as
+# engineered (the exact reasoning behind `demote_unscalable`), so a confidently
+# reused contradiction is worse than an admitted gap: the gap is visibly a gap.
+#
+# It DEMOTES rather than substitutes. The customer gave a panel THICKNESS, not
+# an insulation construction, and inventing "100mm blanket" from that would be a
+# golden-rule-#2 breach of exactly the kind this platform exists to avoid. The
+# thickness stays confirmed on its own row; the construction becomes an honest
+# gap whose reason names both numbers and the offer they disagree about.
+#
+# It fires only where a profile DECLARES the pairing, so it can never guess that
+# two unrelated fields are about the same quantity.
+# --------------------------------------------------------------------------
+_MM_FIGURE = re.compile(r"(\d+(?:\.\d+)?)\s*mm", re.I)
+
+
+def _mm_figures(text: str) -> list[float]:
+    return [float(m.group(1)) for m in _MM_FIGURE.finditer(str(text or ""))]
+
+
+def _agrees_mm(stated: float, text: str, tol: float = 1.0) -> bool:
+    """Does the reused text mention the stated thickness at all?
+
+    Either as one figure ("100mm rockwool") or as a build-up that sums to it
+    ("50mm + 50mm"), because a layered construction is written both ways. A text
+    with NO millimetre figure in it is not a contradiction — it simply does not
+    speak about thickness, so it is left alone.
+    """
+    figures = _mm_figures(text)
+    if not figures:
+        return True
+    if any(abs(f - stated) <= tol for f in figures):
+        return True
+    return abs(sum(figures) - stated) <= tol
+
+
+def demote_contradicted(items: list[dict], params: dict,
+                        profile: dict | None = None) -> list[dict]:
+    """Refuse to ASSERT a reused value the customer's own requirement contradicts."""
+    checks = (profile or {}).get("contradiction_checks") or ()
+    if not items or not checks or not params:
+        return items
+
+    by_label = {str(c.get("label", "")).strip().lower(): c for c in checks}
+    out = []
+    for it in items:
+        check = by_label.get(str(it.get("label", "")).strip().lower())
+        stated = params.get(check["input"]) if check else None
+        if (check is None or stated in (None, "", [])
+                or it.get("origin") not in ("reused", "kept")):
+            out.append(it)
+            continue
+        try:
+            stated_v = float(stated)
+        except (TypeError, ValueError):
+            out.append(it)
+            continue
+        if _agrees_mm(stated_v, it.get("value")):
+            out.append(it)
+            continue
+        it = dict(it)
+        it["reason"] = (
+            f"The requirement states {check.get('quantity', 'a value')} of "
+            f"{_num(stated_v)} {check.get('unit', '')}".rstrip() +
+            f", which {it.get('value')!r} reused from "
+            f"{it.get('source') or 'the nearest design'} contradicts. The stated "
+            f"figure stands; this field needs engineering input consistent with it "
+            f"and is not carried over.")
+        it["contradicted"] = {"input": check["input"], "stated": stated,
+                              "reused": it.get("value"), "source": it.get("source")}
+        it["value"] = TBD_VALUE
+        it["origin"] = "tbd"
+        it["origin_label"] = origin_label("tbd")
+        it["source"] = None
+        out.append(it)
+    return out
+
+
+def _num(v: float) -> str:
+    return str(int(v)) if float(v).is_integer() else str(v)
