@@ -73,12 +73,67 @@ FLOWISE_PASSWORD=<strong unique password>
 OLLAMA_MODEL=llama3.1:8b
 HTTP_PORT=80
 
-# Leave EMPTY on a trusted LAN. SET IT before the VPN rollout (§6).
-API_KEY=
+# REQUIRED. The origin the browser loads the app from — e.g. http://vitech.local
+# or https://vitech.example.com. The backend defaults to the localhost dev
+# origins, which a deployed frontend is NOT served from, so leaving this unset
+# means the app's own requests are refused by CORS.
+CORS_ORIGINS=http://<the frontend origin>
+
+# Optional runaway guards; the defaults are fine for a normal office.
+RATE_LIMIT_PER_MINUTE=120
+MAX_CONCURRENT_EXPENSIVE=12
+MAX_UPLOAD_MB=50
 ```
 
-The compose file uses `${VAR:?}` for the credentials, so it refuses to start
-rather than silently falling back to a default password.
+The compose file uses `${VAR:?}` for the credentials and for `CORS_ORIGINS`, so
+it refuses to start rather than silently falling back to a default password or
+a CORS policy that breaks the app.
+
+> **`API_KEY` is gone and must not be re-added.** The old coarse
+> `VITECH_API_KEY` middleware was all-or-nothing and, because the variable was
+> never set, never engaged at all. It was replaced by real per-principal
+> authentication (`app/auth/`). Setting `API_KEY` today does nothing while
+> reading as though the API were protected by it — which is worse than not
+> having it.
+
+## 3a. Create the first account — WITHOUT THIS NOBODY CAN LOG IN
+
+There is no default account and no seeded password. An empty user table locks
+everyone out, which is the correct failure for a platform holding customer
+engineering data — but it means **a fresh deployment has no way in until you
+run this**:
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend \
+  python -m app.auth.bootstrap admin <username>
+```
+
+The generated password prints **once**. `... bootstrap list` shows the
+accounts that exist; `... bootstrap password <username>` rotates one.
+
+Accounts live in `backend/data/auth.db`, inside the `./backend/data` bind
+mount — so they survive a container rebuild, and they are covered by
+`ops/backup.sh`. They are **not** in Postgres and not in git.
+
+## 3b. Point the agents at a service key that exists here
+
+**Do this after restoring Postgres (§4), and do not skip it.** The Flowise tool
+rows carry the API key the three agents authenticate to the backend with. That
+key is only a valid credential if a matching service principal exists in *this
+deployment's* `auth.db` — and a fresh `auth.db` has none, even though the tool
+rows restored from the dump look perfectly correct.
+
+```bash
+# Create the service principal, then write its key into all nine tool rows
+docker compose -f docker-compose.prod.yml exec backend \
+  python -m app.auth.bootstrap service flowise-agents
+bash ops/flowise/set-service-key.sh          # --check to verify only
+```
+
+**The failure signature if you skip it is misleading**: the agent replies "I
+don't have the ability to call external tools", which is character-for-character
+what it says when the backend is *down*. `ops/rotate-service-key.md` is the
+runbook.
 
 ## 4. Restoring the agents — do not skip
 
@@ -130,35 +185,76 @@ from the form **and** from the assistant), Knowledge Base.
 
 ## 6. Phase 2 — before exposing over VPN
 
-Do these first. On a trusted LAN they are tolerable; over a VPN they are not.
+**Updated 2026-09-04.** The first two items on this list are DONE and the text
+that described them as outstanding was wrong for a month — do not plan around
+the old version.
 
-1. **Real authentication (queue item E1).** The login in
-   `frontend/src/auth/AuthProvider.jsx` validates credentials **in the browser
-   against a hard-coded list** — there is no auth backend. Anyone who can reach
-   the page can read the JS and sign in. This is the single most important item.
-2. **Set `API_KEY`** so `/api/*` is not open to anything that reaches the host.
+1. ~~Real authentication~~ **DONE.** Server-side authentication, roles and an
+   audit trail landed 2026-08-05 (`app/auth/`). Accounts are in SQLite with
+   scrypt hashes, sessions are stored server-side so logout revokes
+   immediately, `X-Role` is no longer trusted, and the frontend password is
+   gone from the JS bundle (verified by grepping the built asset). Every route
+   except `/api/health` requires a credential, and an unclassified route
+   defaults to administrator.
+2. ~~Set `API_KEY`~~ **Superseded** — see the note in §3. That variable no
+   longer exists.
 3. **HTTPS + a reverse proxy** (Caddy or nginx) in front of the frontend
-   container, with a stable internal hostname rather than an IP.
+   container, with a stable internal hostname rather than an IP. **Still
+   outstanding, and now the top item on this list.** Sessions are bearer
+   tokens: over plain HTTP they are readable by anything on the path.
+   Terminate TLS at the proxy and add HSTS, X-Frame-Options and a CSP.
 4. **Flowise admin.** `FLOWISE_USERNAME/PASSWORD` guards the Flowise UI on
    :3000 — keep it unpublished (it already is) and reach it via SSH tunnel.
-5. **Backups off the machine** — see §7.
+5. **Backups off the machine** — see §7. **Read that section again even if you
+   read it before**: what has to be backed up changed.
+6. **Rate limits.** Already on by default (§3). Review
+   `RATE_LIMIT_PER_MINUTE` against the real user count before opening access
+   to remote staff.
 
 ## 7. Backups
 
-The irreplaceable set is small (~5 MB); everything else regenerates.
+**Rewritten 2026-09-04. The old version of this section backed up two things
+and there are five.** Postgres and the Flowise key were the whole irreplaceable
+set when they were written; three stores the platform declares PERMANENT have
+been added since and were in no backup at all:
+
+| What | Where | Why it cannot be regenerated |
+|---|---|---|
+| The three agents | Postgres | Tuned prompts; the one asset not reproducible from git |
+| `auth.db` | `backend/data/` | Accounts, password hashes, and the **permanent audit trail** |
+| `ops.db` | `backend/data/` | A row per specification, drawing, BOM, quotation and package **ever issued** |
+| `data/jobs/` | `backend/data/` | The issued documents themselves, each with the SHA-256 it went out under |
+| Flowise secrets | flowise volume | The key stored credentials are encrypted with — including the agents' service key |
+
+Use the script; it takes all five:
 
 ```bash
-# Postgres — the agents. Run after ANY agent or prompt change.
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump -U vitech vitech > backups/vitech-$(date +%F).sql
-
-# Flowise encryption key — credentials are tied to it, losing it invalidates them
-docker compose -f docker-compose.prod.yml cp \
-  flowise:/root/.flowise/secrets ./backups/flowise-secrets-$(date +%F)
+bash ops/backup.sh                 # -> /workspace/persistent/backups/…tar.gz
+DEST=/mnt/nas bash ops/backup.sh   # somewhere off the machine
 ```
 
-Copy both **off the server**. Regenerable and not worth backing up: Ollama
-models (re-pull), the Chroma store (re-ingest from the offers), Docker images.
+It copies both SQLite stores through SQLite's **online backup API** rather than
+`cp` — the backend holds them open, and copying a live database can capture a
+torn write that only reveals itself on the day you restore. It then reads the
+copy back, integrity-checks it, and verifies every artifact against its
+recorded digest.
+
+**Restore, and rehearse it:**
+
+```bash
+bash ops/restore.sh <tarball> --dry-run   # verify the archive, change nothing
+bash ops/restore.sh <tarball>
+```
+
+An unrehearsed restore is an untested code path holding your audit trail. Note
+`ops/restore.sh` puts `auth.db` back **before** Postgres, for the reason in
+§3b: the restored tool rows carry a service key that is only a credential if a
+matching principal exists in `auth.db`.
+
+Copy the archive **off the server** — one on the same disk as the original does
+not survive the failure it exists for. Regenerable and deliberately not
+included: Ollama models (re-pull), the Chroma store (re-ingest from the
+offers), Docker images, `node_modules`, `.venv`.
 
 ## 8. Operations
 
@@ -176,15 +272,33 @@ against the production database and dumping again.
 
 ## 9. Known gaps carried over from the pod
 
-* **Auth is frontend-only** (§6.1) — the blocker for anything beyond the LAN.
-* `retrieve_knowledge` returns `count:0` until documents are ingested into
-  `backend/data/bulk/`; only the 33 offers exist today.
-* Two of the ten client spec-review defects remain open — see
-  `docs/spec-quality-plan.md`.
-* `docker-compose.prod.yml` is **written but not yet executed** — there is no
-  Docker on the RunPod pod to validate it against. Run
-  `docker compose -f docker-compose.prod.yml config` on the target server first,
-  and expect to adjust the Flowise image tag if `3.0.13` is not published for
-  your architecture (the pod runs a patched npm install, not this image; the
-  patches covered the OpenAPIToolkit UI, which this platform does not use, so
-  the stock image is expected to work — **verify tool calling end to end**).
+**Corrected 2026-09-04** — two entries here were simply out of date and would
+have sent someone re-solving problems that are solved.
+
+* ~~Auth is frontend-only~~ **DONE 2026-08-05.** See §6.1.
+* ~~`retrieve_knowledge` returns `count:0`~~ **DONE 2026-09-01.** Vitech's
+  knowledge documents are ingested (178 chunks from 15 files) and retrieval
+  returns cited results. `backend/data/knowledge_docs/` holds them; re-ingest
+  on a new machine with `python -m rag.ingest data/knowledge_docs`.
+* **HTTPS is still not done** and is now the top item before any non-LAN
+  exposure (§6.3).
+* `docker-compose.prod.yml` is **written but STILL not executed** — there is no
+  Docker on the RunPod pod to validate it against, so this remains the single
+  biggest unknown in the production move. Run
+  `docker compose -f docker-compose.prod.yml config` on the target server
+  first, and expect to adjust the Flowise image tag if `3.0.13` is not
+  published for your architecture (the pod runs a patched npm install, not this
+  image; the patches covered the OpenAPIToolkit UI, which this platform does
+  not use, so the stock image is expected to work — **verify tool calling end
+  to end**).
+* **The frontend bakes the three chatflow IDs in at BUILD time.** They are
+  compiled into the JS bundle, so if a rebuild of the agents mints new ids the
+  frontend must be rebuilt with `VITE_ENGINEERING_AGENT_ID`,
+  `VITE_QUOTATION_AGENT_ID` and `VITE_DRAWING_AGENT_ID` set — restarting it is
+  not enough.
+* **Component setting-out rules are still outstanding from Vitech.** Until they
+  arrive every GA states that component positions are indicative. This is a
+  product limitation, not a deployment one, but it is what stands between the
+  drawings and fabrication-grade output.
+* Engineering items still open are tracked in `docs/agent-completion-plan.md`
+  (booth BOM cost model, structure weight, the margin model) and in CLAUDE.md.

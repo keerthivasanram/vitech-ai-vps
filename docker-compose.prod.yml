@@ -105,12 +105,28 @@ services:
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
       - REDIS_URL=redis://redis:6379/0
       - CHROMA_DIR=/app/chroma_store
-      # Set API_KEY in .env to require a key on every /api call. Leave empty on a
-      # trusted LAN; SET IT before the VPN rollout.
-      - API_KEY=${API_KEY:-}
+      # Lock CORS to the origin the browser actually uses. It defaults to the
+      # local dev origins, which are NOT what a deployed frontend is served
+      # from, so leaving this unset means the app's own requests are refused.
+      - CORS_ORIGINS=${CORS_ORIGINS:?set CORS_ORIGINS in .env to the frontend origin}
+      # Runaway guards on the LLM routes (app/ratelimit.py). The defaults sit
+      # far above real use; they exist so one looping client cannot saturate
+      # Ollama and stall everyone behind it.
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-120}
+      - MAX_CONCURRENT_EXPENSIVE=${MAX_CONCURRENT_EXPENSIVE:-12}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-50}
+      # NOTE: there is no API_KEY here any more. The coarse all-or-nothing
+      # `VITECH_API_KEY` guard was replaced by real per-principal
+      # authentication (app/auth/), so setting it would have done nothing
+      # while reading as though the API were protected by it.
     volumes:
       - chroma_store:/app/chroma_store
-      - ./backend/data:/app/data          # offers + bulk documents, editable
+      # Offers and bulk documents — AND the three PERMANENT stores: auth.db
+      # (accounts + audit trail), ops.db (every document ever issued) and
+      # jobs/ (the documents themselves). This bind mount is what makes them
+      # survive a container rebuild, and it is what `ops/backup.sh` must be
+      # pointed at. Back it up; nothing else holds a copy.
+      - ./backend/data:/app/data
     expose: ["8000"]
     restart: unless-stopped
     healthcheck:

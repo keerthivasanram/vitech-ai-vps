@@ -17,6 +17,22 @@ document covers *unplanned* total loss.
 Everything on the volume falls into exactly one of four buckets. There is no
 fifth bucket, and nothing sits outside them — that is the point of the audit.
 
+> **CORRECTION, 2026-09-04.** That claim was true when this was written and
+> then quietly stopped being true. The audit predates Phase B and Phase C, and
+> it therefore misses three stores that the platform itself declares
+> PERMANENT: `backend/data/auth.db` (accounts, password hashes and the audit
+> trail), `backend/data/ops.db` (a row for every document ever issued) and
+> `backend/data/jobs/` (the issued documents, each with the SHA-256 it went out
+> under). They are gitignored — correctly, they hold hashes and customer
+> requirements — and they were in **no** bucket, no tarball and no backup
+> script. They are now covered by `ops/backup.sh`; the table below includes
+> them, and they are the reason "5 MB is irreplaceable" understates the real
+> exposure. Unlike the vector store, **nothing regenerates them**.
+>
+> The lesson worth keeping: a completeness audit is only true on the day it is
+> run. This one asserted "there is no fifth bucket" and was then trusted for a
+> month after a fifth bucket appeared.
+
 | On the volume | Size | Bucket | Recovered by |
 |---|---|---|---|
 | `vitech-ai-vps/` (code, docs, 33 offers, goldens, ops scripts) | 2.9 G | **In git** | `git clone` |
@@ -25,6 +41,9 @@ fifth bucket, and nothing sits outside them — that is the point of the audit.
 | `flowise/secrets/` (encryption key) | 2.6 M | **In the tarball** | regenerate + re-enter credentials |
 | `ssh/` (deploy key) | 51 K | **In the tarball** | regenerate, re-add the pubkey to GitHub |
 | `chroma/` (vector store) | 6.3 M | **In the tarball** | re-ingest from the 33 offers |
+| `backend/data/auth.db` (accounts, hashes, **permanent audit trail**) | 656 K | **In `ops/backup.sh` only** | NOTHING else — not git, not the tarball |
+| `backend/data/ops.db` (**permanent** job record) | 2.7 M | **In `ops/backup.sh` only** | NOTHING else |
+| `backend/data/jobs/` (the issued documents + their digests) | 2.3 M | **In `ops/backup.sh` only** | NOTHING else |
 | `ollama/` (model weights) | 9.2 G | **Regenerable** | `ollama pull llama3.1:8b` |
 | `flowise-app.tar.gz` (patched Flowise tree) | 1.0 G | **Regenerable** | `flowise-reinstall.sh --from-npm` |
 | `logs/` | 1.5 M | **Disposable** | — |

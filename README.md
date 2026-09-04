@@ -21,7 +21,18 @@ Extracted JSON  ->  Embeddings (local)  ->  Chroma  ->  Retriever
   template if Ollama isn't running, so the demo always works
 - **Backend:** FastAPI · **Frontend:** React (Vite)
 
-## Run the backend
+## Run it
+
+On the deployed pod, everything at once (this is the normal path):
+
+```bash
+bash /workspace/persistent/start-all.sh    # Postgres, Redis, Ollama, backend, Flowise, frontend
+```
+
+If `psql`/`node`/`ollama` are missing the container disk was wiped — run
+`bash /workspace/persistent/bootstrap-pod.sh` first, then the above.
+
+From scratch, locally:
 
 ```bash
 cd backend
@@ -30,17 +41,31 @@ python -m venv .venv
 # source .venv/bin/activate      # macOS/Linux
 pip install -r requirements.txt
 
-python -m app.ingest             # build the vector index from data/sample_documents.json
-uvicorn app.main:app --reload    # http://localhost:8000
+python -m rag.ingest data/offers        # build the vector index from the offer corpus
+python -m app.auth.bootstrap admin me   # create an account — prints the password ONCE
+uvicorn app.main:app --reload           # http://localhost:8000
 ```
-
-## Run the frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev                      # http://localhost:5173
 ```
+
+For a production deployment read `docs/production-deployment.md` — it has two
+steps (the first account, and pointing the agents at a service key) that a
+fresh deploy is broken without.
+
+## Back it up
+
+```bash
+bash ops/backup.sh          # agents, accounts + audit, job records, issued documents
+bash ops/restore.sh <tarball> --dry-run
+```
+
+`pg-backup.sh` covers Postgres **only** and is not sufficient on its own: the
+accounts, the audit trail, and every document the platform has ever issued live
+in `backend/data/`, which nothing else copies.
 
 ## (Optional) Enable the real local LLM
 
@@ -79,7 +104,31 @@ in-process job runner in `app/jobs.py` for Celery/RQ + Redis — the
 
 ## API
 
-- `GET  /api/health` — index size + LLM config
-- `POST /api/ingest` — start batched background ingestion → returns `job_id`
-- `GET  /api/ingest/{job_id}` — poll ingestion progress/status
-- `POST /api/query`  — `{ "question": "..." }` → answer + sources + steps
+**Every route except `GET /api/health` requires a credential** (since
+2026-08-05). There is no default account: create the first one with
+`python -m app.auth.bootstrap admin <username>` — the generated password prints
+once. An empty user table locks everyone out, which is the intended failure.
+
+The agent-facing tools, each carrying an `operation_id` that **is** the tool
+name the Flowise agents see:
+
+- `POST /api/tools/spec` → `generate_specification`
+- `POST /api/tools/quote` → `generate_quotation`
+- `POST /api/tools/drawing` → `generate_drawing`
+- `POST /api/tools/lookup` → `lookup_project`
+- `POST /api/tools/retrieve` → `retrieve_knowledge`
+- `POST /api/tools/list` → `list_projects`
+- `POST /api/tools/bom` → `generate_bom`
+- `POST /api/tools/voc` · `/api/tools/heat-load` → safety and heat-load checks
+
+Documents and data: `POST /api/package` (the full engineering package),
+`POST /api/drawing/render`, `POST /api/bom`, `GET /api/jobs`,
+`GET /api/knowledge/overview`, `GET /api/offers`.
+
+`GET /api/health` is a status probe only; the detailed diagnostics moved to
+`GET /api/admin/health/detail` behind the admin role.
+
+> `/api/query` still exists but is **legacy and administrator-only**: it is the
+> backend's own chat engine, which predates the Flowise architecture and has no
+> caller in the product. The UI chat goes to the Flowise agents, which call the
+> `/api/tools/*` endpoints above.
