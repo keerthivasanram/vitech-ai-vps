@@ -448,7 +448,7 @@ def part2(p: Doc):
     band(p, "One item below - B1, component setting-out - is now the single largest gap between "
             "what the platform produces and a drawing Vitech could issue. Everything else in the "
             "drawing is finished.")
-    band(p, "Two further items, B9 and B10, were added after a technical audit of a generated "
+    band(p, "Three further items, B9, B10 and B11, were added after a technical audit of a generated "
             "booth drawing. Both sit on the AIRFLOW CHAIN, where one unconfirmed basis changes "
             "the blower, the duct and the filter count together - so although they are numbered "
             "last, they rank immediately after B1.",
@@ -578,6 +578,23 @@ def part2(p: Doc):
             "versus dirty filter allowance, since that decides whether the fan still holds duty "
             "at the end of a filter's life.")
 
+    h2(p, "B11. Oven air-circulation basis  [BLOCKS A CUSTOMER-FACING NUMBER]")
+    body(p, "Your heat-load workbook now drives the platform's oven specifications: from a "
+            "stated size, operating temperature and insulated panel thickness it computes the "
+            "shell steel mass, the envelope loss and - once a job mass is given - the heating "
+            "capacity, all from your own cells at your own 30 deg C ambient and 1.2 mm shell.")
+    note(p, "What it cannot do is size the air. Nothing in the six workbooks states an "
+            "air-change rate for an oven, a temperature rise across the heater bank, or a "
+            "fan-selection rule. The heat-load sheet sizes the HEATER and stops there. So the "
+            "recirculation AIRFLOW is unresolved, and because the blower follows the airflow, "
+            "the circulation blower HP and quantity are unresolved with it - three rows on every "
+            "oven specification that we would otherwise be able to fill.")
+    body(p, "Either input closes all three. Please supply whichever you work from: the air "
+            "changes per hour you design a batch or conveyorised oven to, or the temperature "
+            "rise you take across the heater bank. If it differs between a batch oven and a "
+            "conveyorised one, or with the operating temperature, please say how.")
+
+
 
 # --------------------------------------------------------------- part 3 ----
 
@@ -700,6 +717,7 @@ def appendix(p: Doc):
         "B8. Margin policy and bought-out mark-up",
         "B9. Which face governs booth airflow - BLOCKS A CUSTOMER-FACING NUMBER",
         "B10. Static pressure basis for blower selection - BLOCKS A CUSTOMER-FACING NUMBER",
+        "B11. Oven air-circulation basis - BLOCKS A CUSTOMER-FACING NUMBER",
     ])
 
     h2(p, "Part 3 - Readiness questions")
