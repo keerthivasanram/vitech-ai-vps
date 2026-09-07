@@ -35,7 +35,10 @@ def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
     return compute_spec(params.get("length_m"), params.get("width_m"),
                         params.get("height_m"), params.get("paint_type"),
                         params.get("booth_type"), params.get("face_velocity_ms"),
-                        params.get("open_front_w_mm"))
+                        params.get("open_front_w_mm"), params.get("open_front_h_mm"),
+                        params.get("static_pressure_mmwc"),
+                        params.get("filter_media_velocity_ms"),
+                        params.get("lux_level"))
 
 
 def _oven_field_rules(params: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -276,6 +279,13 @@ ORIGIN_LABELS = {
 # and the whole point is that every parameter lands in exactly one.
 # --------------------------------------------------------------------------
 CONFIRMED, DERIVED, TBD, INDICATIVE = "confirmed", "derived", "tbd", "indicative"
+# A FIFTH STATE, and it exists because the other four have nowhere honest to put
+# a chosen constant. The filter count is arithmetic on a media velocity no
+# Vitech document fixes: calling it DERIVED claims engineering the platform
+# cannot show, and calling it TBD throws away a usable number and a real
+# calculation. ASSUMED says exactly what it is - computed, and resting on a
+# figure somebody still has to confirm.
+ASSUMED = "assumed"
 
 ORIGIN_STATES = {
     # The customer's own words, or the engineer's. Authoritative.
@@ -295,6 +305,8 @@ ORIGIN_STATES = {
     "adapted": DERIVED,
     "existing": DERIVED,
     "recommended": DERIVED,
+    # Computed, but on a basis nobody has confirmed. See ASSUMED above.
+    "assumed": ASSUMED,
     # Open. A customer decision is a QUESTION rather than an engineering gap,
     # but it is equally not something anyone may build from yet.
     "tbd": TBD,
@@ -306,6 +318,7 @@ ORIGIN_STATES = {
 STATE_LABELS = {
     CONFIRMED: "Confirmed input",
     DERIVED: "Derived",
+    ASSUMED: "Assumed basis - confirm before release",
     TBD: "Engineering input required",
     INDICATIVE: "Indicative - no approved setting-out rule",
 }
@@ -434,6 +447,14 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             # face, and it governs the airflow rather than the proxy.
             ("open_front_w_mm", "Open front width"),
             ("open_front_h_mm", "Open front height"),
+            # Each of these unlocks a value the engine otherwise refuses to
+            # state. They are OPTIONAL because an enquiry that omits them is
+            # still a complete enquiry - it simply gets a specification that
+            # says which engineering is still open, rather than one that
+            # quietly chooses on the customer's behalf.
+            ("static_pressure_mmwc", "System static pressure"),
+            ("lux_level", "Required illumination level"),
+            ("filter_media_velocity_ms", "Filter media velocity"),
         ],
         "expected_inputs": [
             ("length_m", "Length"),
@@ -504,22 +525,43 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             {"label": "Construction material", "kind": "standard"},
             {"label": "Exhaust airflow", "kind": "computed"},
             {"label": "Inlet air volume", "kind": "computed"},
-            {"label": "Exhaust blower", "kind": "computed"},
-            {"label": "Blower airflow (CFM)", "kind": "computed"},
-            {"label": "Exhaust blower (nos)", "kind": "computed"},
-            {"label": "Exhaust blower motor (HP)", "kind": "computed"},
-            {"label": "Blower drive", "kind": "computed"},
+            {"label": "Exhaust blower", "kind": "computed",
+             "needs": "Needs the system static pressure. Vitech's own workbook "
+                      "rule is to select on the fan curve at the calculated duty "
+                      "point, never on CFM alone, and no filter, duct, bend, "
+                      "plenum or damper resistance is computed here - so the "
+                      "required VOLUME is known and the duty point is not."},
+            {"label": "Blower airflow (CFM)", "kind": "computed",
+             "needs": "Follows the blower selection; needs the system static pressure."},
+            {"label": "Exhaust blower (nos)", "kind": "computed",
+             "needs": "Follows the blower selection; needs the system static pressure."},
+            {"label": "Exhaust blower motor (HP)", "kind": "computed",
+             "needs": "Follows the blower selection; needs the system static pressure."},
+            {"label": "Blower drive", "kind": "computed",
+             "needs": "Follows the blower selection; needs the system static pressure."},
             {"label": "Enclosure sheet weight", "kind": "computed"},
             {"label": "Blower MOC", "kind": "standard"},
             {"label": "Paint arresting filter", "kind": "standard"},
             {"label": "Air intake filter", "kind": "standard"},
             {"label": "Dry scrubber", "kind": "standard"},
             {"label": "Exhaust ducts", "kind": "standard"},
-            {"label": "Illumination", "kind": "standard"},
-            {"label": "Electrical fittings & motors", "kind": "standard"},
-            {"label": "Fire extinguishing system", "kind": "standard"},
+            {"label": "Illumination", "kind": "standard",
+             "needs": "Needs the required lux level. The fitting count carries no "
+                      "utilisation or maintenance factor, so a count stated "
+                      "against a target lux would overstate what the booth "
+                      "actually sees - confirm Vitech's lighting basis."},
+            {"label": "Electrical fittings & motors", "kind": "standard",
+             "needs": "Needs the connected load, which follows the blower "
+                      "selection and therefore the system static pressure."},
+            {"label": "Fire extinguishing system", "kind": "standard",
+             "needs": "Needs the paint process to be confirmed: solvent, "
+                      "water-based and powder select different standards, and "
+                      "NFPA 33 is a hazardous-area claim that must not be made "
+                      "about an unstated process."},
             {"label": "Material handling for painting", "kind": "customer_decision"},
-            {"label": "Control panel", "kind": "standard"},
+            {"label": "Control panel", "kind": "standard",
+             "needs": "Needs the connected load, which follows the blower "
+                      "selection and therefore the system static pressure."},
             {"label": "Finish", "kind": "standard"},
         ],
     },

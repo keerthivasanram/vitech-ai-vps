@@ -18,6 +18,8 @@ from . import standards_service as std
 from . import design_standards as ds
 from . import booth_catalogue as bc
 from . import scrubber_service as sc
+TBD_TEXT = "To be determined"
+
 from .blower_service import select_booth_blower_set
 from .calculation_engine import count_ceil, count_round, round_to_step
 from .material_service import select_paint_process
@@ -94,7 +96,11 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
                  paint_type: Optional[str] = None,
                  booth_type: Optional[str] = None,
                  face_velocity: Optional[float] = None,
-                 open_front_w_mm: Optional[float] = None) -> ComputedSpec:
+                 open_front_w_mm: Optional[float] = None,
+                 open_front_h_mm: Optional[float] = None,
+                 static_pressure_mmwc: Optional[float] = None,
+                 filter_media_velocity_ms: Optional[float] = None,
+                 lux_level: Optional[float] = None) -> ComputedSpec:
     """Apply engineering rules to a paint-booth requirement. Returns computed
     values, each tagged with provenance, plus the rule trail (formula + standard).
     booth_type is honoured so a liquid booth's filtration/material stays coherent
@@ -112,7 +118,14 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
 
     height = height_m or DEFAULT_HEIGHT
     spec.height_m = height
-    paint = (paint_type or "powder").lower()
+    # AN UNSTATED PAINT PROCESS WAS SILENTLY BECOMING POWDER. The default then
+    # travelled: it chose the duct transport velocity, it chose the lighting
+    # application, and it was printed back to the customer as "Paint process:
+    # powder" carrying origin "rule", i.e. as engineering. Nobody had said it.
+    # `paint` is kept only for the branches that need a word, and `paint_stated`
+    # decides whether anything may be ASSERTED from it.
+    paint_stated = bool((paint_type or "").strip())
+    paint = (paint_type or "").lower()
     proc = select_paint_process(paint_type, booth_type)
 
     floor_area = length_m * width_m
@@ -135,10 +148,25 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
         # and using it anyway sizes the blower, the duct and the filter bank for
         # a booth wider than the one they asked for.
         open_front_m = float(open_front_w_mm) / 1000.0 if open_front_w_mm else length_m
-        stated = " (client-stated open front)" if open_front_w_mm else ""
-        face_area = open_front_m * EFFECTIVE_OPENING_M
-        face_basis = (f"open front {open_front_m:g} m{stated} x effective filter "
-                      f"opening {EFFECTIVE_OPENING_M:g} m = {face_area:g} m2")
+        if open_front_w_mm and open_front_h_mm:
+            # BOTH AXES CONFIRMED - the opening is measured, not inferred. The
+            # 1.5 m effective filter opening is Vitech's own figure and stands
+            # as the rule when nobody has stated the aperture, but it is a
+            # STAND-IN for exactly this number. Substituting it for a height
+            # the customer has given replaces a confirmed input with an
+            # inferred one, which is the thing this engine must never do - and
+            # on the audited booth it is the difference between a 2.5 m opening
+            # and a 1.5 m one on the same sheet that prints "2500" as given.
+            open_h_m = float(open_front_h_mm) / 1000.0
+            face_area = open_front_m * open_h_m
+            face_basis = (f"open front {open_front_m:g} m x {open_h_m:g} m "
+                          f"(both client-stated) = {face_area:g} m2")
+        else:
+            stated = " (client-stated open front)" if open_front_w_mm else ""
+            face_area = open_front_m * EFFECTIVE_OPENING_M
+            face_basis = (f"open front {open_front_m:g} m{stated} x effective filter "
+                          f"opening {EFFECTIVE_OPENING_M:g} m (Vitech model-database "
+                          f"rule; no opening height stated) = {face_area:g} m2")
     else:
         face_area = width_m * height
         face_basis = f"face area {width_m}x{height} = {face_area:g} m2"
@@ -149,7 +177,20 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     # what supersedes the old invented "13000 m3/h per fan" constant, and is the
     # same selection that reproduces the client's own costed booth BOM.
     airflow_cfm = airflow / CFM_TO_CMH
-    blower, blower_qty = select_booth_blower_set(airflow_cfm)
+    # A BLOWER IS NOT SELECTED FROM AIRFLOW ALONE, and Vitech's own workbook
+    # says so in those words: use the manufacturer fan curve at the CALCULATED
+    # DUTY POINT. Nothing here computes a system resistance - no filter loading,
+    # duct run, bends, plenum or damper allowance - so a model picked on volume
+    # can be shown to move the air and NOT to move it against the system it is
+    # connected to. That is audit item B10, and the honest answer to an audit
+    # item nobody can answer is a gap, not a machine.
+    #
+    # A stated static pressure is an engineer having done that work, so it
+    # unlocks the selection and is recorded as the basis.
+    if static_pressure_mmwc:
+        blower, blower_qty = select_booth_blower_set(airflow_cfm)
+    else:
+        blower, blower_qty = None, 0
 
     # Make-up air and enclosure sheet weight, per the client's calculation doc.
     # Booths run under negative pressure: inlet is 10% BELOW exhaust so paint
@@ -168,9 +209,14 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     # different-sized booth (illumination), or left "To be determined" (duct,
     # electrical, fire) even though the airflow and load needed to size them were
     # already in hand.
-    filters_sel = ds.select_filters(airflow)
+    filters_sel = ds.select_filters(airflow, media_velocity_ms=filter_media_velocity_ms)
+    # Both of these may DECLINE now: lighting without a stated lux level (the
+    # count has no utilisation or maintenance factor behind it), fire protection
+    # without a confirmed paint process (the process IS the standard). A
+    # declined selection leaves its template row to resolve as an honest TBD.
     light_sel = ds.select_lighting(
-        floor_area, "powder" if "powder" in paint else "manual_painting")
+        floor_area, "powder" if "powder" in paint else "manual_painting",
+        lux_level=lux_level)
     duct_sel = ds.select_duct(
         airflow, "powder" if "powder" in paint else "paint_fume")
     fire_sel = ds.select_fire_protection(paint_type)
@@ -194,10 +240,6 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
                    formula=material_sel.formula, standard=std.CLIENT_MATERIAL_MATRIX),
         RuleResult(name="Exhaust ducts", value=duct_sel.value,
                    formula=duct_sel.formula, standard=std.CLIENT_DUCT_STANDARD),
-        RuleResult(name="Illumination", value=light_sel.value,
-                   formula=light_sel.formula, standard=std.CLIENT_LIGHTING_STANDARD),
-        RuleResult(name="Fire extinguishing system", value=fire_sel.value,
-                   formula=fire_sel.formula, standard=std.CLIENT_FIRE_STANDARD),
         RuleResult(name="Enclosure sheet weight", value=f"{round(sheet_kg)} kg",
                    formula=(f"{panels['panels']} standard MS panels x "
                             f"{ps_PANEL_KG:g} kg (back {panels['back']}, front "
@@ -215,17 +257,81 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
         SpecValue(label="Paint arresting filter", value=filters_sel.value, origin="rule"),
         SpecValue(label="Construction material", value=material_sel.value, origin="advisory"),
         SpecValue(label="Exhaust ducts", value=duct_sel.value, origin="rule"),
-        SpecValue(label="Illumination", value=light_sel.value, origin="rule"),
-        SpecValue(label="Fire extinguishing system", value=fire_sel.value, origin="standard"),
-        SpecValue(label="Paint process", value=paint, origin="rule"),
         SpecValue(label="Enclosure sheet weight", value=f"{round(sheet_kg)} kg", origin="rule"),
     ]
+
+    # ORIGIN "assumed", not "rule". The filter count divides by a media velocity
+    # no Vitech document fixes, so it must not read as calculated engineering
+    # while it rests on a number the platform chose.
+    if filters_sel.source == ds.SRC_ASSUMED:
+        for row in spec.values:
+            if row.label == "Paint arresting filter":
+                row.origin = "assumed"
+
+    # WHAT THE ENGINE REFUSED TO STATE, AND WHY - emitted as real rows rather
+    # than left absent. An absent row falls through to the template's history
+    # rung and is answered by another project; a row that is present and says
+    # "To be determined, because X is missing" cannot be.
+    def _withhold(label: str, reason: str) -> None:
+        spec.rules.append(RuleResult(name=label, value=TBD_TEXT, formula=reason,
+                                     standard=std.CLIENT_BOOTH_STANDARD))
+        spec.values.append(SpecValue(label=label, value=TBD_TEXT, origin="tbd"))
+
+    if blower is None:
+        _sp = ("Needs the system static pressure. Vitech's own workbook rule is to "
+               "select on the manufacturer fan curve at the calculated duty point, "
+               "never on CFM alone, and no filter, duct, bend, plenum or damper "
+               f"resistance is computed here - so the required volume "
+               f"({round_to_step(airflow, 10)} m3/h, {round(airflow_cfm)} CFM) is "
+               "known and the duty point is not.")
+        _withhold("Exhaust blower", _sp)
+        for lbl in ("Blower airflow (CFM)", "Exhaust blower (nos)",
+                    "Exhaust blower motor (HP)", "Blower drive"):
+            _withhold(lbl, "Follows the blower selection; needs the system static pressure.")
+        for lbl in ("Electrical fittings & motors", "Control panel"):
+            _withhold(lbl, "Needs the connected load, which follows the blower "
+                           "selection and therefore the system static pressure.")
+
+    if light_sel is None:
+        _withhold("Illumination",
+                  "Needs the required lux level. The fitting count carries no "
+                  "utilisation or maintenance factor, so a count stated against a "
+                  "target lux would overstate what the booth actually sees - "
+                  "confirm Vitech's lighting basis.")
+
+    if fire_sel is None:
+        _withhold("Fire extinguishing system",
+                  "Needs the paint process to be confirmed: solvent, water-based "
+                  "and powder select different standards, and NFPA 33 is a "
+                  "hazardous-area claim that must not be made about an unstated "
+                  "process.")
+
+    if paint_stated:
+        spec.values.append(SpecValue(label="Paint process", value=paint, origin="given"))
+
+    if light_sel is not None:
+        spec.rules.append(RuleResult(
+            name="Illumination", value=light_sel.value,
+            formula=light_sel.formula, standard=std.CLIENT_LIGHTING_STANDARD))
+        spec.values.append(SpecValue(
+            label="Illumination", value=light_sel.value, origin="rule"))
+    if fire_sel is not None:
+        spec.rules.append(RuleResult(
+            name="Fire extinguishing system", value=fire_sel.value,
+            formula=fire_sel.formula, standard=std.CLIENT_FIRE_STANDARD))
+        spec.values.append(SpecValue(
+            label="Fire extinguishing system", value=fire_sel.value, origin="standard"))
 
     if blower is not None:
         # Panel scope follows from the connected load, which is only known once
         # the blower is selected.
-        elec = ds.select_electrical(blower.motor_hp * blower_qty,
-                                    light_sel.detail.get("watts_total", 0) / 1000.0)
+        # The lighting load is zero when no lighting has been selected. That is
+        # the honest reading, not a shortcut: an unselected luminaire count
+        # contributes no known kW, and the panel is sized on the motor with the
+        # lighting allowance still to be added once the lux basis is confirmed.
+        light_kw = (light_sel.detail.get("watts_total", 0) / 1000.0
+                    if light_sel is not None else 0.0)
+        elec = ds.select_electrical(blower.motor_hp * blower_qty, light_kw)
         spec.rules.append(RuleResult(name="Electrical fittings & motors", value=elec.value,
                                      formula=elec.formula, standard=std.CLIENT_ELECTRICAL_STANDARD))
         spec.values.append(SpecValue(label="Electrical fittings & motors",

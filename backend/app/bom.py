@@ -96,8 +96,41 @@ def build_bom(spec: dict[str, Any]) -> dict[str, Any]:
                              "engineering rule"))
 
     # --- Rotating plant ----------------------------------------------------
+    #
+    # A BOOTH HAS A BLOWER WHETHER OR NOT WE HAVE SELECTED ONE. Once the spec
+    # started withholding the selection for want of a system static pressure,
+    # the line simply vanished from the bill - and a paint booth BOM with no
+    # blower, no motor and no control panel does not read as "these are still
+    # open", it reads as a booth that does not have them. The item is listed
+    # with its specification left open, which is the same contract the rest of
+    # this module already keeps for a line the rate card cannot price.
     blower = _value(rows, "exhaust blower")
-    if blower and not blower.isdigit():
+    _TBD = "To be determined"
+    # ONLY where the spec actually WITHHELD the selection. An ABSENT blower row
+    # means the category has no such field at all - a wet scrubber and a dust
+    # collector both reached this line and were handed three booth lines they
+    # have no business carrying. A withheld field is a row that exists and says
+    # "To be determined"; that is the difference, and it is the whole test.
+    # `_value` blanks an unresolved row, so it cannot tell a WITHHELD field from
+    # a field this category does not have. The raw row can, and the distinction
+    # is the whole point: a booth that withheld its blower must still list one.
+    _raw_blower = str(values.row_value(rows, "exhaust blower") or "").strip()
+    if _raw_blower and not values.is_resolved(_raw_blower):
+        lines.append(_line("Rotating plant", "Exhaust blower", _TBD, None, "no",
+                           amount=None,
+                           basis="Selection withheld: needs the system static "
+                                 "pressure (fan curve at the calculated duty point)",
+                           source="Exhaust blower (engineering gap)"))
+        lines.append(_line("Rotating plant", "Blower motor", _TBD, None, "HP",
+                           amount=None,
+                           basis="Rating follows the blower selection",
+                           source="Exhaust blower motor (engineering gap)"))
+        lines.append(_line("Electrical", "Control panel", _TBD, None, "lot",
+                           amount=None,
+                           basis="Scope follows the connected load, which follows "
+                                 "the blower selection",
+                           source="Control panel (engineering gap)"))
+    if blower and blower != _TBD and not blower.isdigit():
         qty = _nos(_value(rows, "blower", "nos")) or _num(_value(rows, "blower", "nos")) or 1
         lines.append(_line("Rotating plant", "Exhaust blower", blower, int(qty), "no",
                            amount=(lambda c: round(c * qty) if c else None)(

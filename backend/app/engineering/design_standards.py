@@ -153,6 +153,17 @@ SRC_HISTORY = "historical"
 SRC_STANDARD = "standard"
 SRC_ADVISORY = "advisory"
 SRC_DECISION = "customer_decision"
+# A value the platform had to CHOOSE a basis for because nothing on file states
+# one. It is engineering, and it is not Vitech's engineering, so it is neither a
+# calculation the reader can rely on nor an admitted gap - it is a stated
+# assumption, and it has to read as one on the sheet.
+SRC_ASSUMED = "assumed"
+
+# The words that actually establish a SOLVENT-BORNE coating. Deliberately does
+# not include "liquid", which is the family, not the chemistry.
+SOLVENT_WORDS = ("solvent", "enamel", "nc ", "nitrocellulose", "pu ",
+                 "polyurethane", "epoxy", "stoving", "alkyd", "lacquer",
+                 "thinner", "2k", "two pack", "2-pack")
 
 STATUS_ENGINEERING_DRAFT = "Engineering Draft"
 STATUS_CUSTOMER_REVIEW = "Customer Review Draft"
@@ -196,38 +207,67 @@ def resolve_booth_type(text: Optional[str], paint_type: Optional[str] = None) ->
     return BOOTH_TYPES[DEFAULT_BOOTH], warning
 
 
-def select_filters(airflow_cmh: float, size_key: str = PREFERRED_FILTER) -> Selection:
+def select_filters(airflow_cmh: float, size_key: str = PREFERRED_FILTER,
+                   media_velocity_ms: Optional[float] = None) -> Selection:
     """Paint-arresting filters from airflow and media velocity.
 
     Replaces the `FILTERS_PER_M2 = 0.6` placeholder: the count now follows from
     the airflow the filters actually have to pass.
     """
     size = next((s for s in FILTER_SIZES if s["key"] == size_key), FILTER_SIZES[0])
-    required_area = airflow_cmh / (3600.0 * FILTER_MEDIA_VELOCITY)
+    # THE MEDIA VELOCITY IS AN ASSUMPTION UNTIL SOMEBODY STATES IT. 1.0 m/s sits
+    # mid-band of the 0.8-1.2 range and no Vitech document on file fixes it -
+    # yet it divides straight into the filter count, so at 0.8 the same booth
+    # needs a quarter more filters. A number that changes the bill of materials
+    # must not read as calculated when it was chosen.
+    stated = media_velocity_ms is not None
+    velocity = float(media_velocity_ms) if stated else FILTER_MEDIA_VELOCITY
+    required_area = airflow_cmh / (3600.0 * velocity)
     count = max(1, math.ceil(required_area / size["area_m2"]))
     lo, hi = FILTER_PRESSURE_DROP["paint_arrestor"]
+    basis = ("stated for this design" if stated
+             else f"ASSUMED, mid-band of {FILTER_MEDIA_VELOCITY_RANGE[0]:g}-"
+                  f"{FILTER_MEDIA_VELOCITY_RANGE[1]:g} m/s; not stated by Vitech")
     return Selection(
         value=f"{count} nos {size['label']}",
         formula=(f"required area {required_area:.1f} m2 = {round(airflow_cmh)} m3/h / "
-                 f"(3600 x {FILTER_MEDIA_VELOCITY:g} m/s media velocity), "
+                 f"(3600 x {velocity:g} m/s media velocity - {basis}), "
                  f"/ {size['area_m2']:g} m2 per filter"),
-        source=SRC_CALC,
+        source=SRC_CALC if stated else SRC_ASSUMED,
         detail={"count": count, "size": size["label"], "area_m2": round(required_area, 2),
+                "media_velocity_ms": velocity, "media_velocity_stated": stated,
                 "pressure_drop_pa": f"{lo} initial / {hi} final"},
     )
 
 
 def select_lighting(floor_area_m2: float, application: str = "manual_painting",
-                    fixture_key: str = PREFERRED_FIXTURE) -> Selection:
-    """Luminaires by lux, replacing a fixture count copied from another booth."""
-    lux = TARGET_LUX.get(application, TARGET_LUX["manual_painting"])
+                    fixture_key: str = PREFERRED_FIXTURE,
+                    lux_level: Optional[float] = None) -> Selection | None:
+    """Luminaires by lux - and None when the lux level is not established.
+
+    WHY THIS CAN REFUSE. The count is lumens required over lumens per fitting,
+    with NO utilisation factor and NO maintenance factor. Both are well below
+    1.0 in a paint booth (a dusty enclosure with absorbing walls), so the bare
+    ratio overstates what the fittings deliver: the audited 15 m2 booth got 3
+    fittings for a 750 lux target and would see roughly 590 lux once real
+    factors apply. Printing "3 nos (750 lux)" states an illuminance the design
+    does not achieve, which is worse than admitting the basis is missing.
+
+    A stated lux level is the customer's or the engineer's own requirement and
+    is honoured; without one there is nothing here to compute from that Vitech
+    have confirmed.
+    """
+    if lux_level is None:
+        return None
+    lux = float(lux_level)
     fx = next((f for f in FIXTURES if f["key"] == fixture_key), FIXTURES[1])
     required_lumens = floor_area_m2 * lux
     count = max(1, math.ceil(required_lumens / fx["lumens"]))
     return Selection(
-        value=f"{count} nos {fx['label']} ({lux} lux)",
-        formula=(f"{floor_area_m2:g} m2 x {lux} lux = {round(required_lumens)} lm, "
-                 f"/ {fx['lumens']} lm per fixture"),
+        value=f"{count} nos {fx['label']} ({lux:g} lux)",
+        formula=(f"{floor_area_m2:g} m2 x {lux:g} lux (stated) = {round(required_lumens)} lm, "
+                 f"/ {fx['lumens']} lm per fixture - NO utilisation or maintenance "
+                 f"factor applied; confirm against Vitech's lighting basis"),
         source=SRC_CALC,
         detail={"count": count, "lux": lux, "watts_total": count * fx["watts"],
                 "fixture": fx["label"]},
@@ -270,11 +310,34 @@ def select_electrical(motor_hp_total: float, lighting_kw: float = 0.0) -> Select
     )
 
 
-def select_fire_protection(paint_type: Optional[str]) -> Selection:
-    """Fire protection inferred from the paint process — was left blank before."""
-    p = (paint_type or "").lower()
-    key = ("powder" if "powder" in p
-           else "water-based" if ("water" in p) else "solvent")
+def select_fire_protection(paint_type: Optional[str]) -> Selection | None:
+    """Fire protection from the CONFIRMED paint process, or None when it is not.
+
+    The process decides the standard, so an unstated process decides nothing.
+    """
+    # SOLVENT WAS THE DEFAULT, AND A DEFAULT IS NOT A CONFIRMATION. A booth whose
+    # own specification said "Paint process: to confirm" still asserted NFPA 33
+    # flameproof components and interlocked shutdown - a HAZARDOUS-AREA claim,
+    # made about a process nobody had stated. It is the most expensive kind of
+    # wrong in both directions: over-specified if the coating turns out to be
+    # water-based or powder, and a safety claim nobody engineered if it is not.
+    p = (paint_type or "").strip().lower()
+    if not p:
+        return None
+    # A BARE "LIQUID" IS NOT A CONFIRMATION OF SOLVENT. Liquid paint is either
+    # water-based or solvent-based and the two select different standards, so
+    # "liquid" alone leaves the question exactly where it started - yet it was
+    # falling into the solvent branch and asserting NFPA 33, a hazardous-area
+    # classification, off a word that does not carry it. Only a process that
+    # NAMES its family decides; anything else is reported as unconfirmed.
+    if "powder" in p:
+        key = "powder"
+    elif "water" in p:
+        key = "water-based"
+    elif any(w in p for w in SOLVENT_WORDS):
+        key = "solvent"
+    else:
+        return None
     spec = FIRE_PROTECTION[key]
     return Selection(
         value=", ".join(spec["items"]),

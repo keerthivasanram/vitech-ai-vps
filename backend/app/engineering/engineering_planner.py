@@ -128,11 +128,28 @@ def _generate_spec_inner(profile, category, params, chosen, offers, policy=ATS):
                 # Keep the value's own provenance when it carries one (advisory /
                 # standard / customer_decision from the client's standards
                 # package); only default to "rule" for a plain calculation.
+                # "tbd" and "assumed" join the list for the same reason the
+                # first three are on it: they are VERDICTS the rule engine
+                # reached, and coercing them to "rule" would report a refusal
+                # as a calculation and a chosen basis as an established one.
                 origin = v.origin if v.origin in ("advisory", "standard",
-                                                  "customer_decision") else "rule"
-                verb = {"advisory": "Recommended", "standard": "Per standard"}.get(origin, "Calculated")
-                items.append(_item(v.label, v.value, origin, _short_std(rule.standard),
-                                   f"{verb}: {rule.formula} ({rule.standard})."))
+                                                  "customer_decision", "tbd",
+                                                  "assumed") else "rule"
+                if origin == "tbd":
+                    # A WITHHELD FIELD IS A DECISION, NOT AN EMPTY SLOT. It is
+                    # emitted as a resolved row so that the template finds it
+                    # occupied and never fills it from another project's design
+                    # - which is exactly what happened to lighting ("20w x 10
+                    # LED weatherproof", from a booth half the size) and to the
+                    # blower drive. A reused value is not an answer to a
+                    # deliberate refusal; it is the refusal being overruled by
+                    # the one source that cannot know.
+                    items.append(_item(v.label, v.value, "tbd", None, rule.formula))
+                else:
+                    verb = {"advisory": "Recommended", "standard": "Per standard",
+                            "assumed": "Assumed basis"}.get(origin, "Calculated")
+                    items.append(_item(v.label, v.value, origin, _short_std(rule.standard),
+                                       f"{verb}: {rule.formula} ({rule.standard})."))
             else:
                 items.append(_item(v.label, v.value, "given", "requirement",
                                    "Derived from the client requirement."))

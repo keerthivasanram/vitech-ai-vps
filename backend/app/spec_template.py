@@ -14,7 +14,8 @@ it automatically. Categories without a template are unaffected (opt-in).
 """
 import re
 
-from .catalog import CONFIRMED, DERIVED, INDICATIVE, TBD, origin_label, state_for, state_label
+from .catalog import (ASSUMED, CONFIRMED, DERIVED, INDICATIVE, TBD, origin_label,
+                      state_for, state_label)
 
 TBD_VALUE = "To be determined"
 
@@ -324,15 +325,22 @@ def apply_states(technical):
 
 
 def state_summary(technical):
-    """The four buckets, as labels, for the caller that wants the partition
-    rather than the rows. A PARTITION: the four counts sum to the row count."""
+    """The five buckets, as labels, for the caller that wants the partition
+    rather than the rows. A PARTITION: the five counts sum to the row count.
+
+    ASSUMED joined the four when the filter count stopped claiming to be
+    engineering: it divides by a media velocity no Vitech document fixes. A
+    summary that omitted the bucket would drop those rows out of the partition
+    entirely, which is precisely the failure the partition exists to prevent.
+    """
     rows = technical or []
-    buckets = {CONFIRMED: [], DERIVED: [], TBD: [], INDICATIVE: []}
+    buckets = {CONFIRMED: [], DERIVED: [], ASSUMED: [], TBD: [], INDICATIVE: []}
     for it in rows:
         buckets.setdefault(state_for(it.get("origin")), []).append(it.get("label"))
     return {
         "confirmed": buckets[CONFIRMED],
         "derived": buckets[DERIVED],
+        "assumed": buckets[ASSUMED],
         "tbd": buckets[TBD],
         "indicative": buckets[INDICATIVE],
         "total": len(rows),

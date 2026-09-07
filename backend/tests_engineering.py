@@ -156,8 +156,79 @@ check(empty.exhaust_cmh is None and empty.material_weight_kg is None,
       "incomplete dimensions produce no numbers at all")
 
 # --- Integration: the booth spec engine emits catalogue-backed rows --------
-spec = compute_spec(5, 3, 4, "liquid")
+#
+# A STATIC PRESSURE IS NOW PART OF SELECTING A BLOWER. Vitech's own workbook
+# rule is to select on the fan curve at the calculated duty point and never on
+# CFM alone, and nothing computes a system resistance here - so a duty point
+# must be supplied or the selection is withheld. The chart lookup below is
+# unchanged; it simply is no longer reached by volume alone.
+spec = compute_spec(5, 3, 4, "liquid", static_pressure_mmwc=60)
 labels = {v.label: v.value for v in spec.values}
+
+_no_sp = {v.label: v for v in compute_spec(5, 3, 4, "liquid").values}
+_TBD = "To be determined"
+check(_no_sp["Exhaust blower"].value == _TBD
+      and _no_sp["Exhaust blower motor (HP)"].value == _TBD,
+      "no static pressure -> NO blower is named (Vitech's own selection rule)")
+check(_no_sp["Control panel"].value == _TBD
+      and _no_sp["Electrical fittings & motors"].value == _TBD,
+      "and no control panel either - its load follows the blower")
+# THE ROW MUST BE PRESENT, not merely absent, and that is the whole mechanism.
+# An absent row falls through the template to its history rung and is answered
+# by another project - which is exactly how lighting came back as "20w x 10 LED
+# weatherproof" from a booth half the size. A row that is present and withheld
+# occupies the slot and cannot be overruled.
+check(all(_no_sp[l].origin == "tbd" for l in
+          ("Exhaust blower", "Blower drive", "Illumination",
+           "Fire extinguishing system", "Control panel")),
+      "a withheld field is EMITTED as tbd, so history can never fill it")
+check("Exhaust airflow" in _no_sp and _no_sp["Exhaust airflow"].value != _TBD,
+      "the required VOLUME is still stated; it is the duty POINT that is missing")
+# The three inputs that unlock the three refusals, each on its own.
+check(compute_spec(5, 3, 4, "liquid", static_pressure_mmwc=60).values
+      and any(v.label == "Exhaust blower" and v.value == "CLP-4-10-9000"
+              for v in compute_spec(5, 3, 4, "liquid", static_pressure_mmwc=60).values),
+      "a stated static pressure unlocks the catalogue selection")
+check(any(v.label == "Illumination" and v.origin == "rule"
+          for v in compute_spec(5, 3, 4, "liquid", lux_level=750).values),
+      "a stated lux level unlocks the luminaire count")
+check(any(v.label == "Fire extinguishing system" and v.origin == "standard"
+          for v in compute_spec(5, 3, 4, "water-based").values),
+      "a confirmed process selects its own standard")
+# "liquid" is the FAMILY, not the chemistry: it is either water-based or
+# solvent-borne, and NFPA 33 is a hazardous-area claim that must not follow
+# from a word that does not establish one.
+check(any(v.label == "Fire extinguishing system" and v.value == _TBD
+          for v in compute_spec(5, 3, 4, "liquid").values),
+      "a bare 'liquid' does not confirm solvent, so no NFPA 33 is asserted")
+# NFPA 33 is named in the BASIS, not in the value; the value is the scope it
+# mandates, and flameproof components are the hazardous-area part of it.
+_solv = compute_spec(5, 3, 4, "solvent")
+check(any(v.label == "Fire extinguishing system" and "Flameproof" in v.value
+          and v.origin == "standard" for v in _solv.values)
+      and any(r.name == "Fire extinguishing system" and "NFPA 33" in r.standard + r.formula
+              for r in _solv.rules),
+      "a stated solvent process does select NFPA 33")
+# The filter count rests on a chosen media velocity and must say so.
+check(any(v.label == "Paint arresting filter" and v.origin == "assumed"
+          for v in compute_spec(5, 3, 4, "liquid").values),
+      "the filter count is ASSUMED while its media velocity is unconfirmed")
+check(any(v.label == "Paint arresting filter" and v.origin == "rule"
+          for v in compute_spec(5, 3, 4, "liquid", filter_media_velocity_ms=1.0).values),
+      "and becomes a calculation once the velocity is stated")
+# A CONFIRMED opening is never replaced by the 1.5 m stand-in.
+_conf = {v.label: v.value for v in
+         compute_spec(5, 3, 4, "liquid", "cross draft",
+                      open_front_w_mm=3000, open_front_h_mm=2500).values}
+check(_conf["Exhaust airflow"] == "13500 m3/h",
+      f"a stated 3.0 x 2.5 m opening gives 7.5 m2 x 0.5 x 3600 (got {_conf['Exhaust airflow']})")
+_proxy = {v.label: v.value for v in
+          compute_spec(5, 3, 4, "liquid", "cross draft", open_front_w_mm=3000).values}
+check(_proxy["Exhaust airflow"] == "8100 m3/h",
+      "with no stated opening HEIGHT the 1.5 m Vitech rule still applies")
+# An unstated paint process is never printed back as one.
+check(not any(v.label == "Paint process" for v in compute_spec(5, 3, 4).values),
+      "an unstated paint process is not invented (it defaulted to 'powder')")
 check(labels.get("Exhaust blower") == "CLP-4-10-9000", "booth spec names a real catalogue blower")
 check(labels.get("Exhaust blower motor (HP)") == "10", "booth spec carries the catalogue motor HP")
 check("Inlet air volume" in labels, "booth spec carries the client's inlet-air rule")

@@ -214,6 +214,27 @@ _OPEN_FRONT = re.compile(
     r"(\d+(?:\.\d+)?)\s*(mm|cm|m|meters?|metres?)?\s*\(?[LWH]?\)?\s*[x×*]\s*"
     r"(\d+(?:\.\d+)?)\s*(mm|cm|m|meters?|metres?)?", re.I)
 
+# THE THREE INPUTS THAT UNLOCK A REFUSED SELECTION. Each is read here rather
+# than left to the model, because each one decides whether a value is stated as
+# engineering or withheld as a gap - and a model that guesses a static pressure
+# would put a blower back on the sheet with nothing behind it.
+_STATIC_PRESSURE = re.compile(
+    r"\b(?:system\s+)?static\s*(?:pressure|press\.?|sp)\s*[:=-]?\s*"
+    r"(\d+(?:\.\d+)?)\s*(mmwc|mm\s*wc|mm\s*w\.?c\.?|mmwg|pa|mbar)\b"
+    r"|\b(\d+(?:\.\d+)?)\s*(mmwc|mm\s*wc|mmwg)\b\s*(?:static|system\s+resistance)", re.I)
+
+# "750 lux", "illumination 500 lux", "lighting level: 1000 lux".
+_LUX = re.compile(
+    r"\b(?:lux\s*(?:level|value)?\s*[:=-]?\s*(\d+(?:\.\d+)?)"
+    r"|(\d+(?:\.\d+)?)\s*lux)\b", re.I)
+
+# "media velocity 1.0 m/s", "filter face velocity: 0.9 m/s". Anchored on MEDIA
+# or FILTER so it can never pick up the booth's own face velocity, which is a
+# different quantity that the engine already reads separately.
+_MEDIA_VELOCITY = re.compile(
+    r"\b(?:filter\s+media|media|filter\s+face)\s*velocity\s*[:=-]?\s*"
+    r"(\d+(?:\.\d+)?)\s*m\s*/?\s*s\b", re.I)
+
 _DOOR_TYPE = re.compile(
     r"\b(double[\s-]?leaf|single[\s-]?leaf|bi[\s-]?parting|two[\s-]?leaf|"
     r"sliding|hinged|roller\s+shutter|guillotine|vertical\s+lift)\b(?=[^.]{0,40}\bdoor\b)"
@@ -273,6 +294,17 @@ def _labelled_inputs(q: str) -> dict:
         unit = m.group(2) or m.group(4)
         out["open_front_w_mm"] = _round(str(_mm(float(m.group(1)), unit)))
         out["open_front_h_mm"] = _round(str(_mm(float(m.group(3)), unit)))
+    if m := _STATIC_PRESSURE.search(q):
+        value = float(m.group(1) or m.group(3))
+        unit = (m.group(2) or m.group(4) or "mmwc").replace(" ", "").replace(".", "").lower()
+        # Everything is carried in mmWC, the unit Vitech's own blower chart is
+        # published in; a figure given in Pa or mbar is converted once, here.
+        out["static_pressure_mmwc"] = _round(str(
+            value / 9.80665 if unit == "pa" else value * 10.197 if unit == "mbar" else value))
+    if m := _LUX.search(q):
+        out["lux_level"] = _round(m.group(1) or m.group(2))
+    if m := _MEDIA_VELOCITY.search(q):
+        out["filter_media_velocity_ms"] = float(m.group(1))
     if m := _DOOR_TYPE.search(q):
         out["door_type"] = re.sub(r"[\s-]+", " ", (m.group(1) or m.group(2))).lower()
     if m := _HEATING_MEDIA.search(q):
@@ -637,7 +669,8 @@ _DIM_AXES = ("length_m", "width_m", "height_m")
 # regex read the labelled form there is nothing left for the model to improve.
 _LABELLED_KEYS = ("operating_temp", "max_temp_c", "panel_thickness_mm",
                   "door_opening_mm", "door_type", "heating_mode", "job_weight_kg",
-                  "open_front_w_mm", "open_front_h_mm")
+                  "open_front_w_mm", "open_front_h_mm", "static_pressure_mmwc",
+                  "lux_level", "filter_media_velocity_ms")
 
 # Keys any category may legitimately carry even when its own profile does not
 # declare them: the overall envelope, which a duty-specified category (ducting,

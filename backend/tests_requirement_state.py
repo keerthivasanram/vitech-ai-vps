@@ -121,13 +121,19 @@ for key, want in (("operating_temp", 180), ("max_temp_c", 200),
     check(u.parameters.get(key) == want,
           f"understand() keeps {key} = {want!r} (got {u.parameters.get(key)!r})")
 
-print("\n== 4. the four states are a TOTAL partition ==")
+print("\n== 4. the five states are a TOTAL partition ==")
 # A state map that silently omitted an origin would put values in no bucket at
 # all, which defeats the whole point of the partition.
 missing = sorted(set(ORIGIN_LABELS) - set(ORIGIN_STATES))
 check(not missing, f"every origin has a state (unmapped: {missing})")
-check(set(ORIGIN_STATES.values()) <= {"confirmed", "derived", "tbd", "indicative"},
-      "no state outside the declared four")
+# ASSUMED is the fifth, and it earns its place: a value computed on a basis
+# nobody has confirmed is neither DERIVED (that claims engineering we cannot
+# show) nor TBD (that throws away a real calculation).
+check(set(ORIGIN_STATES.values()) <= {"confirmed", "derived", "tbd", "indicative",
+                                      "assumed"},
+      "no state outside the declared five")
+check(ORIGIN_STATES.get("assumed") == "assumed",
+      "a chosen basis is reported as ASSUMED, never as derived")
 check(state_for("given") == "confirmed", "a client-stated value is CONFIRMED")
 check(state_for("rule") == "derived", "a rule-computed value is DERIVED")
 check(state_for("tbd") == "tbd" and state_for("customer_decision") == "tbd",
