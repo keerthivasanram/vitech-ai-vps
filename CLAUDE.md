@@ -42,6 +42,53 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-07 (later) — A FILTER'S SIZE WAS BEING SPECIFIED AS THE BOOTH. Reported from a real generated PDF.
+
+The product owner pasted a normal enquiry - *"Size: 5000 L x 3000 W x 4000 H mm ... Open front:
+3000 W x 2500 H mm ... Filter: 600 x 600 x 50 mm"* - and got a specification for a booth
+**0.6 x 0.6 x 0.05 m**. Fourteen suites green, contract 29/29, one fingerprint re-recorded.
+- **THE ENVELOPE WAS THE FILTER, and every number below it was then correct for the wrong
+  machine.** Airflow 1,620 m3/h, blower CLP-4-2-1600 at 2 HP, 2 filters, 200 mm duct, 1 luminaire,
+  253 kg of panel - all traceable, all captioned "Calculated", all for a machine nobody asked for.
+  It also printed a demotion reading **"+1718% from this 0 m2 floor area duty"**, which is the
+  clearest possible tell and reads as noise unless you know what to look for.
+- **THE PATTERN ALLOWED ONLY A BARE "m" BETWEEN A FIGURE AND THE NEXT "x".** Six of eight ordinary
+  notations were unreadable - `5000 L x 3000 W x 4000 H`, `5000L x 3000W x 4000H`,
+  `5000 (L) x ...`, `L 5000 x W 3000 x ...`, `5m L x 3m W x ...` and, most damning, plain
+  **`5000 mm x 3000 mm x 4000 mm`**, because a second "m" follows the one the pattern consumes.
+- **AN UNREADABLE SIZE IS NOT A MISSING SIZE, and that is the whole lesson.** `.search()` does not
+  stop where the customer's own size was; it runs on and takes the NEXT triple in the sentence.
+  A parser that fails silently does not produce a gap, it produces a confident wrong answer -
+  which is exactly the failure mode this platform's TBD guardrail exists to prevent, arriving
+  one layer upstream of where the guardrail lives.
+- **SO THE SECOND FIX MATTERS MORE THAN THE FIRST.** `_COMPONENT_DIM` + `_envelope_match` skip a
+  dimension group introduced by a component word, so a requirement stating ONLY a filter yields
+  **no envelope at all**. An honestly missing envelope is recoverable; a confident wrong one is
+  not. **The first version of that guard was far too broad** - it listed `conveyor`, `tank`,
+  `duct`, `blower`, `fan`, words that name whole equipment CATEGORIES here - and a conveyor
+  promptly lost its own size. Caught by `tests_lookup`, which had pinned that exact case since
+  August. **A guard must only fire on something that cannot be the machine under discussion.**
+- **THE STATED OPEN FRONT WAS IGNORED, which is a separate defect on the same sheet.** The booth
+  LENGTH is a proxy for the open working face (DQ-9: Vitech write the open front first) and stays
+  the default. When the customer states the face itself, the proxy has been superseded by the
+  thing it stood for - and using it anyway sizes the blower, the duct and the filter bank for a
+  booth **67% wider** than the one asked for. On this enquiry that is **8,100 m3/h, which is
+  Vitech's own PUBLISHED duty for a 3.0 m machine**, against 13,500 from the proxy.
+  `open_front_w_mm` / `open_front_h_mm` are read deterministically and declared optional.
+- **THE GOLDENS ARE BYTE-IDENTICAL**, which is the proof this reaches only requirements that state
+  an open front. Only **`drawing.catalog`** moved (the booth profile gained two optional inputs;
+  that endpoint is data-driven from the profiles) - stable across two runs, re-recorded by hand.
+- **THE COMPOSER WAS A SINGLE-LINE `<input>`**, so a pasted multi-line enquiry - the shape a real
+  one arrives in - collapsed onto one unreadable line. It is a `<textarea>` now, auto-growing to
+  200px then scrolling, `align-items: flex-end` so the icons and send button stay on the bottom
+  line beside the caret. Enter still sends and **Shift+Enter starts a line, which the existing
+  keydown already implemented and an `<input>` could never honour**. **Verified by driving the
+  real browser, not the build**: TEXTAREA, 36px -> 188px, newlines preserved, capped, zero console
+  errors. Playwright/Chromium reinstalled on the container disk (it does not survive a wipe).
+- **STILL OPEN:** the Drawing Studio's own assistant box (`DrawingStudio.jsx`) is still a
+  single-line input - a narrow rail meant for short follow-ups ("make it 6m long"), so it was left
+  alone rather than risk the tuned studio layout. Worth the same treatment if anyone pastes into it.
+
 ### ▶ 2026-09-07 — THE ENGINEERING AND QUOTATION AGENTS. Client data reached the documents, and a FABRICATED COST SHEET was found and killed.
 
 Pod bootstrapped from a wiped container disk (`bootstrap-pod.sh` then `start-all.sh`), **all six
