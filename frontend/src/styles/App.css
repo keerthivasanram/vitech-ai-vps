@@ -787,10 +787,13 @@
    focused, and focus is a ring rather than a lift plus a glow plus a shadow. */
 .composer {
   display: flex;
-  align-items: center;
+  /* flex-end, not center: once the textarea grows the icon row and the send
+     button belong on the bottom line beside the caret, not floating halfway up
+     a tall box. At one line the two are identical. */
+  align-items: flex-end;
   gap: 10px;
   min-height: 50px;
-  padding: 0 6px 0 16px;
+  padding: 7px 6px 7px 16px;
   border: 1px solid var(--border-strong);
   border-radius: var(--r-composer);
   background: var(--card);
@@ -806,13 +809,21 @@
 .composer-input {
   flex: 1;
   min-width: 0;
-  align-self: stretch;
   border: none;
   background: transparent;
   outline: none;
+  font: inherit;
   font-size: var(--fs-body);
+  line-height: 1.5;
   color: var(--text);
   caret-color: var(--secondary);
+  /* A textarea brings furniture an input does not: a resize grip that fights
+     the auto-grow, and a default 2-row height. */
+  resize: none;
+  overflow-y: hidden;
+  max-height: 200px;
+  padding: 7px 0;
+  margin: 0;
 }
 .composer-input::placeholder { color: var(--text-muted); transition: opacity var(--t); }
 .composer:focus-within .composer-input::placeholder { opacity: 0.55; }

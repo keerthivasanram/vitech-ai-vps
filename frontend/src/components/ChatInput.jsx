@@ -1,17 +1,47 @@
-import { memo } from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import {
   CornerDownLeft, Globe, Paperclip, SendHorizontal, ShieldCheck,
   SlidersHorizontal, Sparkles,
 } from "lucide-react";
 import { useRipple } from "../hooks/useRipple";
 
+// How tall the composer may grow before it scrolls instead, in px. Eight or so
+// lines: enough that a pasted enquiry - the size, the open front, the face
+// velocity, the filter, the construction - is readable in one glance, and not
+// so much that it swallows the conversation above it.
+const MAX_INPUT_H = 200;
+
 /**
  * Composer: tool icons on the left, the input, then the Enter hint and the
- * green send button. Enter sends; the button mirrors it.
+ * green send button. Enter sends, Shift+Enter starts a new line; the button
+ * mirrors Enter.
+ *
+ * IT IS A TEXTAREA, NOT AN INPUT, and that is the point. A single-line input
+ * silently flattens a pasted multi-line requirement onto one unreadable line -
+ * exactly the shape a real enquiry arrives in - so the one thing the user most
+ * needs to check before sending is the one thing they cannot see. It grows with
+ * its content up to MAX_INPUT_H and scrolls after that.
  */
 export const ChatInput = memo(function ChatInput({ value, onChange, onSend, disabled }) {
   const canSend = !disabled && value.trim().length > 0;
   const { ripples, onPointerDown } = useRipple();
+
+  const ref = useRef(null);
+
+  // Height follows content: reset first, then measure, or the box can only ever
+  // grow - deleting a line would leave the composer stretched around nothing.
+  const fit = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_H)}px`;
+    el.style.overflowY = el.scrollHeight > MAX_INPUT_H ? "auto" : "hidden";
+  }, []);
+
+  // useLayoutEffect, not useEffect: this runs on every value change including
+  // the reset to "" after a send, and measuring before paint keeps the box from
+  // flashing at its old height.
+  useLayoutEffect(fit, [value, fit]);
 
   const keyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -23,8 +53,10 @@ export const ChatInput = memo(function ChatInput({ value, onChange, onSend, disa
   return (
     <div className="composer-wrap">
       <div className="composer">
-        <input
+        <textarea
+          ref={ref}
           className="composer-input"
+          rows={1}
           value={value}
           placeholder="Ask anything or type your message..."
           aria-label="Message the agent"
