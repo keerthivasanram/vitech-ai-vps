@@ -397,7 +397,12 @@ def _markdown(label: str, env: dict, scale: int, placed: list, tbd: list,
                       if env.get(a))
     if dims:
         L.append(f"Envelope: {dims} mm")
-    L.append(f"Sheet {size}, scale {'1:' + str(scale) if placed else 'NTS'}, "
+    # A SCHEMATIC HAS NO SCALE, and the sheet itself prints NTS. This line was
+    # keyed on whether any view was PLACED, which a schematic satisfies - it
+    # draws three - so the summary announced "scale 1:1" beside a sheet stamped
+    # NTS and PRELIM. A resolved envelope is what makes a scale meaningful, so
+    # that is what it is keyed on now.
+    L.append(f"Sheet {size}, scale {'1:' + str(scale) if placed and dims else 'NTS'}, "
              f"{len(placed)} view(s): {', '.join(v.label.lower() for v in placed) or 'none'}")
     if tbd:
         L += ["", f"**{len(tbd)} item(s) to be determined:**"]
