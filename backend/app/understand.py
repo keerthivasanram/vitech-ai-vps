@@ -17,11 +17,65 @@ from .schema import QueryUnderstanding
 
 # --- regex/keyword fallback (fast, no LLM) ---------------------------------
 
-_DIM_PAIR = re.compile(r"(\d+(?:\.\d+)?)\s*(?:m|meter|metre)?\s*[x×*]\s*(\d+(?:\.\d+)?)", re.I)
+# WHAT MAY SIT BETWEEN A NUMBER AND THE NEXT "x" IN A DIMENSION GROUP.
+#
+# The old pattern allowed only a bare "m", and engineers do not write sizes that
+# way. Six of eight ordinary notations were unreadable, INCLUDING the plainest
+# one of all - "5000 mm x 3000 mm x 4000 mm" - because a second "m" followed the
+# one the pattern consumed. The cost of that is not a missing dimension: the
+# scan simply runs on and takes the NEXT triple in the sentence. A real enquiry
+# reading "Size: 5000 L x 3000 W x 4000 H mm ... Filter: 600 x 600 x 50 mm"
+# therefore specified a booth 0.6 x 0.6 x 0.05 m - the FILTER - and every number
+# that follows from an envelope (airflow, blower, filter count, duct, lighting,
+# panel weight) was computed for a machine nobody asked for.
+_UNIT = r"(?:\s*(?:mm|cm|m|meters?|metres?)\b)?"
+# "5000 L", "5000L", "5000 (L)", "5m H" - the axis letter an engineer writes
+# against each figure. Consumed, never interpreted: the ORDER is what assigns
+# the axes, and honouring a written "H" out of order would silently re-map an
+# envelope the rest of the sentence has already fixed.
+_AXIS = r"(?:\s*\(?\s*[LWHD]\s*\)?)?"
+_GAP = _UNIT + _AXIS + r"\s*[x×*]\s*"
+_NUM = r"(\d+(?:\.\d+)?)"
+# A leading axis marker: "L 5000 x W 3000 x H 4000".
+_LEAD_AXIS = r"(?:\b[LWHD]\s*[:=]?\s*)?"
+
+_DIM_PAIR = re.compile(_LEAD_AXIS + _NUM + _GAP + _LEAD_AXIS + _NUM, re.I)
 # three-dimension envelope, e.g. "8 x 4 x 3.5 m" -> L x W x H
 _DIM_TRIPLE = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(?:m|meter|metre)?\s*[x×*]\s*"
-    r"(\d+(?:\.\d+)?)\s*(?:m|meter|metre)?\s*[x×*]\s*(\d+(?:\.\d+)?)", re.I)
+    _LEAD_AXIS + _NUM + _GAP + _LEAD_AXIS + _NUM + _GAP + _LEAD_AXIS + _NUM, re.I)
+
+# A DIMENSION GROUP THAT NAMES A COMPONENT IS NOT THE MACHINE. Even with every
+# notation above readable, a requirement that states only "Filter: 600 x 600 x
+# 50 mm" would still hand the filter's size to the booth. These are the words
+# that, standing immediately before a dimension group, say it describes a PART
+# or an APERTURE of the equipment rather than its envelope - so the scan skips
+# that group and looks for the next one. Finding none is the right answer: the
+# size is then honestly missing rather than confidently wrong.
+#
+# NARROW ON PURPOSE, and the first version was not. It began with "conveyor",
+# "tank", "duct", "blower" and "fan" in it - words that name a whole EQUIPMENT
+# CATEGORY on this platform, not a part of one. A conveyor requirement then had
+# its own envelope skipped and came back with no size at all, which is a worse
+# failure than the one being fixed: the guard must only ever fire on something
+# that cannot be the machine under discussion.
+_COMPONENT_DIM = re.compile(
+    r"\b(?:filter|filtration|media|cell|pad|cartridge|door|window|glass|view"
+    r"|opening|aperture|open\s*front|face|flange|spool|nozzle|damper"
+    r"|grating|grill|louver|louvre|light|luminaire|fitting|tray|plenum"
+    r"|panel|sheet|hanger|hook|jig|pitch)\b[^.;\n]{0,28}$", re.I)
+
+
+def _envelope_match(regex: re.Pattern, q: str):
+    """The first dimension group in `q` that is not describing a component.
+
+    Deliberately a scan rather than a single `search`: the machine's own size is
+    usually stated first, but a sentence that leads with a filter or a door must
+    not be allowed to answer for the whole enclosure.
+    """
+    for m in regex.finditer(q):
+        if not _COMPONENT_DIM.search(q[:m.start()]):
+            return m
+    return None
 _BOOTH_TYPE = re.compile(r"\b(?:(dry|wet)\s+)?(side|down|cross)[\s-]?draft\b", re.I)
 _THROUGHPUT = re.compile(
     r"(\d+)\s*(?:components?|parts?|pieces?|jobs?|units?)\s*(?:per|/|a)\s*"
@@ -146,6 +200,20 @@ _JOB_MASS_KG = re.compile(
     r"\s*(?:weight|mass|wt)?" + _LEAD + r"(\d+(?:\.\d+)?)\s*(kgs?|kilograms?)\b"
     r"|\b(\d+(?:\.\d+)?)\s*(?:kgs?|kilograms?)\s+(?:per\s+)?(?:batch|job|charge|load)\b", re.I)
 
+# THE OPEN WORKING FACE, WHEN THE CUSTOMER STATES IT. The booth's airflow is
+# computed from the open front (DQ-9/DQ-10, closed by the product owner on the
+# 1.5 m effective filter opening), and the engine reads the open front off the
+# booth LENGTH as a proxy. That proxy is right until a customer states the real
+# thing: an enquiry giving "Size: 5000 L x 3000 W x 4000 H, Open front: 3000 W x
+# 2500 H" is stating a 3.0 m face, and sizing it as 5.0 m puts the airflow, the
+# blower, the duct and the filter count on a booth 67% larger than the one asked
+# for. Read here so it is CONFIRMED data rather than the model's guess.
+_OPEN_FRONT = re.compile(
+    r"\b(?:open(?:ing)?\s*(?:front|face|side)|working\s*(?:face|opening)|front\s*opening)"
+    r"\s*(?:size)?\s*[:=-]?\s*"
+    r"(\d+(?:\.\d+)?)\s*(mm|cm|m|meters?|metres?)?\s*\(?[LWH]?\)?\s*[x×*]\s*"
+    r"(\d+(?:\.\d+)?)\s*(mm|cm|m|meters?|metres?)?", re.I)
+
 _DOOR_TYPE = re.compile(
     r"\b(double[\s-]?leaf|single[\s-]?leaf|bi[\s-]?parting|two[\s-]?leaf|"
     r"sliding|hinged|roller\s+shutter|guillotine|vertical\s+lift)\b(?=[^.]{0,40}\bdoor\b)"
@@ -201,6 +269,10 @@ def _labelled_inputs(q: str) -> dict:
         out["door_opening_mm"] = f"{_int(w)} x {_int(h)}"
     if m := _JOB_MASS_KG.search(q):
         out["job_weight_kg"] = _round(m.group(1) or m.group(3))
+    if m := _OPEN_FRONT.search(q):
+        unit = m.group(2) or m.group(4)
+        out["open_front_w_mm"] = _round(str(_mm(float(m.group(1)), unit)))
+        out["open_front_h_mm"] = _round(str(_mm(float(m.group(3)), unit)))
     if m := _DOOR_TYPE.search(q):
         out["door_type"] = re.sub(r"[\s-]+", " ", (m.group(1) or m.group(2))).lower()
     if m := _HEATING_MEDIA.search(q):
@@ -389,13 +461,13 @@ def _fallback(question: str) -> QueryUnderstanding:
     labelled = _labelled_dims(q)
     if labelled:
         params.update(labelled)
-    elif (m := _DIM_TRIPLE.search(q)):
+    elif (m := _envelope_match(_DIM_TRIPLE, q)):
         dims = _dims_to_metres([float(m.group(1)), float(m.group(2)), float(m.group(3))], q, m.end())
         if job_ctx:
             params["job_size"] = _fmt_dims(dims)
             dims = _job_to_booth(dims)
         params["length_m"], params["width_m"], params["height_m"] = dims
-    elif (m := _DIM_PAIR.search(q)):
+    elif (m := _envelope_match(_DIM_PAIR, q)):
         dims = _dims_to_metres([float(m.group(1)), float(m.group(2))], q, m.end())
         if job_ctx:
             params["job_size"] = _fmt_dims(dims)
@@ -564,7 +636,8 @@ _DIM_AXES = ("length_m", "width_m", "height_m")
 # and the two become one number with no way to tell which survived. Where the
 # regex read the labelled form there is nothing left for the model to improve.
 _LABELLED_KEYS = ("operating_temp", "max_temp_c", "panel_thickness_mm",
-                  "door_opening_mm", "door_type", "heating_mode", "job_weight_kg")
+                  "door_opening_mm", "door_type", "heating_mode", "job_weight_kg",
+                  "open_front_w_mm", "open_front_h_mm")
 
 # Keys any category may legitimately carry even when its own profile does not
 # declare them: the overall envelope, which a duty-specified category (ducting,

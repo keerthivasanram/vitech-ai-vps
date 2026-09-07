@@ -34,7 +34,8 @@ def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
     # an engineering one.
     return compute_spec(params.get("length_m"), params.get("width_m"),
                         params.get("height_m"), params.get("paint_type"),
-                        params.get("booth_type"), params.get("face_velocity_ms"))
+                        params.get("booth_type"), params.get("face_velocity_ms"),
+                        params.get("open_front_w_mm"))
 
 
 def _oven_field_rules(params: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -427,6 +428,12 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         "optional_inputs": [
             ("height_m", "Height"),
             ("qty", "Quantity"),
+            # The open working face. Optional because Vitech's own naming makes
+            # the booth length the open front, so an enquiry that omits it is
+            # still complete - but when a customer states the face, it is the
+            # face, and it governs the airflow rather than the proxy.
+            ("open_front_w_mm", "Open front width"),
+            ("open_front_h_mm", "Open front height"),
         ],
         "expected_inputs": [
             ("length_m", "Length"),

@@ -308,6 +308,69 @@ check("a first turn with nothing held behaves exactly as before",
       _merge("", "paint booth 5m x 3m x 4m") == "paint booth 5m x 3m x 4m")
 check("an empty follow-up leaves the held requirement", _merge(_BASE, "") == _BASE)
 
+# --------------------------------------------------------------------------
+# A COMPONENT'S SIZE IS NOT THE MACHINE'S SIZE.
+#
+# A real enquiry - "Size: 5000 L x 3000 W x 4000 H mm ... Filter: 600 x 600 x
+# 50 mm" - specified a booth of 0.6 x 0.6 x 0.05 m. Two faults compounded: the
+# axis-suffixed triple was unreadable (as was plain "5000 mm x 3000 mm x
+# 4000 mm", because a second "m" followed the one the pattern consumed), so the
+# scan ran on and took the FILTER. Everything an envelope decides - airflow,
+# blower, filter count, duct, lighting, panel weight - was then computed for a
+# machine nobody asked for, and every row still read as engineered fact.
+# --------------------------------------------------------------------------
+print()
+print("== dimension notations an engineer actually writes ==")
+from app.understand import _DIM_TRIPLE, _envelope_match      # noqa: E402
+
+for text in ("5000 L x 3000 W x 4000 H mm", "5000 mm x 3000 mm x 4000 mm",
+             "5000L x 3000W x 4000H", "5000 (L) x 3000 (W) x 4000 (H)",
+             "L 5000 x W 3000 x H 4000", "5 m x 3 m x 4 m",
+             "5000 x 3000 x 4000", "5m L x 3m W x 4m H"):
+    m = _DIM_TRIPLE.search(text)
+    check(f"reads {text!r}", bool(m) and m.groups() == tuple(m.groups()) and m is not None,
+          m.groups() if m else None)
+    check(f"  and gets 5000/3000/4000 from {text!r}",
+          bool(m) and [float(g) for g in m.groups()] in ([5000, 3000, 4000], [5, 3, 4]),
+          m.groups() if m else None)
+
+print()
+print("== the filter never becomes the booth ==")
+REAL = ("Dry Back Paint Spray Booth - Cross Draft Size: 5000 L x 3000 W x 4000 H mm "
+        "Open front: 3000 W x 2500 H mm Face velocity: 0.5 m/s "
+        "Filter: 600 x 600 x 50 mm dry arresting filter")
+_p = _fallback(REAL).parameters
+check("the reported enquiry resolves to the BOOTH, not its filter",
+      (_p.get("length_m"), _p.get("width_m"), _p.get("height_m")) == (5.0, 3.0, 4.0), _p)
+# The sharper case: with no booth size at all, a filter dimension must yield
+# NOTHING. An honestly missing envelope is recoverable; a confident wrong one
+# is not, because every downstream number is computed from it.
+check("a component dimension alone yields no envelope",
+      not any(k in _fallback("paint booth with Filter: 600 x 600 x 50 mm").parameters
+              for k in ("length_m", "width_m", "height_m")),
+      _fallback("paint booth with Filter: 600 x 600 x 50 mm").parameters)
+# But the guard must never fire on a word that names the equipment itself.
+_c = _fallback("overhead conveyor 60 m track 3m x 1m x 4m").parameters
+check("a conveyor still gets its own envelope (the guard is not over-broad)",
+      (_c.get("length_m"), _c.get("width_m"), _c.get("height_m")) == (3.0, 1.0, 4.0), _c)
+
+print()
+print("== a STATED open front governs the airflow ==")
+from app.engineering.formula_service import compute_spec      # noqa: E402
+
+def _airflow(**kw):
+    r = compute_spec(5, 3, 4, "liquid", "cross draft", **kw)
+    return next(v.value for v in r.values if "airflow" in v.label.lower())
+
+check("the booth length remains the proxy when no face is stated",
+      _airflow() == "13500 m3/h", _airflow())
+# 3.0 m open front x 1.5 m effective opening x 0.5 m/s x 3600 = 8,100 m3/h,
+# which is Vitech's own PUBLISHED duty for a 3.0 m machine.
+check("a client-stated open front supersedes it, and reproduces their 8100",
+      _airflow(open_front_w_mm=3000) == "8100 m3/h", _airflow(open_front_w_mm=3000))
+check("the stated face is read off a real enquiry",
+      (_p.get("open_front_w_mm"), _p.get("open_front_h_mm")) == (3000, 2500), _p)
+
 print()
 if _fail:
     print(f"{_fail} LOOKUP TEST(S) FAILED")

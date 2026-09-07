@@ -93,7 +93,8 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
                  height_m: Optional[float] = None,
                  paint_type: Optional[str] = None,
                  booth_type: Optional[str] = None,
-                 face_velocity: Optional[float] = None) -> ComputedSpec:
+                 face_velocity: Optional[float] = None,
+                 open_front_w_mm: Optional[float] = None) -> ComputedSpec:
     """Apply engineering rules to a paint-booth requirement. Returns computed
     values, each tagged with provenance, plus the rule trail (formula + standard).
     booth_type is honoured so a liquid booth's filtration/material stays coherent
@@ -128,9 +129,16 @@ def compute_spec(length_m: Optional[float], width_m: Optional[float],
     # not describe keeps the previous width x height reading rather than being
     # given a basis their document never stated for it.
     if booth.key in FACE_BASED_BOOTH_TYPES:
-        face_area = length_m * EFFECTIVE_OPENING_M
-        face_basis = (f"open front {length_m:g} m x effective filter opening "
-                      f"{EFFECTIVE_OPENING_M:g} m = {face_area:g} m2")
+        # `length_m` is a PROXY for the open front and stays the default, because
+        # Vitech write the open front first (DQ-9). When the customer states the
+        # face itself, the proxy has been superseded by the thing it stood for -
+        # and using it anyway sizes the blower, the duct and the filter bank for
+        # a booth wider than the one they asked for.
+        open_front_m = float(open_front_w_mm) / 1000.0 if open_front_w_mm else length_m
+        stated = " (client-stated open front)" if open_front_w_mm else ""
+        face_area = open_front_m * EFFECTIVE_OPENING_M
+        face_basis = (f"open front {open_front_m:g} m{stated} x effective filter "
+                      f"opening {EFFECTIVE_OPENING_M:g} m = {face_area:g} m2")
     else:
         face_area = width_m * height
         face_basis = f"face area {width_m}x{height} = {face_area:g} m2"

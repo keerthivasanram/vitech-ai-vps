@@ -10,8 +10,8 @@
   "status": 200
  },
  "drawing.catalog": {
-  "bytes": 10888,
-  "sha256": "5ed523ca41db6bc139da5984efb42e450565bf35c8e8eb8fa330c47e5fa2a47e",
+  "bytes": 11085,
+  "sha256": "3acd3001a6786c59489ca94d662b94225e5c2c801a04240c33297ad8dd260047",
   "status": 200
  },
  "drawing.render": {
