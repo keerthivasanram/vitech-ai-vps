@@ -45,6 +45,17 @@ TANK_FREEBOARD_MM = 200.0
 DRY_OFF_MARGIN = 1.10
 CURING_MARGIN = 1.15
 
+# The ambient the ovens are heated FROM. Both oven sheets state it as their
+# own "Initial Tem." input (Dry off Oven D12, Curing Oven D11) - it is Vitech's
+# design ambient, not a constant we chose, which is what makes it usable as a
+# default when a requirement states only the operating temperature.
+AMBIENT_TEMP_C = 30.0
+
+# Oven shell sheet thickness, mm. Both sheets state 1.2 mm as their own "Sheet
+# Thick" (Dry off Oven H18, Curing Oven H17). It sizes the shell steel mass and
+# therefore the heat load, so it is Vitech's figure or it is nobody's.
+OVEN_SHEET_THICKNESS_MM = 1.2
+
 # Insulation U-values, W/m2K, by panel thickness in mm (curing-oven sheet).
 INSULATION_U_BY_THICKNESS_MM = {50: 0.4, 100: 0.35, 150: 0.3}
 

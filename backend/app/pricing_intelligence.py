@@ -112,12 +112,117 @@ def _hp_from_analysis(analysis: dict, needle: str) -> float:
     return 0.0
 
 
+def _booth_cost_inputs(analysis: dict) -> dict:
+    """The booth's own resolved rows, read as cost inputs.
+
+    Every figure here was already computed by the spec engine - the selected
+    blower MODEL, its motor, the filter bank and the luminaire count - so the
+    cost model and the specification cannot describe different machines.
+    """
+    out = {"blower_model": "", "motor_hp": 0.0, "filter_area_m2": 0.0, "light_nos": 0}
+    for t in (analysis.get("technical_details") or []):
+        label = str(t.get("label", "")).lower()
+        value = str(t.get("value", ""))
+        if "exhaust blower" in label and "nos" not in label and "motor" not in label:
+            if re.match(r"^[A-Za-z]+-[\d-]+", value.strip()):
+                out["blower_model"] = value.strip()
+        elif "blower" in label and "motor" in label and "hp" in label:
+            if m := re.search(r"[\d.]+", value):
+                out["motor_hp"] = float(m.group())
+        elif "arresting filter" in label or "paint arresting filter" in label:
+            # "11 nos 600 x 600 x 50 mm" -> 11 cells of 0.36 m2.
+            if m := re.match(r"\s*(\d+)\s*nos?\s+(\d+)\s*x\s*(\d+)", value, re.I):
+                n, w, h = int(m.group(1)), float(m.group(2)), float(m.group(3))
+                out["filter_area_m2"] = round(n * (w / 1000.0) * (h / 1000.0), 3)
+        elif "illumination" in label:
+            if m := re.match(r"\s*(\d+)\s*nos?\b", value, re.I):
+                out["light_nos"] = int(m.group(1))
+    return out
+
+
+def _booth_cost_plus(params: dict, analysis: dict) -> Optional[dict[str, Any]]:
+    """A paint booth costed the way Vitech cost one, not from a weight guess.
+
+    WHY THE BOOTH GETS ITS OWN PATH. The seeded model derives a shell weight
+    from a kg-per-driver factor, prices it, and adds a flat 15% for everything
+    bought in. On a booth the bought-in items ARE the machine - 76.5% of their
+    own costed sheet - so that model was never going to agree with history, and
+    it did not: -57%. `booth_cost` prices the panels, structure, painting and
+    every bought-out line at the client's own rates, and `margin_model` carries
+    their own selling arithmetic on top.
+
+    THE TOTAL STILL DECLARES ITSELF PARTIAL. `works_cost` leaves a line OPEN
+    wherever the client's rate card does not reach it (they priced exactly one
+    blower model), and an open line is reported, never estimated. A confident
+    total assembled over gaps is the one number this platform must not print.
+    """
+    from .engineering import booth_cost, margin_model
+
+    L, W, H = params.get("length_m"), params.get("width_m"), params.get("height_m")
+    if not all(isinstance(v, (int, float)) and v > 0 for v in (L, W, H)):
+        return None
+
+    inputs = _booth_cost_inputs(analysis)
+    try:
+        works = booth_cost.works_cost(float(L), float(W), float(H), **inputs)
+    except Exception:
+        return None
+    priced = works.get("priced_total") or 0.0
+    if priced <= 0:
+        return None
+
+    sell = margin_model.booth_selling_price(priced)
+
+    def row(label, amount):
+        return {"label": label, "amount": round(amount),
+                "display": inr_display(amount)}
+
+    breakdown = [row(f"{ln['item']} ({ln['quantity']})", ln["cost"])
+                 for ln in works["lines"] if ln.get("cost")]
+    breakdown.append(row(f"Works cost (priced lines only)", priced))
+    for label, cost, mult, selling in sell.lines:
+        breakdown.append(row(label + (f" x{mult:g}" if mult else " (fixed)"), selling))
+    breakdown.append(row(f"Less {round(margin_model.BOOTH_DISCOUNT_PCT*100)}% on the booth line",
+                         -sell.discount))
+
+    unit = _round_price(sell.final)
+    covered = ("erection", "ducting", "freight")
+    open_items = [o for o in (works.get("open_items") or [])
+                  if not any(c in str(o).lower() for c in covered)]
+    note = ("Costed line by line from Vitech's own rate card and marked up by their "
+            "own Combine sheet. " + sell.basis)
+    if open_items:
+        note += (f" PARTIAL: {len(open_items)} line(s) have no client rate and are "
+                 f"excluded - {'; '.join(str(o) for o in open_items[:3])}"
+                 + (" ..." if len(open_items) > 3 else "") + ".")
+    return {
+        "unit_price": unit,
+        "unit_price_display": inr_display(unit),
+        "est_weight_kg": round((works.get("quantities") or {}).get("steel_total_kg") or 0) or None,
+        "material_of_construction": "MS",
+        "margin_pct": round(sell.profit_pct) if sell.profit_pct else None,
+        "cost_ex_margin": _round_price(priced),
+        "breakdown": breakdown,
+        "partial": bool(open_items),
+        "open_items": [str(o) for o in open_items],
+        "note": note,
+    }
+
+
 def cost_plus_estimate(category: str, params: dict,
                        analysis: dict) -> Optional[dict[str, Any]]:
     """Bottom-up cost-plus price for ONE unit, with a transparent build-up.
 
     Returns None when the category has no weight basis (no driver / geometry).
     """
+    # A paint booth is costed from the client's own BOM model where the
+    # geometry allows it; the seeded weight model remains the fallback for
+    # every other category and for a booth whose envelope is not resolved.
+    if category == "paint_booth":
+        booth = _booth_cost_plus(params, analysis)
+        if booth:
+            return booth
+
     driver_val, dkey = _driver_value(category, params)
     kg_per = SEED_KG_PER_DRIVER.get(category)
     if driver_val is None or not kg_per:
@@ -253,10 +358,27 @@ def analyse_pricing(category: str, params: dict, analysis: dict, price: dict,
         if hist_unit and cost["unit_price"]:
             dev = (cost["unit_price"] - hist_unit) / hist_unit
             if abs(dev) >= 0.30:
+                # WHAT THE DIVERGENCE MEANS DEPENDS ON WHICH MODEL RAN, and
+                # telling the reader to "check the seeded rates" when the
+                # figure came from Vitech's own costed BOM sends them to look
+                # at the one thing that is not in question. A booth priced from
+                # their rate card and their Combine sheet disagreeing with
+                # history is a SCOPE question - what the historical offer
+                # included that this build-up does not - not a rate question.
+                partial = cost.get("partial")
+                if cost.get("open_items") is not None:
+                    why = ("the build-up is Vitech's own rate card and Combine sheet, "
+                           "so compare SCOPE: what did the historical offer include "
+                           "that this does not?")
+                    if partial:
+                        why += (f" This total also excludes "
+                                f"{len(cost['open_items'])} line(s) with no client rate.")
+                else:
+                    why = "check the seeded rates or the historical basis."
                 flags.append(
                     f"Cost-plus model ({cost['unit_price_display']}/unit) and history "
                     f"({price.get('unit_price_display')}/unit) differ by {round(dev*100)}% — "
-                    f"check the seeded rates or the historical basis.")
+                    + why)
 
     market = market_benchmark(category, params, recs)
     position = None
@@ -345,6 +467,14 @@ def render_basis_markdown(price: dict, intel: dict) -> str:
         for f in intel["flags"]:
             L.append(f"- {f}")
     L.append("")
-    L.append("_Figures are deterministic (history + seeded cost/market rates); a budgetary "
+    # SAY WHICH MODEL PRODUCED THE BUILD-UP. A booth is now costed line by line
+    # from Vitech's own rate card and marked up by their own Combine sheet;
+    # calling that "seeded rates" understates it and sends a reader who wants to
+    # check the figure to the wrong place entirely.
+    cp = m.get("cost_plus") or {}
+    source = ("history + Vitech's own rate card and Combine sheet"
+              if cp.get("open_items") is not None
+              else "history + seeded cost/market rates")
+    L.append(f"_Figures are deterministic ({source}); a budgetary "
              "draft for engineer review, not a released price._")
     return "\n".join(L)

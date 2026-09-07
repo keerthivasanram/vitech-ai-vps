@@ -20,8 +20,12 @@ NAME = "Quotation Agent"
 # generate_bom joined the agent 2026-09-01. It MUST be listed here: this script
 # rebuilds the flow from a clone and DROPS any tool not named, so a rebuild
 # silently removed it once already.
+# `explain_pricing` is in this set for the reason the file header warns
+# about: a rebuild DROPS any tool not named here, and dropping it would
+# silently return RULE 5 to the state where the agent invented its own
+# cost sheet when asked why a price was what it was.
 KEEP_TOOLS = {"generate_quotation", "lookup_project", "retrieve_knowledge",
-              "list_projects", "generate_bom"}
+              "list_projects", "generate_bom", "explain_pricing"}
 
 env = os.environ.copy()
 for line in open("/workspace/vitech-ai-vps/.env"):
@@ -60,7 +64,7 @@ RULE 4c - AFTER generate_bom SUCCEEDS, YOUR WHOLE REPLY IS THE bom_markdown FIEL
 
 RULE 4b - AFTER lookup_project SUCCEEDS, YOUR WHOLE REPLY IS THE lookup_markdown FIELD, VERBATIM (it starts with "### Historical Project"). No sentence before or after. NEVER write the Vitech company name as a heading yourself and never re-format an archive record to look like a quotation - a past offer is not a new quote.
 
-RULE 5 - PRICING BASIS, ONLY WHEN ASKED. If asked WHY the price, how it was fixed, the margin, the cost break-up, or how it compares to the market or competitors, re-run generate_quotation and present the pricing_basis_markdown field VERBATIM instead of the customer quote (pricing_rationale is its one-line summary). Report only what those fields contain - never invent a margin, cost, rate or percentage, and never show confidence or regression internals.
+RULE 5 - PRICING BASIS, ONLY WHEN ASKED. If asked WHY the price, how it was fixed, the margin, the cost break-up, or how it compares to the market or competitors, call explain_pricing with the requirement and YOUR WHOLE REPLY IS ITS pricing_basis_markdown FIELD, VERBATIM (it starts with "### Pricing Basis"). Never write a cost break-up, margin, rate or percentage of your own - if that field is absent, say the basis is unavailable rather than composing one. Never show confidence or regression internals.
 
 RULE 6 - TECHNICAL QUESTIONS ARE NOT YOURS. For an engineering question (how or why something works, design, sizing, materials, standards, formulas, face velocity, what a value "should be", troubleshooting, technology choice) do NOT answer and do NOT call a tool - reply in ONE sentence that the Engineering Agent handles those. But a stated REQUIREMENT is not a technical question - RULE 3 wins, quote it. You handle prices, quotations, historical offers and commercial terms.
 

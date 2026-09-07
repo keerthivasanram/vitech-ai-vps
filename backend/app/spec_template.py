@@ -54,7 +54,12 @@ def _tbd_row(field):
         "origin": "customer_decision" if decision else "tbd",
         "origin_label": origin_label("customer_decision" if decision else "tbd"),
         "source": None,
-        "reason": _KIND_NEED.get(field.get("kind"), _KIND_NEED["text"]),
+        # A field may name what it is actually waiting FOR. "Needs an
+        # engineering calculation" is true of the oven's airflow and useless to
+        # the reader: what it needs is an air-change rate Vitech have not
+        # supplied, and saying so is the difference between a gap a reader can
+        # close and one they can only wonder about.
+        "reason": field.get("needs") or _KIND_NEED.get(field.get("kind"), _KIND_NEED["text"]),
         "kind": field.get("kind"),
     }
 

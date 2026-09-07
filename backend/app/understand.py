@@ -104,15 +104,27 @@ _PAINTS = ["powder", "liquid", "solvent", "water-based", "water based"]
 # --------------------------------------------------------------------------
 _DEG_C = r"\s*(?:deg(?:ree)?s?\.?\s*)?(?:c\b|celsius|centigrade|\u00b0\s*c?)?"
 _LEAD = r"\s*(?:of\s+|is\s+|at\s+|[:=-]\s*)?"
+# The same unit, but MANDATORY. `_DEG_C` is entirely optional, which is right
+# after the word "temperature" ("operating temperature 180") and far too loose
+# without it: "maximum 200" is a temperature only because a degree unit is
+# attached to it, and "maximum 200 kg" is not one at all.
+_DEG_C_REQ = r"\s*(?:(?:deg(?:ree)?s?\.?\s*)?(?:c\b|celsius|centigrade)|\u00b0\s*c?)"
 
 _OPERATING_TEMP_C = re.compile(
-    rf"\b(?:operating|working|process)\s+temp(?:erature)?{_LEAD}(\d+(?:\.\d+)?){_DEG_C}", re.I)
+    rf"\b(?:operating|working|process)\s+temp(?:erature)?{_LEAD}(\d+(?:\.\d+)?){_DEG_C}"
+    rf"|\b(?:operating|working){_LEAD}(\d+(?:\.\d+)?){_DEG_C_REQ}", re.I)
 # A MAXIMUM temperature is a distinct value from the operating one; it is the
 # design ceiling. Collapsing the two (which `_PARAM_ALIASES` still does for the
 # model's contribution, where only one is ever offered) loses whichever the
 # customer wrote second.
+# A customer who has just written "operating temperature 180 deg C" does not
+# write the word again for the ceiling - "maximum 200 deg C" is how the second
+# half of that sentence is actually phrased, and reading only the first half is
+# what put a STATED maximum temperature on the specification as "To be
+# determined". Safe because the unit is required in that shorter form.
 _MAX_TEMP_C = re.compile(
-    rf"\b(?:max(?:imum)?|peak|design)\s+temp(?:erature)?{_LEAD}(\d+(?:\.\d+)?){_DEG_C}", re.I)
+    rf"\b(?:max(?:imum)?|peak|design)\s+temp(?:erature)?{_LEAD}(\d+(?:\.\d+)?){_DEG_C}"
+    rf"|\b(?:max(?:imum)?|peak){_LEAD}(\d+(?:\.\d+)?){_DEG_C_REQ}", re.I)
 
 # "insulated panel thickness 100 mm", "panel thickness: 100mm", "100 mm
 # insulated panel", "100mm PUF panel".
@@ -125,6 +137,15 @@ _PANEL_THICKNESS_MM = re.compile(
 _DOOR_OPENING = re.compile(
     r"\bdoor\s*(?:opening|size|aperture|clear\s+opening)?" + _LEAD +
     r"(\d+(?:\.\d+)?)\s*(mm|m)?\s*[x\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|m)?", re.I)
+# The mass an oven has to heat per batch, stated as "job weight 500 kg",
+# "500 kg batch", "job with jig 750 kg". It is the term the heat-load workbook
+# leans on hardest - shell + conveyor + JOB - and reading it is the difference
+# between a heating capacity and an admitted gap.
+_JOB_MASS_KG = re.compile(
+    r"\b(?:job|batch|load|charge|component|part)(?:\s+(?:with|\+)\s+(?:jig|jigs|basket|baskets|fixture))?"
+    r"\s*(?:weight|mass|wt)?" + _LEAD + r"(\d+(?:\.\d+)?)\s*(kgs?|kilograms?)\b"
+    r"|\b(\d+(?:\.\d+)?)\s*(?:kgs?|kilograms?)\s+(?:per\s+)?(?:batch|job|charge|load)\b", re.I)
+
 _DOOR_TYPE = re.compile(
     r"\b(double[\s-]?leaf|single[\s-]?leaf|bi[\s-]?parting|two[\s-]?leaf|"
     r"sliding|hinged|roller\s+shutter|guillotine|vertical\s+lift)\b(?=[^.]{0,40}\bdoor\b)"
@@ -135,11 +156,17 @@ _DOOR_TYPE = re.compile(
 # heating / heated", or "heating media/mode/source: <media>". A bare "gas" or
 # "electric" anywhere in a sentence is not enough to put a fuel on a
 # specification.
-_MEDIA = (r"electric(?:al)?|diesel|lpg|png|natural\s+gas|gas|steam|thermic\s+fluid|"
+_MEDIA = (r"electric(?:ally|al)?|diesel|lpg|png|natural\s+gas|gas|steam|thermic\s+fluid|"
           r"hot\s+water|furnace\s+oil|light\s+diesel\s+oil|ldo|coal|biomass|briquette")
 _HEATING_MEDIA = re.compile(
     rf"\b({_MEDIA})\b[\s-]*(?:fired|heating|heated|heater|burner)\b"
     rf"|\bheat(?:ing)?\s*(?:media|medium|mode|source|type|fuel|by)?{_LEAD}({_MEDIA})\b", re.I)
+
+
+# The adverb/adjective forms a requirement is written in, mapped to the noun a
+# specification states.
+_MEDIA_NOUN = {"electrically": "electric", "electrical": "electric",
+               "natural gas": "natural gas"}
 
 
 def _mm(value: float, unit: str | None) -> float:
@@ -163,19 +190,26 @@ def _labelled_inputs(q: str) -> dict:
     """
     out: dict = {}
     if m := _OPERATING_TEMP_C.search(q):
-        out["operating_temp"] = _round(m.group(1))
+        out["operating_temp"] = _round(m.group(1) or m.group(2))
     if m := _MAX_TEMP_C.search(q):
-        out["max_temp_c"] = _round(m.group(1))
+        out["max_temp_c"] = _round(m.group(1) or m.group(2))
     if m := _PANEL_THICKNESS_MM.search(q):
         out["panel_thickness_mm"] = _round(m.group(1) or m.group(2))
     if m := _DOOR_OPENING.search(q):
         w = _mm(float(m.group(1)), m.group(2) or m.group(4))
         h = _mm(float(m.group(3)), m.group(4) or m.group(2))
         out["door_opening_mm"] = f"{_int(w)} x {_int(h)}"
+    if m := _JOB_MASS_KG.search(q):
+        out["job_weight_kg"] = _round(m.group(1) or m.group(3))
     if m := _DOOR_TYPE.search(q):
         out["door_type"] = re.sub(r"[\s-]+", " ", (m.group(1) or m.group(2))).lower()
     if m := _HEATING_MEDIA.search(q):
-        out["heating_mode"] = re.sub(r"\s+", " ", (m.group(1) or m.group(2))).lower()
+        media = re.sub(r"\s+", " ", (m.group(1) or m.group(2))).lower()
+        # "electrically heated" states the same medium as "electric heating";
+        # the spec prints this word, so it is normalised to the noun an
+        # engineer writes on a data sheet rather than the adverb the customer
+        # happened to use.
+        out["heating_mode"] = _MEDIA_NOUN.get(media, media)
     return out
 
 
@@ -530,7 +564,7 @@ _DIM_AXES = ("length_m", "width_m", "height_m")
 # and the two become one number with no way to tell which survived. Where the
 # regex read the labelled form there is nothing left for the model to improve.
 _LABELLED_KEYS = ("operating_temp", "max_temp_c", "panel_thickness_mm",
-                  "door_opening_mm", "door_type", "heating_mode")
+                  "door_opening_mm", "door_type", "heating_mode", "job_weight_kg")
 
 # Keys any category may legitimately carry even when its own profile does not
 # declare them: the overall envelope, which a duty-specified category (ducting,

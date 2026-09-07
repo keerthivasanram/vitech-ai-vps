@@ -505,6 +505,64 @@ check(_c["priced_total"] < 649264,
       f"the total is SHORT of the client's Rs 6,49,264 (ours Rs {_c['priced_total']:,.0f}) "
       "and says so - it never rounds up to meet their figure")
 
+
+# --------------------------------------------------------------------------
+# THE OVEN'S HEAT LOAD, WIRED INTO THE SPECIFICATION.
+#
+# `heat_load_service` could compute an oven's shell mass, envelope loss and
+# heat load from the day the workbooks landed, and the only thing that ever
+# called it was an agent tool. A specification for an oven whose customer had
+# stated the size, the temperature and the panel thickness still reported all
+# three as "To be determined". These checks pin the wiring, and - more
+# importantly - pin the ONE thing that must stay unwired: a heating capacity
+# quoted without the job mass the workbook's own total depends on.
+# --------------------------------------------------------------------------
+print("\n== oven heat load, as the specification sees it ==")
+from app.catalog import _oven_field_rules
+from app.engineering import heat_load_service as _hl
+
+check(_hl.AMBIENT_TEMP_C == 30.0,
+      "the ambient is Vitech's own (both oven sheets state 30 deg C)")
+check(_hl.OVEN_SHEET_THICKNESS_MM == 1.2,
+      "the shell thickness is Vitech's own (both sheets state 1.2 mm)")
+
+_base = {"length_m": 3, "width_m": 2, "height_m": 2.5,
+         "operating_temp": 180, "panel_thickness_mm": 100}
+_r = _oven_field_rules(_base)
+check("shell_steel_mass_kg" in _r,
+      "the shell steel mass follows from the envelope alone, so it is computed")
+check("insulation" in _r and "100 mm" in _r["insulation"]["value"],
+      "the stated panel thickness becomes the insulation statement")
+check("U 0.35" in _r["insulation"]["value"],
+      "and carries the U-value from Vitech's own table, not a guess")
+check("insulation_loss_kw" in _r,
+      "the envelope loss follows from thickness + temperature rise")
+
+# THE REFUSAL THAT MATTERS. Shell + conveyor + job is the workbook's total, and
+# the job term is routinely the largest of the three. Emitting the shell term
+# alone under the label "Heating capacity" would be a correctly calculated
+# number for a heater sized short.
+check("heating_capacity_kcal_hr" not in _r,
+      "NO heating capacity without the job mass - a short heater is worse than a gap")
+check("heat_load_kw" not in _r, "and no kW either, for the same reason")
+
+_full = dict(_base, job_weight_kg=500)
+_rf = _oven_field_rules(_full)
+check("heating_capacity_kcal_hr" in _rf and "heat_load_kw" in _rf,
+      "with the job mass supplied, both resolve")
+check("conveyor mass not supplied" in _rf["heat_load_kw"]["formula"],
+      "and the remaining gap is named in the trail rather than absorbed silently")
+
+# Nothing is defaulted: an oven with no temperature rise has no heat load.
+check(_oven_field_rules({"length_m": 3, "width_m": 2, "height_m": 2.5}) == {},
+      "no operating temperature -> no computed field at all")
+check(_oven_field_rules(dict(_base, operating_temp=20)) == {},
+      "an operating temperature below ambient computes nothing")
+# A thickness Vitech's table has no U-value for is not interpolated.
+_r70 = _oven_field_rules(dict(_base, panel_thickness_mm=70))
+check("insulation" not in _r70,
+      "a panel thickness with no U-value on file is left open, never interpolated")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} ENGINEERING TEST FAIL")

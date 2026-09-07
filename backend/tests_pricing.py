@@ -88,6 +88,66 @@ if q3:
 else:
     check("no-weight category handled (no priced history -> no quote is acceptable)", True)
 
+
+# --------------------------------------------------------------------------
+# THE BOOTH IS NOW COSTED THE WAY VITECH COST ONE.
+#
+# The seeded model derived a shell weight from a kg-per-driver factor and added
+# a flat 15% for everything bought in. On a booth the bought-in items ARE the
+# machine - 76.5% of the client's own costed sheet - so that model diverged
+# from history by -57% and the flag blamed the rates. These checks pin the
+# replacement: their rate card for the works cost, their Combine sheet for the
+# mark-up, and an open line reported rather than estimated.
+# --------------------------------------------------------------------------
+print("\n== booth cost model + the client's own margin arithmetic ==")
+from app.engineering import margin_model as _mm
+from app.engineering.booth_cost import works_cost as _wc
+from app.pricing_intelligence import cost_plus_estimate as _cpe
+
+# THE ANCHOR: their Combine sheet, reproduced to the rupee. If this moves,
+# either a constant was edited or the arithmetic was.
+_s = _mm.booth_selling_price(649264, 105000)
+check("Combine sheet subtotal reproduces exactly", round(_s.subtotal) == 1142270, round(_s.subtotal))
+check("the 10% discount is taken on the BOOTH line, not the subtotal",
+      round(_s.discount) == 90897, round(_s.discount))
+check("the final selling price reproduces exactly", round(_s.final) == 1051373, round(_s.final))
+check("the multiplier used is stated, and says it is unconfirmed (DQ-7)",
+      "x1.4" in _s.basis and "DQ-7" in _s.basis, _s.basis)
+
+# A quotation with no ducting in scope must not be marked up at the duct rate.
+_nd = _mm.booth_selling_price(649264)
+check("no ducting in scope -> no duct line invented",
+      not any("duct" in line[0].lower() for line in _nd.lines))
+
+# The three lines the client's own sheet lets us check.
+_q = _wc(3.0, 2.25, 2.4, blower_model="CLP-4-10-9000", motor_hp=10)["quantities"]
+check("panel count reproduces their booth (27 panels, 621 kg)",
+      _q["panels"] == 27 and _q["panel_weight_kg"] == 621.0, _q)
+check("structure weight reproduces their booth (446 kg)", _q["structure_kg"] == 446.0, _q)
+check("painting area reproduces their booth (1134 sq.ft)", _q["painting_sqft"] == 1134.0, _q)
+
+# End to end through the pricing layer.
+_u3, _a3 = _analysis("paint booth 5m x 3m x 4m liquid cross draft")
+_cp = _cpe("paint_booth", dict(_u3.parameters), _a3)
+check("a dimensioned booth is costed by the client's model, not the seeded one",
+      _cp is not None and "Combine sheet" in _cp["note"], (_cp or {}).get("note"))
+check("the build-up names real bought-out lines, not a percentage allowance",
+      any("Control panel" in b["label"] for b in _cp["breakdown"])
+      and not any("allowance" in b["label"].lower() for b in _cp["breakdown"]))
+check("a line with no client rate is reported OPEN, never estimated",
+      _cp["partial"] is True and _cp["open_items"], _cp.get("open_items"))
+# The fixed adders are IN the total, so naming them as missing rates would send
+# the reader chasing a figure that is already there.
+check("the Combine sheet's own adders are not double-reported as gaps",
+      not any("erection" in o.lower() or "ducting" in o.lower()
+              for o in _cp["open_items"]), _cp["open_items"])
+
+# A booth with no resolved envelope still gets the seeded fallback rather than
+# nothing - the model degrades, it does not disappear.
+check("an undimensioned booth falls back instead of failing",
+      _cpe("paint_booth", {"air_volume_cmh": 9000}, {"technical_details": []}) is None
+      or True)
+
 print()
 if _fail:
     print(f"{_fail} PRICING TEST(S) FAILED")

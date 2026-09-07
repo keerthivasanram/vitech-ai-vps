@@ -90,6 +90,12 @@ SIZE_DEPENDENT = (
     "filter", "blower", "fan", "motor", "pump", "nozzle", "heater",
     "duct", "airflow", "air volume", "capacity", "scrubber", "demister",
     "weight", "surface area", "heat load", "chamber", "tank",
+    # A CONVEYOR'S LENGTH FOLLOWS THE MACHINE. Reusing one verbatim put "I-beam
+    # overhead 97m ... 160 kg/hook" on a 3 m batch oven - a real conveyor, from
+    # a named offer, thirty times too long, and printed as this oven's. The
+    # descriptor guard still protects "Conveyor type: overhead I-beam", which
+    # carries no length and travels between sizes perfectly well.
+    "conveyor",
 )
 
 # A DESCRIPTOR of a component, not a sizing of it. "Blower MOC = MS" and

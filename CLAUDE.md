@@ -42,6 +42,96 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### ▶ 2026-09-07 — THE ENGINEERING AND QUOTATION AGENTS. Client data reached the documents, and a FABRICATED COST SHEET was found and killed.
+
+Pod bootstrapped from a wiped container disk (`bootstrap-pod.sh` then `start-all.sh`), **all six
+services 200**, **all three agents reproducible from git** (9953 / 5672 / 3102). **Fourteen
+suites green and the contract suite is 29/29 byte-identical** after two fingerprints were
+re-recorded BY HAND and traced first. PG backed up 07:14 with the new agent wiring inside.
+
+- **THE WORST FINDING WAS ON THE QUOTATION AGENT AND IT WAS INVENTING MONEY.** Asked "how was
+  that price fixed? show the cost break-up and the margin" it answered with a cost sheet of its
+  own composition - *material Rs 8,00,000, labour Rs 4,00,000, overheads Rs 2,00,000, 6% margin*,
+  and on a second run *equipment 15,00,000 / installation 3,00,000 / 9% discount*. **None of
+  those figures exists anywhere in the tool response**, which had returned a complete, correct
+  1,886-character `pricing_basis_markdown`. Reproduced 3/3.
+- **RULE 2 AND RULE 5 ALREADY FORBADE IT**, in those words ("never invent a margin, cost, rate or
+  percentage"). The rules were correct and were ignored, so the fix is structural, as it was for
+  `lookup_markdown` and the Drawing Agent's SVG: **give the model less, not more instruction.**
+  Two steps, because the first was not enough. (a) `generate_quotation` no longer hands over the
+  nested `pricing_intelligence` tree, the raw `price` dict, `scope`, `given_data`, `terms` or
+  `basis_offers` - `unit_price_display` is lifted out before its container goes, because a prompt
+  names that field. That stopped it inventing FROM the numbers, **and it then invented from
+  nothing anyway**, because it still held two markdown documents and a question matching neither
+  cleanly. (b) **`explain_pricing` (NEW tool) returns exactly ONE document** and RULE 5 routes to
+  it. *A tool that can only return the basis cannot be answered with a summary of something
+  else.* **Verified 3/3: right tool, verbatim basis, zero invented figures**, with RULE 4
+  (quotation verbatim, Rs 25,50,000) and greetings re-checked clean.
+- **`ops/flowise/trim-quote-tool.py` (NEW, in git, idempotent)** applies both trims and refuses to
+  guess if a tool body is not the shape it knows. **`explain_pricing` is in `KEEP_TOOLS`** - the
+  documented rebuild trap would otherwise drop it and silently restore the fabrication.
+- **THE COST-PLUS MODEL FOR A BOOTH IS NOW VITECH'S OWN, and `booth_cost.py` was DEAD CODE.** It
+  had been written, validated and imported by nothing. The seeded model derived a shell weight
+  from a kg-per-driver factor and added **a flat 15% for everything bought in** - on a booth the
+  bought-in items ARE the machine (76.5% of their own sheet), which is the whole -57% divergence.
+  Now every panel, section, painting and bought-out line is priced at their rate card, and
+  **`app/engineering/margin_model.py` (NEW)** carries their `Combine` sheet on top.
+  **It reproduces their worked booth to the rupee** - subtotal 1,142,270, discount 90,897 (taken
+  on the BOOTH line, not the subtotal), final 1,051,373 - and the three checkable quantities land
+  exactly: **27 panels / 621 kg, 446 kg of structure, 1134 sq.ft of painting.** Divergence
+  -57% -> **-50%**, and the flag now says the right thing: the build-up is their own rate card, so
+  **compare SCOPE**, not rates. **Their own stated 27% profit reconciles with no base** (28.3% on
+  the final, 26.0% on the subtotal, 39.4% on works) - recorded, like DQ-8, rather than matched.
+  **The headline stays historical.** DQ-7 is still open, so the multiplier is an INPUT with their
+  booth figure as the default and every result names it as unconfirmed.
+- **THE OVEN: ELEVEN TBDs DOWN TO NINE OF TWENTY-FOUR, and `heat_load_service` was reachable only
+  through an agent tool.** It could compute an oven's shell mass, envelope loss and heat load from
+  the day the workbooks landed; nothing connected it to the document a customer reads, so an oven
+  whose customer had stated the size, the temperature and the panel thickness reported all three
+  as TBD. `_oven_field_rules` wires it in. **Two constants are Vitech's own, read out of the
+  cells**: ambient **30 deg C** and shell sheet **1.2 mm**, both stated identically in the Dry off
+  Oven and Curing Oven sheets.
+- **THE REFUSAL IS THE POINT, and it is a new one.** The workbook's total is shell + conveyor +
+  JOB, and the job term is routinely the largest. **The heating capacity is therefore NOT emitted
+  without a job mass** - the shell term alone under that label is a correctly calculated number
+  for a heater sized short, which is the expensive direction to be wrong in. It stays an admitted
+  gap **naming that input**. Pinned by a test. Same discipline elsewhere: a panel thickness with
+  no U-value on their table is left open rather than interpolated, and an operating temperature at
+  or below ambient computes nothing.
+- **THE AIRFLOW AND THE CIRCULATION BLOWER STAY TBD, and now say WHY.** There is no air-change
+  rate, no heater-bank temperature rise and no fan-selection rule in any of the six workbooks -
+  their heat-load sheet sizes the HEATER and states no air-circulation basis. A template field can
+  now carry its own `needs` text, so the row asks for the input that would close it instead of
+  saying "needs an engineering calculation", which is true and useless. **This is a new question
+  for Vitech.**
+- **THE PARSER WAS READING THREE OF SIX STATED VALUES AGAIN, in the phrasings customers actually
+  use.** "maximum 200 deg C" after "operating temperature 180 deg C" was not read (the shorter
+  form omits the word), nor was "electrically heated" (`electric(?:al)?` misses the adverb), nor
+  any job mass. All three now read; the short form is **safe because the degree unit is
+  mandatory** there - `maximum 200 kg dust load` is still not a temperature, and is tested.
+  `job_weight_kg` is DECLARED on the profile, or `_drop_undeclared` discards it.
+- **TWO OFFER KEYS THE TEMPLATE COULD NEVER READ.** `control` held "PLC with auto door open logic"
+  and had **no label at all**, so a real historical answer was thrown away and "Control panel"
+  printed TBD; and `circulation_fan_hp` vs `circulation_blower_hp` are the same machine under two
+  archive spellings, so an oven recording the first left "Circulation blower (HP)" unresolved
+  beside it. **Pure wiring, zero invention** - and a duplicate dict key nearly undid it silently.
+- **A 97 m CONVEYOR WAS BEING PRINTED ON A 3 m BATCH OVEN.** "conveyor" was missing from
+  `validate.SIZE_DEPENDENT`, so a real conveyor from a named offer, thirty times too long, was
+  asserted as this oven's. The descriptor guard still protects "Conveyor type: overhead I-beam".
+- **FINGERPRINTS: `tools.quote.scrub` MOVED AT AN IDENTICAL BYTE COUNT and that was the tell.** An
+  em-dash I had turned into a hyphen in the divergence flag. Restoring it put the whole
+  wet-scrubber quotation path back to its recorded bytes, which is the proof the booth work
+  reached nothing else. **Only `drawing.catalog`** (the oven gained an optional input; this was
+  already the one re-record this file was carrying) **and `package.booth`** (the new cost build-up)
+  were re-recorded, each stable across two runs, **by hand - never `--record`**, which would pin
+  `tools.retrieve` (still 8,960 and still expected to stay there).
+- **STILL OPEN.** The oven's **air-circulation basis** is the new top ask for Vitech, beside the
+  standing **component setting-out rules (B1)** and **DQ-7**. A batch oven still inherits
+  "conveyorised camel back" as its **oven type** from the nearest offer - honestly attributed, and
+  inferring "batch" from a stated door opening would be exactly the guess this platform refuses,
+  so it is left for Vitech to rule on. HTTPS + reverse proxy remains the top production item, and
+  `docker-compose.prod.yml` has still never been executed.
+
 ### ▶ 2026-09-04 (audit) — A GA WAS AUDITED AGAINST ITS REQUIREMENT. TWO CRITICALS, BOTH FOR VITECH.
 
 A technical audit of a generated paint-booth GA (`5m x 3m x 4m liquid cross draft`). **Nothing was

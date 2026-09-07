@@ -63,6 +63,14 @@ MAY_BE_TBD = {
     "Airflow (m3/h)", "Circulation blower (HP)", "Circulation blower (nos)",
     "Heating capacity (kcal/hr)", "Control panel", "Utilities",
     "Safety features", "Chamber", "Insulation",
+    # The workbook's heat load is shell + conveyor + JOB, and this requirement
+    # states no job mass, so both the capacity and the kW that follows it stay
+    # open rather than being reported short.
+    "Heat load (kW)",
+    # A conveyor length follows the machine. The nearest oven on file is a 97 m
+    # conveyorised line; carrying that onto a 4 m oven is a different machine's
+    # answer, so it is demoted like any other size-dependent reuse.
+    "Conveyor",
 }
 
 print("== 1. the parser reads every LABELLED value ==")
@@ -81,10 +89,30 @@ print("\n== 2. it reads nothing it was not given ==")
 # "200C" here would change what every existing oven requirement resolves to.
 for quiet in ("paint booth 5 x 3 x 4 liquid",
               "wet scrubber for 800 cfm 750mm tower 4 nos",
-              "hot air oven 200C 500kg batch",
               "dust collector 6000 cmh pulse jet"):
     check(_labelled_inputs(quiet) == {},
           f"no labelled input invented from {quiet!r}")
+# "hot air oven 200C 500kg batch" is the sharp case, because it holds one
+# qualified value and one unqualified one. The MASS is read - "500kg batch"
+# says what it is - and the bare "200C" is still NOT read as either
+# temperature, which is what would change every oven already on file.
+_mixed = _labelled_inputs("hot air oven 200c 500kg batch")
+check(_mixed == {"job_weight_kg": 500},
+      f"reads the stated batch mass and nothing else (got {_mixed})")
+
+print("\n== 2b. the shorter phrasings a customer actually writes ==")
+# A customer who has just written "operating temperature 180 deg C" writes
+# "maximum 200 deg C" for the ceiling, not the whole label again.
+_short = _labelled_inputs("oven 3x2x2.5 m operating temperature 180 deg c, "
+                          "maximum 200 deg c, electrically heated, job weight 500 kg")
+for key, want in (("operating_temp", 180), ("max_temp_c", 200),
+                  ("heating_mode", "electric"), ("job_weight_kg", 500)):
+    check(_short.get(key) == want,
+          f"short form reads {key} = {want!r} (got {_short.get(key)!r})")
+# The unit is what makes the short form safe: a maximum with no degree unit is
+# not a temperature, and reading it as one would put a dust load on an oven.
+check("max_temp_c" not in _labelled_inputs("dust collector 6000 cmh maximum 200 kg dust load"),
+      "a maximum in kg is never read as a temperature")
 
 print("\n== 3. the deterministic read survives the model ==")
 u = understand(REQ)

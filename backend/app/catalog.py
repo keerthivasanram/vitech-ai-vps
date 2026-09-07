@@ -10,6 +10,7 @@ Each profile declares:
   rule_covers   — technical fields superseded by the rule engine
   field_labels  — pretty labels for technical_details keys
 """
+import re
 from typing import Any, Callable, Optional
 
 from .rules import compute_spec, compute_wet_scrubber
@@ -34,6 +35,114 @@ def _booth_rules(params: dict[str, Any]) -> ComputedSpec:
     return compute_spec(params.get("length_m"), params.get("width_m"),
                         params.get("height_m"), params.get("paint_type"),
                         params.get("booth_type"), params.get("face_velocity_ms"))
+
+
+def _oven_field_rules(params: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Oven fields computed from Vitech's OWN heat-load workbook.
+
+    WHAT THIS CLOSES. An oven whose customer had stated the overall size, the
+    operating temperature and the insulated panel thickness still specified its
+    heat load, its shell steel mass and its insulation as "To be determined" -
+    while `heat_load_service` had been able to compute all three since the
+    workbooks landed, reachable only through an agent tool nobody routed a
+    specification through. The engineering existed; nothing connected it to the
+    document the customer reads.
+
+    WHAT IS AND IS NOT COMPUTED, and why the split falls where it does. The
+    shell steel mass and the envelope loss follow from the stated envelope, the
+    temperature rise and the panel thickness ALONE, so they are computed
+    whenever those are stated. **The heating capacity is not**: the workbook's
+    total is shell + conveyor + job, and an oven's job load is routinely the
+    largest of the three. Emitting the shell term alone as "Heating capacity"
+    would print a heater sized short - a real number, correctly calculated, for
+    a machine nobody asked for. It is therefore emitted only when the job mass
+    is known, and stays an admitted gap naming that input when it is not.
+
+    A field is returned only where every input it needs was supplied. Nothing
+    here defaults, and nothing here scales.
+    """
+    from .engineering import heat_load_service as hl
+
+    L, W, H = params.get("length_m"), params.get("width_m"), params.get("height_m")
+    op = params.get("operating_temp")
+    if L is None or W is None or H is None or op is None:
+        return {}
+    try:
+        L, W, H = float(L), float(W), float(H)
+        # "180", "180C" and "180 deg C" are all the same requirement.
+        op_c = float(re.sub(r"[^0-9.\-]", "", str(op)) or "nan")
+    except (TypeError, ValueError):
+        return {}
+    if op_c != op_c or op_c <= hl.AMBIENT_TEMP_C:      # NaN, or no rise to heat
+        return {}
+
+    std = ("Vitech heat-load workbook (Curing Oven), ambient "
+           f"{hl.AMBIENT_TEMP_C:g} deg C, shell {hl.OVEN_SHEET_THICKNESS_MM:g} mm")
+    dt = op_c - hl.AMBIENT_TEMP_C
+    out: dict[str, dict[str, Any]] = {}
+
+    # --- shell steel mass: envelope + sheet thickness, nothing else ---------
+    steel = hl.oven_shell_steel_mass_kg(L, W, H, hl.OVEN_SHEET_THICKNESS_MM)
+    out["shell_steel_mass_kg"] = {
+        "value": f"{steel} kg",
+        "formula": (f"(({L:g}x{H:g})x2 + ({W:g}x{H:g})x2 + ({L:g}x{W:g})x3) m2 "
+                    f"x 7.85 x {hl.OVEN_SHEET_THICKNESS_MM:g} mm"),
+        "standard": std}
+
+    # --- insulation: the customer's stated thickness, and their U-value ------
+    # The THICKNESS is the customer's; the U-value is Vitech's own table. The
+    # build-up (density, layer count) is neither, so it is not stated here -
+    # inventing "100mm blanket" from a stated thickness is the breach this
+    # platform exists to avoid.
+    thk = params.get("panel_thickness_mm")
+    u = hl.INSULATION_U_BY_THICKNESS_MM.get(int(thk)) if _int_or_none(thk) else None
+    if u is not None:
+        out["insulation"] = {
+            "value": f"{int(thk)} mm insulated panel (U {u:g} W/m2K)",
+            "formula": f"client-stated panel thickness {int(thk)} mm",
+            "standard": std}
+        loss = hl.insulation_loss_kw(L, W, H, dt, int(thk))
+        if loss is not None:
+            out["insulation_loss_kw"] = {
+                "value": f"{loss} kW",
+                "formula": (f"envelope ({L:g}x{H:g} + {W:g}x{H:g} + {L:g}x{W:g}) m2 "
+                            f"x {dt:g} K x U {u:g} W/m2K"),
+                "standard": std}
+
+    # --- heat load: only with the job mass the workbook's total needs --------
+    job = _float_or_none(params.get("job_weight_kg"))
+    if job is not None:
+        load = hl.curing_oven_heat_load(
+            L, W, H, hl.AMBIENT_TEMP_C, op_c, hl.OVEN_SHEET_THICKNESS_MM,
+            conveyor_mass_kg=_float_or_none(params.get("conveyor_mass_kg")),
+            job_mass_kg=job,
+            insulation_thickness_mm=int(thk) if u is not None else None)
+        gaps = ("; excludes " + ", ".join(load.gaps)) if load.gaps else ""
+        out["heating_capacity_kcal_hr"] = {
+            "value": f"{int(load.kcal)} kcal/hr",
+            "formula": (f"steel+load {int(load.components['steel_and_load'])} "
+                        f"+ air {int(load.components['air'])} Kcal"
+                        f" (30 -> {op_c:g} deg C over a 1 hr heat-up){gaps}"),
+            "standard": std}
+        out["heat_load_kw"] = {
+            "value": f"{load.kw} kW",
+            "formula": f"Kcal / 860, summed per term{gaps}",
+            "standard": std}
+    return out
+
+
+def _int_or_none(v):
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
+def _float_or_none(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _paint_shop_rules(unit: str) -> Callable[[dict[str, Any]], ComputedSpec]:
@@ -435,6 +544,11 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             ("door_opening_mm", "Door opening"),
             ("door_type", "Door type"),
             ("heating_mode", "Heating media"),
+            # The workbook's largest heat-load term, and the customer's own
+            # process figure. Optional: an oven enquiry that omits it is still
+            # complete, and the heating capacity then stays an admitted gap
+            # naming exactly this input.
+            ("job_weight_kg", "Job + jig mass per batch"),
         ],
         "expected_inputs": [
             ("length_m", "Chamber length"), ("width_m", "Chamber width"),
@@ -443,6 +557,7 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             ("panel_thickness_mm", "Insulated panel thickness"),
             ("door_opening_mm", "Door opening"), ("door_type", "Door type"),
             ("heating_mode", "Heating media"), ("qty", "Quantity"),
+            ("job_weight_kg", "Job + jig mass per batch"),
         ],
         "scalable": [],
         # A STATED heating medium fills the offer's `heating` field instead of
@@ -460,8 +575,15 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             {"input": "panel_thickness_mm", "label": "Insulation",
              "quantity": "an insulated panel thickness", "unit": "mm"},
         ],
-        "rules": None, "field_rules": None,
-        "rule_covers": [],
+        # The heat-load workbook IS the oven's closed-form engineering. It does
+        # not size the machine (that is the customer's envelope), so the profile
+        # stays case-based for everything else and these fields alone are
+        # computed. `field_rules` rather than `rules` is deliberate: a rule that
+        # cannot fire for want of an input then leaves the reused value in place
+        # instead of blanking it, which is what `rules` + `rule_covers` would do.
+        "rules": None, "field_rules": _oven_field_rules,
+        "rule_covers": ["shell_steel_mass_kg", "insulation", "insulation_loss_kw",
+                        "heating_capacity_kcal_hr", "heat_load_kw"],
         # CASE-BASED: ovens have no closed-form sizing rules, but Vitech has real
         # oven offers to reuse. Rather than consulting from scratch (which left the
         # LLM to invent dimensions), build the spec by REUSING the nearest matching
@@ -469,12 +591,26 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
         # provenance. The nearest offer is chosen by semantic + given-attribute rank.
         "case_based": True,
         "field_labels": {"chamber": "Chamber", "insulation": "Insulation",
+                         # Computed from the client's heat-load workbook.
+                         "shell_steel_mass_kg": "Shell steel mass (kg)",
+                         "insulation_loss_kw": "Envelope heat loss (kW)",
+                         "heating_capacity_kcal_hr": "Heating capacity (kcal/hr)",
+                         "heat_load_kw": "Heat load (kW)",
+                         # TWO KEYS THE OFFERS CARRY AND THE TEMPLATE COULD NOT
+                         # READ. `control` held "PLC with auto door open logic"
+                         # and had no label at all, so a real historical answer
+                         # was discarded and the row printed TBD; and a
+                         # circulation fan and a circulation blower are the same
+                         # machine under two archive spellings, so an oven
+                         # recording the first left "Circulation blower (HP)"
+                         # unresolved beside it.
+                         "control": "Control panel",
+                         "circulation_fan_hp": "Circulation blower (HP)",
                          "heating": "Heating source", "operating_temp": "Operating temperature",
                          "oven_type": "Oven type", "baking_time_min": "Baking time (min)",
                          "circulation_blower_hp": "Circulation blower (HP)",
                          "circulation_blower_qty": "Circulation blower (nos)",
                          "circulation_blower_drive": "Circulation blower drive",
-                         "circulation_fan_hp": "Circulation fan (HP)",
                          "no_of_zones": "No. of heating zones", "conveyor": "Conveyor",
                          "door": "Door", "motorized_trolley": "Motorized trolley",
                          "heating_mode": "Heating media", "finish": "Finish",
@@ -483,7 +619,8 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
                          "max_temp_c": "Maximum temperature (deg C)",
                          "panel_thickness_mm": "Insulated panel thickness (mm)",
                          "door_opening_mm": "Door opening (mm)",
-                         "door_type": "Door type"},
+                         "door_type": "Door type",
+                         "job_weight_kg": "Job + jig mass per batch (kg)"},
         # SPEC TEMPLATE — the sections a complete oven spec must cover (the ones
         # the client asks for). Each field resolves to given/calc/reuse or an
         # explicit TBD. Labels for reused fields match field_labels so history
@@ -510,10 +647,35 @@ CATEGORY_PROFILES: dict[str, dict[str, Any]] = {
             {"label": "Operating temperature", "kind": "standard"},
             {"label": "Maximum temperature (deg C)", "kind": "standard"},
             {"label": "Heating source", "kind": "computed"},
-            {"label": "Heating capacity (kcal/hr)", "kind": "computed"},
-            {"label": "Airflow (m3/h)", "kind": "computed"},
-            {"label": "Circulation blower (HP)", "kind": "computed"},
-            {"label": "Circulation blower (nos)", "kind": "computed"},
+            {"label": "Heating capacity (kcal/hr)", "kind": "computed",
+             "needs": "Needs the job + jig mass per batch: the workbook's total "
+                      "is shell + conveyor + job, and the job term is usually "
+                      "the largest. The shell and envelope terms are computed "
+                      "and shown above."},
+            {"label": "Heat load (kW)", "kind": "computed",
+             "needs": "Follows the heating capacity; needs the same job + jig mass."},
+            {"label": "Shell steel mass (kg)", "kind": "computed"},
+            {"label": "Envelope heat loss (kW)", "kind": "computed",
+             "needs": "Needs the insulated panel thickness (50 / 100 / 150 mm "
+                      "are the thicknesses Vitech's heat-load sheet gives a "
+                      "U-value for)."},
+            # THE ONE OVEN GAP NO CLIENT DOCUMENT ANSWERS. Their heat-load
+            # workbook sizes the HEATER and says nothing about air circulation:
+            # there is no air-change rate, no heater-bank temperature rise and
+            # no fan-selection rule anywhere in the six workbooks. Airflow sizes
+            # the circulation blower, so both stay open together, and the row
+            # says which input would close them rather than "needs a
+            # calculation" - the calculation is not the missing part.
+            {"label": "Airflow (m3/h)", "kind": "computed",
+             "needs": "Needs an air-change rate or a heater-bank temperature "
+                      "rise from Vitech - their heat-load workbook sizes the "
+                      "heater and states no air-circulation basis."},
+            {"label": "Circulation blower (HP)", "kind": "computed",
+             "needs": "Follows the recirculation airflow, which needs Vitech's "
+                      "air-change basis."},
+            {"label": "Circulation blower (nos)", "kind": "computed",
+             "needs": "Follows the recirculation airflow, which needs Vitech's "
+                      "air-change basis."},
             {"label": "Baking time (min)", "kind": "computed"},
             {"label": "Conveyor", "kind": "standard"},
             {"label": "Control panel", "kind": "standard"},
