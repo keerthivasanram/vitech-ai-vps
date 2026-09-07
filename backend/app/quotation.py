@@ -10,6 +10,8 @@ of truth) — it re-derives NO engineering value. It layers on:
 Human-in-the-loop: the result is flagged a DRAFT for an engineer to confirm.
 """
 from datetime import date
+
+from . import values
 from typing import Any, Optional
 
 from .pricing import estimate_price
@@ -151,16 +153,64 @@ _COMPONENT_KEYWORDS = [
 ]
 
 
+def _scope_rows(scope: list) -> tuple[list[str], list[str]]:
+    """The 'Scope includes' checklist, and what is NOT yet committed.
+
+    TWO FAULTS THIS CLOSES, both found auditing a real quotation against the
+    enquiry that produced it.
+
+    (a) IT MATCHED ON LABELS AND IGNORED VALUES. Every specification row was
+    flattened into one string and keyword-matched, so a row reading "Dry
+    scrubber: To be determined" put "Wet Scrubber unit" in the scope of supply -
+    a machine of a different TYPE, on a dry booth, that nobody had asked for or
+    priced. "Exhaust blower", "Control panel" and "Blower motor" were committed
+    the same way while their specifications said To be determined. A scope of
+    supply is a contractual list; an item on it whose specification is withheld
+    is a promise the engineering has not been done for.
+
+    (b) THE SCRUBBER TYPE CAME FROM THE KEYWORD, NOT THE ROW. "scrubber" mapped
+    to "Wet Scrubber unit" unconditionally, so the one word that distinguishes
+    two different machines was supplied by the lookup table rather than by the
+    design.
+
+    Returns (includes, to_confirm): a row is committed only when its own value
+    resolved, and a withheld row is listed separately rather than either
+    claimed or silently dropped - dropping it would leave a booth quotation
+    with no blower line at all, which reads as a booth that does not need one.
+    """
+    includes: list[str] = []
+    pending: list[str] = []
+    for row in scope or []:
+        item = str(row.get("item", "") or "")
+        spec = str(row.get("spec", "") or "")
+        text = f"{item} {spec}".lower()
+        resolved = values.is_resolved(spec) if spec else values.is_resolved(item)
+        for kw, label in _COMPONENT_KEYWORDS:
+            # MATCH THE ITEM, NOT THE WHOLE ROW. Searching the specification
+            # text too meant "panels MS 1.6mm / supports MS tubes" - the
+            # CONSTRUCTION row, and resolved - answered the keyword "panel" and
+            # committed a Control panel whose own row said To be determined.
+            # A scope line names a deliverable, so it must come from the line
+            # that names that deliverable.
+            if kw.strip() not in item.lower():
+                continue
+            # The scrubber's TYPE is a property of this design, never of the
+            # keyword that found it.
+            if label == "Wet Scrubber unit":
+                label = ("Dry scrubber unit" if "dry" in text
+                         else "Wet Scrubber unit")
+            target = includes if resolved else pending
+            other = pending if resolved else includes
+            if label not in target and label not in other:
+                target.append(label)
+    if includes:
+        includes.append("Base frame, supports & standard finish")
+    return includes, pending
+
+
 def _scope_includes(scope: list) -> list[str]:
-    """Deterministic 'Scope includes' checklist derived from the engineered scope."""
-    text = " ".join(f"{s.get('item', '')} {s.get('spec', '')}".lower() for s in scope)
-    out: list[str] = []
-    for kw, label in _COMPONENT_KEYWORDS:
-        if kw.strip() in text and label not in out:
-            out.append(label)
-    if out:
-        out.append("Base frame, supports & standard finish")
-    return out
+    """Back-compatible view: the committed lines only."""
+    return _scope_rows(scope)[0]
 
 
 def render_quotation_markdown(quote: dict[str, Any]) -> str:
@@ -207,11 +257,22 @@ def render_quotation_markdown(quote: dict[str, Any]) -> str:
         L.append("")
 
     # ── scope includes / excludes ──
-    inc = _scope_includes(scope)
+    inc, pending = _scope_rows(scope)
     if inc:
         L.append("**Scope of Supply — Includes**")
         for c in inc:
             L.append(f"- ✔ {c}")
+        L.append("")
+    # A WITHHELD ITEM IS NEITHER SUPPLIED NOR ABSENT. It was being committed as
+    # supplied while its specification read "To be determined"; dropping it
+    # instead would leave a booth quotation with no blower line at all, which
+    # reads as a booth that does not need one. It belongs in its own section,
+    # between the two, where a reader can see the price does not yet cover it.
+    if pending:
+        L.append("**Scope of Supply — Not Yet Committed** "
+                 "(specification open; not included in the price above)")
+        for c in pending:
+            L.append(f"- ◻ {c}")
         L.append("")
     L.append("**Scope Exclusions**")
     for e in SCOPE_EXCLUSIONS:

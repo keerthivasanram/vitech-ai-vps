@@ -148,6 +148,31 @@ check("an undimensioned booth falls back instead of failing",
       _cpe("paint_booth", {"air_volume_cmh": 9000}, {"technical_details": []}) is None
       or True)
 
+print("\n== the scope of supply commits only what is engineered ==")
+from app.quotation import _scope_rows                          # noqa: E402
+
+# A row whose specification is withheld must not be committed as supplied, and
+# a DRY scrubber must never be offered as a WET one - both were happening on a
+# real quotation audited against its own enquiry.
+_rows = [{"item": "Dry scrubber", "spec": "To be determined"},
+         {"item": "Exhaust blower", "spec": "To be determined"},
+         {"item": "Control panel", "spec": "To be determined"},
+         {"item": "Construction", "spec": "panels MS 1.6mm / supports MS tubes"},
+         {"item": "Exhaust ducts", "spec": "550 mm dia, GI"}]
+_inc, _pend = _scope_rows(_rows)
+check("a withheld item is never committed as supplied",
+      not any(x in _inc for x in ("Blower", "Control panel")), _inc)
+check("it is listed as not yet committed instead of vanishing",
+      "Blower" in _pend and "Control panel" in _pend, _pend)
+check("a DRY scrubber is never offered as a WET scrubber unit",
+      "Wet Scrubber unit" not in _inc + _pend and "Dry scrubber unit" in _pend,
+      _inc + _pend)
+# "panels MS 1.6mm" is the CONSTRUCTION row and answered the keyword "panel",
+# committing a control panel whose own row said To be determined.
+check("a keyword matches the item that names the deliverable, not any row",
+      "Control panel" not in _inc, _inc)
+check("a resolved item is still committed", "Ducting" in _inc, _inc)
+
 print()
 if _fail:
     print(f"{_fail} PRICING TEST(S) FAILED")
