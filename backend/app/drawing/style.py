@@ -42,8 +42,18 @@ L_TEXT = "text"
 L_TITLE = "title"
 L_HIDDEN = "hidden"
 L_CENTRE = "centre"
+# --- P&ID layers ------------------------------------------------------------
+# A P&ID separates what it draws by what the line MEANS, not by how heavy it is:
+# a reader strips the instrumentation to see the bare process flow, or the
+# utilities to see the main train. Three layers make that a toggle in the studio
+# rather than a second drawing. They are inert on a GA sheet, which emits no
+# shape on any of them (`Canvas.layers_present` filters by shapes present).
+L_PROCESS = "process"
+L_UTILITY = "utility"
+L_INSTRUMENT = "instrument"
 
 LAYER_ORDER = [L_BORDER, L_OUTLINE, L_HIDDEN, L_CENTRE, L_COMPONENT,
+               L_PROCESS, L_UTILITY, L_INSTRUMENT,
                L_DIM, L_TEXT, L_TITLE]
 LAYER_LABELS = {
     L_BORDER: "Sheet border",
@@ -54,11 +64,18 @@ LAYER_LABELS = {
     L_DIM: "Dimensions",
     L_TEXT: "Notes & labels",
     L_TITLE: "Title block",
+    L_PROCESS: "Process lines",
+    L_UTILITY: "Utility & drains",
+    L_INSTRUMENT: "Instrumentation",
 }
 
 # --- dash patterns ----------------------------------------------------------
 DASH_HIDDEN = "2,1.5"
 DASH_CENTRE = "6,1.5,1.5,1.5"
+# An instrument SIGNAL is not a pipe. ISA-5.1 draws it as a broken line so that
+# no reader can mistake a measurement for a process connection; the short dash
+# separates it from every other dash already in use here.
+DASH_SIGNAL = "1.2,1.2"
 
 
 class Pen(NamedTuple):
@@ -124,6 +141,27 @@ DASH_AIRFLOW = "4,1.6"
 AIRFLOW_LINE = Pen(L_COMPONENT, W_LIGHT, DASH_AIRFLOW)
 
 
+# --- P&ID: the line IS the content -----------------------------------------
+# On a GA the heavy pen is the machine's envelope. On a P&ID the machine is a
+# symbol and the PROCESS LINE is the subject of the drawing, so it takes the
+# heavy weight and everything else steps down from it. That inversion is the
+# whole reason these are declared as their own roles rather than reused from
+# the GA set: `PRIMARY_OUTLINE` on a P&ID would make every vessel shout over
+# the lines that connect it.
+PROCESS_LINE = Pen(L_PROCESS, W_HEAVY)
+UTILITY_LINE = Pen(L_UTILITY, W_MEDIUM)
+SIGNAL_LINE = Pen(L_INSTRUMENT, W_FINE, DASH_SIGNAL)
+
+PID_VESSEL = Pen(L_COMPONENT, W_MEDIUM)      # equipment symbol outline
+PID_SYMBOL_DETAIL = Pen(L_COMPONENT, W_LIGHT)
+INSTRUMENT_BUBBLE = Pen(L_INSTRUMENT, W_MEDIUM)
+# A PROPOSED device is drawn broken, because a solid bubble is a claim that the
+# device is in Vitech's scope of supply and nobody has confirmed that yet. The
+# convention has to be visible at a glance, so it uses the hidden dash rather
+# than the signal one, which reads as a signal run.
+INSTRUMENT_PROPOSED = Pen(L_INSTRUMENT, W_MEDIUM, DASH_HIDDEN)
+
+
 # --- typography -------------------------------------------------------------
 # One scale, in sheet mm, replacing nine inline numbers. Sizes are drafting
 # sizes: an engineering sheet is dense and readable, not a web page. The
@@ -137,6 +175,7 @@ T_SMALL = 2.3            # schedule rows, balloon digits
 T_DIM = 2.2              # dimension text
 T_TINY = 1.9             # title-block field captions, dense sub-labels
 T_CAPTION = 2.1          # in-view captions (FLOOR LEVEL, CROSS DRAFT)
+T_TAG = 2.5              # a P&ID equipment tag - the sheet's primary content
 
 # Balloon geometry, so every glyph draws the same circle.
 BALLOON_R = 3.2

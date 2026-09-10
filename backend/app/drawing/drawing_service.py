@@ -15,6 +15,7 @@ from typing import Any, Optional
 from . import isometric as iso_mod
 from . import schematic as schematic_mod
 from . import sheet, states, symbols, views
+from .pid import service as pid_service
 from .primitives import LAYER_LABELS, L_TEXT, Canvas, Text
 from .style import T_BODY, T_CAPTION
 
@@ -228,6 +229,15 @@ def compose(spec: dict, sheet_size: str = sheet.DEFAULT_SIZE,
     same shape list the SVG is emitted from, so an exported drawing can never
     drift from the one on screen.
     """
+    # A P&ID IS A DIFFERENT DOCUMENT, not a variant of this one: no scale, no
+    # projection, no view set. It forks here rather than in the endpoint
+    # because `/api/drawing/export` calls compose() directly for the Canvas the
+    # DXF and PDF exporters consume — forking upstream would produce a diagram
+    # that renders on screen and cannot be exported.
+    if str(drawing_type or "").lower() in pid_service.PID_TYPES:
+        return pid_service.compose(spec, sheet_size, client, ref, drawn_by,
+                                   title_block, revisions, drawing_type)
+
     size = sheet_size if sheet_size in sheet.SHEET_SIZES else sheet.DEFAULT_SIZE
     sw, sh = sheet.SHEET_SIZES[size]
     canvas = Canvas(sw, sh)

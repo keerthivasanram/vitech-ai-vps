@@ -260,6 +260,65 @@ def unresolved_table(canvas, x: float, y: float, w: float, rows: list,
     return y
 
 
+def schedule_table(canvas, x: float, y: float, w: float, heading: str,
+                   columns: list, rows: list, max_y: float) -> float:
+    """A titled, multi-column schedule in the drawing area.
+
+    THE SIBLING OF `unresolved_table`, NOT A REFACTOR OF IT. Both put a table
+    where there is room for one, and the argument in that function's docstring
+    applies here unchanged: a P&ID's line schedule and instrument index are the
+    reader's index to the whole sheet, and the side column is a fixed height
+    already shared with the legend, the item list and the notes. But the two
+    differ in the thing that matters - `unresolved_table` is three fixed columns
+    with fixed widths, and a line schedule is six whose widths depend on the
+    template. Re-expressing the existing function in terms of this one would
+    move the bytes of every schematic GA sheet, which `tests_drawing.py` pins,
+    for a purely cosmetic win. Duplicating ~20 lines is the cheaper trade.
+
+    `columns` is a list of (heading, width_fraction, clip_chars). Fractions are
+    of `w`, so one schedule fits A3 and A2 without a second layout.
+    """
+    if not rows:
+        return y
+    line_h = 4.0
+    xs, cx = [], x + 2.0
+    for _head, frac, _clip in columns:
+        xs.append(cx)
+        cx += w * frac
+
+    canvas.add(Text(x, y - 3.0, f"{heading} ({len(rows)})",
+                    L_TEXT, T_SECTION, "start", bold=True))
+    y += 2.0
+    canvas.add(Line(x, y, x + w, y, *TABLE_RULE))
+    y += line_h
+    for (head, _frac, _clip), hx in zip(columns, xs):
+        canvas.add(Text(hx, y - 1.0, head, L_TEXT, T_TINY, "start", bold=True))
+    canvas.add(Line(x, y, x + w, y, *TABLE_RULE))
+
+    shown = 0
+    for r in rows:
+        if y + line_h > max_y:
+            break
+        y += line_h
+        for (head, _frac, clip), cxx in zip(columns, xs):
+            canvas.add(Text(cxx, y - 1.0,
+                            _fit(str(r.get(head.lower(), "")), clip),
+                            L_TEXT, T_BODY, "start"))
+        shown += 1
+    canvas.add(Line(x, y + 1.4, x + w, y + 1.4, *TABLE_RULE))
+    y += line_h
+
+    # Same rule as the unresolved schedule: a table that silently stopped is
+    # the failure it exists to prevent, so an overflow says so.
+    if shown < len(rows):
+        canvas.add(Text(x + 2.0, y,
+                        f"{len(rows) - shown} further row(s) not shown - "
+                        f"sheet space exhausted", L_TEXT, T_SMALL, "start",
+                        bold=True))
+        y += line_h
+    return y
+
+
 def revision_block(canvas, w: float, h: float, revisions: list) -> None:
     """The revision strip, sitting directly above the title block as on a real
     sheet. Every drawing is issued at SOME revision; stating which one, when and

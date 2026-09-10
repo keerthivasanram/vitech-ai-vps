@@ -25,7 +25,12 @@ _LTYPE = {None: "CONTINUOUS", DASH_HIDDEN: "DASHED", DASH_CENTRE: "CENTER"}
 # ACI colours per layer, so a CAD user sees the same separation the studio's
 # layer toggles give. 7 = black/white (follows the drawing background).
 _ACI = {"border": 8, "outline": 7, "hidden": 8, "centre": 4,
-        "component": 3, "dimension": 1, "text": 7, "title": 7}
+        "component": 3, "dimension": 1, "text": 7, "title": 7,
+        # P&ID. A layer missing here would silently fall back to 7 and every
+        # process line, utility and instrument would arrive in CAD as one
+        # indistinguishable colour - the drawing's whole structure lost on
+        # export while it still looked right on screen.
+        "process": 5, "utility": 2, "instrument": 6}
 
 
 def _tag(code: int, value) -> str:

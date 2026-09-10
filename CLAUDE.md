@@ -42,6 +42,78 @@ wiped) run `bootstrap-pod.sh` FIRST. Development happens in two places:
 > Local sessions append here; the VPS session executes + then checks items off.
 > Cross-reference "KNOWN ISSUES" and "Immediate next steps" below for full detail.
 
+### 2026-09-10 - P&ID ENGINE, PHASES 1-3 PUSHED. Nothing here is due yet - read the gate first.
+
+A client asked for **P&ID** drawings; the platform only did GA. A new engine is built and
+green LOCALLY, and it is deliberately **invisible from `/api/drawing/catalog`**, so **no
+fingerprint has moved and there is nothing for the pod to do until phase 6 lands**. Do NOT
+re-record anything for this yet.
+
+What shipped: `app/engineering/process_model.py`, `app/engineering/train_templates.py`
+(wet_scrubber + paint_booth), `app/drawing/pid/` (8 modules), `backend/tests_pid.py` (92
+checks), a 3-line dispatch at the head of `drawing_service.compose()`, three new layers in
+`style.py`, `sheet.schedule_table()`, three DXF colours. All existing suites unchanged.
+`drawing_type="pid"` already works through `/api/drawing/render`, `/api/drawing/export`
+(SVG/DXF/PDF) and `/api/tools/drawing`, because all three pass `drawing_type` straight
+through - so it can be exercised on the pod today without any change.
+
+**Worth running on the pod now (optional, no risk):** POST `/api/drawing/render` with
+`{"category":"wet_scrubber","drawing_type":"pid","values":{"air_volume_cfm":800,
+"tower_diameter_mm":750,"qty":4}}`, then rasterise and LOOK. Every defect this engine has
+produced so far was invisible in source and obvious on paper - three lines were being drawn
+straight through equipment symbols and only a render showed it. NOTE cairo does not work on
+the Windows box; `pymupdf` on the exported PDF is what was used.
+
+#### WHEN PHASE 6 LANDS (surfacing it in the studio) - then, and only then:
+1. **Re-record `drawing.catalog`.** Adding `"pid"` to `drawing_types` and `pid_capable` per
+   category is the ONLY change that moves a fingerprint. **By hand, never `--record`** -
+   `--record` rewrites the whole baseline and would re-pin `tools.retrieve`, which must stay
+   at 8,960. Prove it stable across two runs first.
+2. **Drawing Agent tool: EXTEND `generate_drawing` with an optional `drawing_type`** rather
+   than adding a `generate_pid` row. Two traps documented in this file apply:
+   - an optional property the model omits is `undefined` in the NodeVM and throws, the agent
+     then sees an empty result and INVENTS an answer. It must be read as
+     `(typeof $drawing_type !== 'undefined' ? $drawing_type : 'ga')`. Generate it with
+     `ops/flowise/add-tool.py`; do not hand-edit.
+   - do NOT mark it `required: true`, or a call omitting it is rejected before it runs.
+   - if a new tool row is added instead, it MUST go in `KEEP_TOOLS` in
+     `drawing-agent-build.py` or the next rebuild silently deletes it (this happened to
+     `generate_bom`).
+3. **Keep `delete data.svg;` and ALSO strip `line_schedule` and `instrument_index`** before
+   the response reaches llama3.1. Give the model ONE narratable field
+   (`drawing_markdown`) - the schedules are already on the sheet and the model will only
+   paraphrase them wrongly. Same structural lesson as `explain_pricing` / `lookup_markdown`.
+4. **Prompt: at most one sentence, folded into the existing drawing bullet IN PLACE**, never
+   a new standalone RULE block. Position and structure destabilise this model, not length
+   (2026-07-30).
+5. `ops/verify-agents.sh`, then `pg-backup.sh` before stopping the pod.
+
+#### ASK VITECH (new knowledge-request items - word them carefully)
+The 2026-07-26 lesson stands: asking for "the company format" produced enquiry forms, not the
+document wanted.
+- **B11 - a P&ID they have actually ISSUED to a customer.** Ask for *"a P&ID you sent a
+  customer"*, not "your P&ID format". Without one, the sheet layout, symbol set and tag
+  scheme are our best guess.
+- **B12 - their tag / numbering convention.** ISA-5.1 defaults are used until they answer,
+  and the sheet says so.
+- **B13 - a LIQUID line sizing basis. The sharpest and most answerable ask in the set.** They
+  have already given a gas transport velocity (18-20 m/s) and a scrubber duct velocity
+  (15 m/s, from their own workbook). There is **no liquid velocity anywhere in the
+  codebase**, so every recirculation, make-up and drain line on a scrubber P&ID prints TBD.
+  One number closes an entire column of the line schedule.
+- **B14 - their standard instrument scope**, and **B15 - setpoints / alarm settings**. Until
+  answered every instrument is drawn broken and listed "TO BE CONFIRMED", which is honest but
+  is not a document anyone can order from.
+- **STATE EXPLICITLY THAT B1 IS NOT A BLOCKER HERE.** Every GA has printed "component
+  positions indicative" since August because Vitech never supplied setting-out rules. A P&ID
+  is not to scale and has no setting-out, so **it is the one drawing type this platform can
+  take to "complete" on the information Vitech have already supplied.** That is the strongest
+  thing to tell the product owner.
+
+**Honest position: PARTIAL is the realistic state for every category today and probably for
+months.** FULL needs B13 and B14. Do not let it look closer than it is.
+
+
 ### ▶ 2026-09-07 (later) — A FILTER'S SIZE WAS BEING SPECIFIED AS THE BOOTH. Reported from a real generated PDF.
 
 The product owner pasted a normal enquiry - *"Size: 5000 L x 3000 W x 4000 H mm ... Open front:
